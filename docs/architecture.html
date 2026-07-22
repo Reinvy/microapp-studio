@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MicroApp Studio Architecture Diagram</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'JetBrains Mono', monospace; background: #020617; min-height: 100vh; padding: 2rem; color: white; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #22d3ee; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container { background: rgba(15, 23, 42, 0.5); border-radius: 1rem; border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto; }
+    svg { width: 100%; min-width: 900px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>MicroApp Studio Architecture</h1>
+      </div>
+      <p class="subtitle">AI-powered local-first micro-app builder — Prompt → Schema → Runner</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1000 720">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrowhead-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee" />
+          </marker>
+          <marker id="arrowhead-emerald" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34d399" />
+          </marker>
+          <marker id="arrowhead-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa" />
+          </marker>
+          <marker id="arrowhead-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Browser Layer (External) -->
+        <rect x="30" y="30" width="160" height="80" rx="8" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="110" y="58" fill="white" font-size="12" font-weight="600" text-anchor="middle">User Browser</text>
+        <text x="110" y="76" fill="#94a3b8" font-size="9" text-anchor="middle">Chrome / Firefox / Safari</text>
+        <text x="110" y="92" fill="#94a3b8" font-size="8" text-anchor="middle">IndexedDB (local-first)</text>
+
+        <!-- Main App Boundary -->
+        <rect x="220" y="20" width="620" height="680" rx="12" fill="rgba(8, 51, 68, 0.08)" stroke="#22d3ee" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="232" y="40" fill="#22d3ee" font-size="10" font-weight="600">MicroApp Studio — Next.js Application</text>
+
+        <!-- FRONTEND LAYER -->
+        <rect x="240" y="55" width="580" height="160" rx="8" fill="rgba(8, 51, 68, 0.25)" stroke="#22d3ee" stroke-width="1.2"/>
+        <text x="250" y="73" fill="#22d3ee" font-size="9" font-weight="600">UI LAYER (React / Tailwind / shadcn)</text>
+
+        <!-- Dashboard Gallery -->
+        <rect x="260" y="85" width="120" height="50" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.2"/>
+        <text x="320" y="107" fill="white" font-size="10" font-weight="600" text-anchor="middle">Dashboard</text>
+        <text x="320" y="122" fill="#94a3b8" font-size="8" text-anchor="middle">Gallery / AppCard</text>
+
+        <!-- Builder -->
+        <rect x="400" y="85" width="120" height="50" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.2"/>
+        <text x="460" y="107" fill="white" font-size="10" font-weight="600" text-anchor="middle">Builder</text>
+        <text x="460" y="122" fill="#94a3b8" font-size="8" text-anchor="middle">Canvas / Palette / Props</text>
+
+        <!-- Runner -->
+        <rect x="540" y="85" width="120" height="50" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.2"/>
+        <text x="600" y="107" fill="white" font-size="10" font-weight="600" text-anchor="middle">App Runner</text>
+        <text x="600" y="122" fill="#94a3b8" font-size="8" text-anchor="middle">RenderField / Output</text>
+
+        <!-- Dev Playground -->
+        <rect x="680" y="85" width="120" height="50" rx="6" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1.2"/>
+        <text x="740" y="107" fill="white" font-size="10" font-weight="600" text-anchor="middle">Dev Playground</text>
+        <text x="740" y="122" fill="#94a3b8" font-size="8" text-anchor="middle">Monaco Editor</text>
+
+        <!-- UI Components -->
+        <text x="250" y="162" fill="#94a3b8" font-size="8">UI Components: Button, Card, Dialog, Tabs, Select, Badge, Input (shadcn/ui)</text>
+        <text x="250" y="178" fill="#94a3b8" font-size="8">Icons: lucide-react  •  DnD: @dnd-kit  •  Styling: Tailwind CSS v4</text>
+        <text x="250" y="194" fill="#94a3b8" font-size="8">State: Zustand (useAppStore)  •  Local-First: Dexie.js (IndexedDB)</text>
+
+        <!-- Arrows: Dashboard ↔ Builder ↔ Runner -->
+        <line x1="380" y1="110" x2="398" y2="110" stroke="#22d3ee" stroke-width="1.2" marker-end="url(#arrowhead-cyan)"/>
+        <line x1="520" y1="110" x2="538" y2="110" stroke="#22d3ee" stroke-width="1.2" marker-end="url(#arrowhead-cyan)"/>
+        <line x1="660" y1="110" x2="678" y2="110" stroke="#22d3ee" stroke-width="1.2" marker-end="url(#arrowhead-cyan)"/>
+
+        <!-- ENGINE LAYER -->
+        <rect x="240" y="240" width="580" height="160" rx="8" fill="rgba(6, 78, 59, 0.25)" stroke="#34d399" stroke-width="1.2"/>
+        <text x="250" y="258" fill="#34d399" font-size="9" font-weight="600">ENGINE LAYER (In-Browser Execution)</text>
+
+        <!-- Prompt Parser -->
+        <rect x="260" y="275" width="160" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.2"/>
+        <text x="340" y="297" fill="white" font-size="10" font-weight="600" text-anchor="middle">Prompt Parser</text>
+        <text x="340" y="312" fill="#94a3b8" font-size="8" text-anchor="middle">promptToSchema.ts</text>
+
+        <!-- Schema Engine -->
+        <rect x="440" y="275" width="160" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.2"/>
+        <text x="520" y="297" fill="white" font-size="10" font-weight="600" text-anchor="middle">Schema Engine</text>
+        <text x="520" y="312" fill="#94a3b8" font-size="8" text-anchor="middle">schemaEngine.ts</text>
+
+        <!-- Node Evaluator -->
+        <rect x="620" y="275" width="180" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.2"/>
+        <text x="710" y="297" fill="white" font-size="10" font-weight="600" text-anchor="middle">Node Evaluator</text>
+        <text x="710" y="312" fill="#94a3b8" font-size="8" text-anchor="middle">evaluator.ts (sandbox)</text>
+
+        <!-- Additional Engine info -->
+        <text x="250" y="355" fill="#94a3b8" font-size="8">Pattern Recognition: calculator, form, todo, survey, budget, counter, validator</text>
+        <text x="250" y="371" fill="#94a3b8" font-size="8">Validation: required, min/max, pattern regex, minLength/maxLength, options, step</text>
+        <text x="250" y="387" fill="#94a3b8" font-size="8">Execution: new Function() sandbox • sequential node execution • async support</text>
+
+        <!-- Arrows: Engine components -->
+        <line x1="420" y1="300" x2="438" y2="300" stroke="#34d399" stroke-width="1.2" marker-end="url(#arrowhead-emerald)"/>
+        <line x1="600" y1="300" x2="618" y2="300" stroke="#34d399" stroke-width="1.2" marker-end="url(#arrowhead-emerald)"/>
+
+        <!-- Arrows: UI → Engine -->
+        <line x1="340" y1="220" x2="340" y2="240" stroke="#34d399" stroke-width="1.2" marker-end="url(#arrowhead-emerald)"/>
+        <text x="325" y="233" fill="#94a3b8" font-size="8">prompt</text>
+
+        <line x1="460" y1="220" x2="460" y2="240" stroke="#34d399" stroke-width="1.2" marker-end="url(#arrowhead-emerald)"/>
+        <text x="445" y="233" fill="#94a3b8" font-size="8">schema</text>
+
+        <line x1="600" y1="220" x2="600" y2="240" stroke="#34d399" stroke-width="1.2" marker-end="url(#arrowhead-emerald)"/>
+        <text x="585" y="233" fill="#94a3b8" font-size="8">values</text>
+
+        <!-- STORAGE LAYER -->
+        <rect x="240" y="430" width="580" height="120" rx="8" fill="rgba(76, 29, 149, 0.25)" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="250" y="448" fill="#a78bfa" font-size="9" font-weight="600">STORAGE LAYER (Client-Side)</text>
+
+        <!-- IndexedDB -->
+        <rect x="380" y="465" width="200" height="70" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.2"/>
+        <text x="480" y="490" fill="white" font-size="11" font-weight="600" text-anchor="middle">IndexedDB</text>
+        <text x="480" y="508" fill="#94a3b8" font-size="9" text-anchor="middle">Dexie.js v4 • Apps Table</text>
+        <text x="480" y="522" fill="#94a3b8" font-size="8" text-anchor="middle">CRUD via microAppRepo.ts</text>
+
+        <!-- Arrows: Engine → DB -->
+        <line x1="340" y1="400" x2="340" y2="435" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#arrowhead-violet)"/>
+        <line x1="480" y1="400" x2="480" y2="435" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#arrowhead-violet)"/>
+        <text x="410" y="420" fill="#94a3b8" font-size="8">read / write schemas</text>
+
+        <!-- Arrows: UI → DB -->
+        <line x1="320" y1="195" x2="320" y2="435" stroke="#a78bfa" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrowhead-violet)"/>
+        <text x="285" y="320" fill="#a78bfa" font-size="8" transform="rotate(-90 285 320)">load / save</text>
+
+        <!-- DEPLOYMENT SECTION -->
+        <rect x="240" y="580" width="580" height="100" rx="8" fill="rgba(120, 53, 15, 0.2)" stroke="#fbbf24" stroke-width="1.2"/>
+        <text x="250" y="598" fill="#fbbf24" font-size="9" font-weight="600">DEPLOYMENT</text>
+
+        <rect x="380" y="610" width="200" height="55" rx="6" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1.2"/>
+        <text x="480" y="632" fill="white" font-size="11" font-weight="600" text-anchor="middle">Vercel</text>
+        <text x="480" y="650" fill="#94a3b8" font-size="9" text-anchor="middle">Next.js • Edge Network • SSL</text>
+
+        <line x1="480" y1="565" x2="480" y2="580" stroke="#fbbf24" stroke-width="1.2" marker-end="url(#arrowhead-amber)"/>
+        <text x="495" y="575" fill="#94a3b8" font-size="8">deploy</text>
+
+        <!-- LEGEND -->
+        <text x="720" y="65" fill="white" font-size="10" font-weight="600">Legend</text>
+
+        <rect x="720" y="76" width="14" height="8" rx="2" fill="rgba(8, 51, 68, 0.4)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="740" y="83" fill="#94a3b8" font-size="7">UI Layer</text>
+
+        <rect x="720" y="90" width="14" height="8" rx="2" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1"/>
+        <text x="740" y="97" fill="#94a3b8" font-size="7">Engine</text>
+
+        <rect x="720" y="104" width="14" height="8" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="740" y="111" fill="#94a3b8" font-size="7">Storage</text>
+
+        <rect x="720" y="118" width="14" height="8" rx="2" fill="rgba(120, 53, 15, 0.3)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="740" y="125" fill="#94a3b8" font-size="7">Deploy</text>
+
+        <line x1="720" y1="136" x2="734" y2="136" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="740" y="139" fill="#94a3b8" font-size="7">DnD Flow</text>
+
+        <line x1="720" y1="150" x2="734" y2="150" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="740" y="153" fill="#94a3b8" font-size="7">Data Flow</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot cyan"></div>
+          <h3>Frontend Architecture</h3>
+        </div>
+        <ul>
+          <li>• Next.js 16 App Router + TypeScript</li>
+          <li>• Tailwind v4 + shadcn/ui primitives</li>
+          <li>• @dnd-kit for drag-and-drop builder</li>
+          <li>• Monaco Editor for custom JS nodes</li>
+          <li>• Zustand state management</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>Engine & Storage</h3>
+        </div>
+        <ul>
+          <li>• Prompt-to-Schema pattern recognition</li>
+          <li>• Schema engine with field validation</li>
+          <li>• Sandboxed JS evaluator (new Function)</li>
+          <li>• IndexedDB via Dexie.js (local-first)</li>
+          <li>• Zero backend dependencies</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot amber"></div>
+          <h3>Key Features</h3>
+        </div>
+        <ul>
+          <li>• AI Prompt → Micro App in seconds</li>
+          <li>• Visual drag-and-drop builder</li>
+          <li>• 9 field types: text, number, select, etc.</li>
+          <li>• Custom JavaScript logic nodes</li>
+          <li>• Fully local-first (no server needed)</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">
+      MicroApp Studio • Built with Next.js + TypeScript + Tailwind CSS • Deployed on Vercel
+    </p>
+  </div>
+</body>
+</html>
