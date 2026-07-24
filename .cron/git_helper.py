@@ -43,7 +43,7 @@ def commit_and_push(branch_name, message):
         # Nothing to commit
         return {"status": "no_changes", "message": "Nothing to commit"}
     token = load_token()
-    remote = f"https://token:{token}@github.com/Reinvy/microapp-studio.git"
+    remote = f"https://{token}@github.com/Reinvy/microapp-studio.git"
     push = run(["git", "push", "-u", remote, branch_name])
     if push.returncode != 0:
         return {"status": "push_failed", "message": push.stderr}
