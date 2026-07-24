@@ -6,15 +6,22 @@ Usage: python3 .cron/git_helper.py <command> [args]
 """
 import json, os, subprocess, sys, re
 
-TOKEN_FILE = os.path.expanduser("/opt/data/workspace/microapp-studio/.github_token")
+# Look for token in home dir first (safe), then project dir (legacy fallback)
+TOKEN_PATHS = [
+    os.path.expanduser("~/.cron_github_token"),
+    os.path.expanduser("/opt/data/workspace/microapp-studio/.github_token"),
+]
 PROJECT_DIR = os.path.expanduser("/opt/data/workspace/microapp-studio")
 
 def load_token():
-    if not os.path.exists(TOKEN_FILE):
-        print("ERROR: No GitHub token found")
-        sys.exit(1)
-    with open(TOKEN_FILE) as f:
-        return f.read().strip()
+    for path in TOKEN_PATHS:
+        if os.path.exists(path):
+            with open(path) as f:
+                token = f.read().strip()
+                if token:
+                    return token
+    print("ERROR: No GitHub token found. Check ~/.cron_github_token or .github_token")
+    return ""
 
 def run(cmd, capture=True):
     result = subprocess.run(cmd, cwd=PROJECT_DIR, capture_output=capture, text=True, timeout=60)
