@@ -167,3 +167,106 @@ export function validateCode(code: string): string | null {
     return err instanceof Error ? err.message : 'Invalid JavaScript code';
   }
 }
+
+/**
+ * Result of a single node execution within a pipeline.
+ */
+export interface PipelineStepResult {
+  nodeId: string;
+  nodeName: string;
+  inputs: Record<string, unknown>;
+  output: unknown;
+  error: string | null;
+}
+
+/**
+ * Execute a sequence of LogicNodes as a pipeline, passing each node's
+ * output as input to the next node in the chain.
+ *
+ * Each node receives all previous outputs merged into its context.
+ * If any node fails, the pipeline stops and returns results up to
+ * the failing node with the error.
+ *
+ * @example
+ * ```ts
+ * const nodes = [
+ *   { id: 'double', name: 'Double', code: 'return x * 2', inputs: ['x'], outputs: ['result'], version: 1 },
+ *   { id: 'add10', name: 'Add 10', code: 'return result + 10', inputs: ['result'], outputs: ['final'], version: 1 },
+ * ];
+ * const result = await runPipeline(nodes, { x: 5 });
+ * // => { success: true, steps: [ ... ], finalOutput: 20 }
+ * ```
+ */
+export async function runPipeline(
+  nodes: LogicNode[],
+  initialInputs: Record<string, unknown>
+): Promise<{
+  success: boolean;
+  steps: PipelineStepResult[];
+  finalOutput: unknown;
+}> {
+  const steps: PipelineStepResult[] = [];
+  let context: Record<string, unknown> = { ...initialInputs };
+
+  for (const node of nodes) {
+    // Prepare inputs for this node from the accumulated context
+    const nodeInputs: Record<string, unknown> = {};
+    for (const inputName of node.inputs) {
+      nodeInputs[inputName] = context[inputName];
+    }
+
+    // Check for missing inputs
+    const missingInputs = node.inputs.filter((name) => !(name in nodeInputs));
+    if (missingInputs.length > 0) {
+      const stepResult: PipelineStepResult = {
+        nodeId: node.id,
+        nodeName: node.name,
+        inputs: nodeInputs,
+        output: undefined,
+        error: `Missing required inputs: ${missingInputs.join(', ')}`,
+      };
+      steps.push(stepResult);
+      return {
+        success: false,
+        steps,
+        finalOutput: undefined,
+      };
+    }
+
+    // Execute the node
+    const result = await evaluateNodeAsync(node, nodeInputs);
+
+    const stepResult: PipelineStepResult = {
+      nodeId: node.id,
+      nodeName: node.name,
+      inputs: nodeInputs,
+      output: result.result,
+      error: result.error,
+    };
+    steps.push(stepResult);
+
+    if (result.error !== null) {
+      return {
+        success: false,
+        steps,
+        finalOutput: undefined,
+      };
+    }
+
+    // Merge output into context for the next node
+    // If the node declares outputs, use those keys; otherwise inject 'result'
+    if (node.outputs && node.outputs.length > 0) {
+      for (const outputKey of node.outputs) {
+        context[outputKey] = result.result;
+      }
+    } else {
+      context.result = result.result;
+    }
+  }
+
+  return {
+    success: true,
+    steps,
+    finalOutput: context.finalOutput !== undefined ? context.finalOutput : context.result,
+  };
+}

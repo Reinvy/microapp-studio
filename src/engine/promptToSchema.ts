@@ -99,6 +99,15 @@ const PATTERNS: PatternDef[] = [
       fields: buildValidatorFields(prompt),
     }),
   },
+  {
+    // Journal / diary / log / habit tracker
+    keywords: ['journal', 'diary', 'log', 'habit', 'tracker', 'daily', 'mood', 'reflection', 'entry', 'gratitude'],
+    build: (prompt) => ({
+      name: guessName(prompt, 'Journal'),
+      desc: guessDescription(prompt, 'A personal journal or daily log'),
+      fields: buildJournalFields(prompt),
+    }),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -740,6 +749,114 @@ function buildValidatorFields(prompt: string): FieldSchema[] {
       required: false,
     });
   }
+
+  return fields;
+}
+
+function buildJournalFields(prompt: string): FieldSchema[] {
+  const fields: FieldSchema[] = [];
+
+  // Core journal entry fields
+  if (hasSomeKeywords(prompt, ['mood', 'feeling', 'emotion', 'happy', 'sad'])) {
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Mood',
+      options: ['😊 Happy', '😐 Neutral', '😢 Sad', '😡 Angry', '😴 Tired', '🤗 Grateful'],
+      required: true,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['gratitude', 'thankful', 'grateful', 'blessing'])) {
+    fields.push({
+      id: generateId(),
+      type: 'textarea',
+      label: 'Gratitude Entry',
+      placeholder: 'What are you grateful for today?',
+      required: true,
+    });
+  }
+
+  fields.push({
+    id: generateId(),
+    type: 'textarea',
+    label: 'Journal Entry',
+    placeholder: 'Write your thoughts...',
+    required: true,
+  });
+
+  if (hasSomeKeywords(prompt, ['habit', 'tracker', 'daily'])) {
+    fields.push({
+      id: generateId(),
+      type: 'checkbox',
+      label: 'Did you complete your habit today?',
+      required: false,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['rate', 'rating', 'score', 'scale'])) {
+    fields.push({
+      id: generateId(),
+      type: 'number',
+      label: 'Daily Rating',
+      min: 1,
+      max: 10,
+      step: 1,
+      defaultValue: 5,
+      required: false,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['energy', 'productivity', 'focus'])) {
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Energy Level',
+      options: ['💪 High', '👍 Moderate', '👎 Low', '🛌 Exhausted'],
+      required: false,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['sleep', 'rest', 'hours'])) {
+    fields.push({
+      id: generateId(),
+      type: 'number',
+      label: 'Sleep (hours)',
+      min: 0,
+      max: 24,
+      step: 0.5,
+      defaultValue: 7,
+      required: false,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['exercise', 'workout', 'fitness', 'run', 'walk'])) {
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Exercise Today',
+      options: ['None', 'Light (15-30 min)', 'Moderate (30-60 min)', 'Intense (60+ min)'],
+      required: false,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['tag', 'label', 'category', 'topic'])) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Tags',
+      placeholder: 'e.g., personal, work, health',
+      required: false,
+    });
+  }
+
+  // Always include a date field for journal entries
+  fields.push({
+    id: generateId(),
+    type: 'date',
+    label: 'Date',
+    required: true,
+  });
 
   return fields;
 }
