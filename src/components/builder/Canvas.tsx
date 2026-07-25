@@ -92,6 +92,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
         {...listeners}
         className="flex items-center justify-center h-8 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent cursor-grab active:cursor-grabbing transition-colors shrink-0"
         onClick={(e) => e.stopPropagation()}
+        aria-label={`Drag to reorder ${field.label}`}
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -128,6 +129,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
           onRemove(field.id);
         }}
         className="flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
+        aria-label={`Delete ${field.label}`}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>

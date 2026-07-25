@@ -267,10 +267,11 @@ export default function DashboardPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                    <label htmlFor="empty-app-prompt" className="text-sm font-medium">
                       Prompt <span className="text-muted-foreground font-normal">(optional)</span>
                     </label>
                     <textarea
+                      id="empty-app-prompt"
                       className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                       placeholder="e.g. A calculator that adds, subtracts, multiplies, and divides two numbers"
                       value={newAppPrompt}
