@@ -136,6 +136,7 @@ export default function DashboardPage() {
                 size="icon"
                 className="h-9 w-9 text-muted-foreground"
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                aria-label={viewMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
               >
                 {viewMode === 'grid' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
               </Button>
@@ -155,8 +156,9 @@ export default function DashboardPage() {
                   </DialogHeader>
                   <div className="space-y-4 py-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">App Name</label>
+                      <label htmlFor="dialog-app-name" className="text-sm font-medium">App Name</label>
                       <Input
+                        id="dialog-app-name"
                         placeholder="e.g. BMI Calculator"
                         value={newAppName}
                         onChange={(e) => setNewAppName(e.target.value)}
@@ -164,10 +166,11 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">
+                      <label htmlFor="dialog-app-prompt" className="text-sm font-medium">
                         Prompt <span className="text-muted-foreground font-normal">(optional)</span>
                       </label>
                       <textarea
+                        id="dialog-app-prompt"
                         className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
                         placeholder="e.g. A calculator that adds, subtracts, multiplies, and divides two numbers"
                         value={newAppPrompt}
@@ -208,6 +211,7 @@ export default function DashboardPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search apps..."
+            aria-label="Search apps"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-10 bg-muted/50 border-muted focus-visible:bg-background"
@@ -253,8 +257,9 @@ export default function DashboardPage() {
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">App Name</label>
+                    <label htmlFor="empty-app-name" className="text-sm font-medium">App Name</label>
                     <Input
+                      id="empty-app-name"
                       placeholder="e.g. BMI Calculator"
                       value={newAppName}
                       onChange={(e) => setNewAppName(e.target.value)}

@@ -111,9 +111,8 @@ body {
 
 /* Focus ring */
 :focus-visible {
-  outline: none;
-  ring: 2px solid var(--ring);
-  ring-offset: 2px;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* Animations */

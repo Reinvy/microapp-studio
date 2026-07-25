@@ -79,6 +79,7 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-foreground"
               onClick={() => router.push(`/builder?id=${app.id}`)}
+              aria-label={`Edit ${app.name}`}
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
@@ -87,6 +88,7 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(app.id)}
+              aria-label={`Delete ${app.name}`}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
