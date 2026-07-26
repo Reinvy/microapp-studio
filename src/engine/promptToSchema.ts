@@ -108,6 +108,15 @@ const PATTERNS: PatternDef[] = [
       fields: buildJournalFields(prompt),
     }),
   },
+  {
+    // Generator / converter / transformer
+    keywords: ['generator', 'generate', 'converter', 'convert', 'transformer', 'transform', 'maker', 'creator', 'builder', 'produce', 'create', 'password generator', 'qr code', 'color palette', 'unit converter', 'text transform'],
+    build: (prompt) => ({
+      name: guessName(prompt, 'Generator'),
+      desc: guessDescription(prompt, 'A generator or converter tool'),
+      fields: buildGeneratorFields(prompt),
+    }),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -857,6 +866,120 @@ function buildJournalFields(prompt: string): FieldSchema[] {
     label: 'Date',
     required: true,
   });
+
+  return fields;
+}
+
+function buildGeneratorFields(prompt: string): FieldSchema[] {
+  const fields: FieldSchema[] = [];
+
+  // Detect generator / converter subtype
+  if (hasSomeKeywords(prompt, ['qr', 'barcode', 'code', 'scan'])) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Content',
+      placeholder: 'Enter text or URL for QR code',
+      required: true,
+    });
+  } else if (hasSomeKeywords(prompt, ['password', 'pass', 'secure', 'random'])) {
+    fields.push({
+      id: generateId(),
+      type: 'number',
+      label: 'Length',
+      defaultValue: 16,
+      min: 4,
+      max: 128,
+      step: 1,
+      required: true,
+    });
+    fields.push({
+      id: generateId(),
+      type: 'checkbox',
+      label: 'Include Uppercase',
+      defaultValue: true,
+      required: false,
+    });
+    fields.push({
+      id: generateId(),
+      type: 'checkbox',
+      label: 'Include Numbers',
+      defaultValue: true,
+      required: false,
+    });
+    fields.push({
+      id: generateId(),
+      type: 'checkbox',
+      label: 'Include Symbols',
+      defaultValue: false,
+      required: false,
+    });
+  } else if (hasSomeKeywords(prompt, ['color', 'colour', 'hex', 'rgb', 'palette', 'theme'])) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Base Color',
+      placeholder: '#ff6b6b or a color name',
+      required: true,
+    });
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Palette Type',
+      options: ['Complementary', 'Analogous', 'Triadic', 'Monochromatic', 'Shades'],
+      required: true,
+    });
+  } else if (hasSomeKeywords(prompt, ['unit', 'measurement', 'metric', 'imperial', 'length', 'weight', 'temperature', 'currency'])) {
+    fields.push({
+      id: generateId(),
+      type: 'number',
+      label: 'Value',
+      placeholder: 'Enter value to convert',
+      required: true,
+      step: 0.01,
+    });
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'From Unit',
+      placeholder: 'e.g., meters, kg, USD, °C',
+      required: true,
+    });
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'To Unit',
+      placeholder: 'e.g., feet, lbs, EUR, °F',
+      required: true,
+    });
+  } else {
+    // Generic generator / transformer fields
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Input Value',
+      placeholder: 'Enter input to transform',
+      required: true,
+    });
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Output Format',
+      options: ['Plain Text', 'JSON', 'Base64', 'Uppercase', 'Lowercase', 'Reversed'],
+      required: true,
+    });
+  }
+
+  // Ensure at least 1 field for QR/pre-filled cases
+  if (fields.length === 0) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Input Value',
+      placeholder: 'Enter input to transform',
+      required: true,
+    });
+  }
 
   return fields;
 }

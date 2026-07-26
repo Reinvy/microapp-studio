@@ -7,6 +7,7 @@
  */
 
 import { LogicNode } from '@/types/schema';
+import { generateId } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -268,5 +269,115 @@ export async function runPipeline(
     success: true,
     steps,
     finalOutput: context.finalOutput !== undefined ? context.finalOutput : context.result,
+  };
+}
+
+/**
+ * Format a value for human-readable display.
+ * Handles numbers, booleans, dates, strings, and null/undefined.
+ *
+ * @example
+ * ```ts
+ * formatValue(1234.5678, { decimals: 2 })        // "1,234.57"
+ * formatValue(true)                                // "Yes"
+ * formatValue(new Date('2024-01-15'), { locale: 'en-US' }) // "1/15/2024"
+ * formatValue(null)                                // ""
+ * ```
+ */
+export function formatValue(
+  value: unknown,
+  options?: {
+    decimals?: number;
+    locale?: string;
+    prefix?: string;
+    suffix?: string;
+  }
+): string {
+  const { decimals = 2, locale = 'en-US', prefix = '', suffix = '' } =
+    options || {};
+
+  if (value === null || value === undefined) return `${prefix}${suffix}`;
+
+  if (typeof value === 'number') {
+    return `${prefix}${value.toLocaleString(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })}${suffix}`;
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? `${prefix}Yes${suffix}` : `${prefix}No${suffix}`;
+  }
+
+  if (value instanceof Date) {
+    return `${prefix}${value.toLocaleDateString(locale)}${suffix}`;
+  }
+
+  if (typeof value === 'string' && !isNaN(Date.parse(value))) {
+    return `${prefix}${new Date(value).toLocaleDateString(locale)}${suffix}`;
+  }
+
+  return `${prefix}${String(value)}${suffix}`;
+}
+
+/**
+ * Pre-configured string operation node templates for the visual builder.
+ * Creates a LogicNode that performs a common string transformation.
+ *
+ * Supported operations: 'uppercase', 'lowercase', 'trim', 'reverse',
+ * 'length', 'concat' (requires 'other' input).
+ *
+ * @example
+ * ```ts
+ * const node = createStringOpNode('uppercase');
+ * // => LogicNode with code: `return typeof input === "string" ? input.toUpperCase() : ...`
+ * ```
+ */
+export function createStringOpNode(
+  operation: 'uppercase' | 'lowercase' | 'trim' | 'reverse' | 'length' | 'concat',
+  options?: { separator?: string }
+): LogicNode {
+  const codes: Record<string, { code: string; inputs: string[]; outputs: string[] }> = {
+    uppercase: {
+      code: 'return typeof input === "string" ? input.toUpperCase() : String(input).toUpperCase()',
+      inputs: ['input'],
+      outputs: ['result'],
+    },
+    lowercase: {
+      code: 'return typeof input === "string" ? input.toLowerCase() : String(input).toLowerCase()',
+      inputs: ['input'],
+      outputs: ['result'],
+    },
+    trim: {
+      code: 'return typeof input === "string" ? input.trim() : String(input).trim()',
+      inputs: ['input'],
+      outputs: ['result'],
+    },
+    reverse: {
+      code: 'return typeof input === "string" ? [...input].reverse().join("") : String(input).split("").reverse().join("")',
+      inputs: ['input'],
+      outputs: ['result'],
+    },
+    length: {
+      code: 'return typeof input === "string" ? input.length : String(input).length',
+      inputs: ['input'],
+      outputs: ['result'],
+    },
+    concat: {
+      code: `return [input, other].filter(x => x != null).join("${options?.separator || ''}")`,
+      inputs: ['input', 'other'],
+      outputs: ['result'],
+    },
+  };
+
+  const op = codes[operation] || codes.uppercase;
+
+  return {
+    id: generateId(),
+    name: `${operation.charAt(0).toUpperCase() + operation.slice(1)} String`,
+    code: op.code,
+    inputs: op.inputs,
+    outputs: op.outputs,
+    version: 1,
   };
 }
