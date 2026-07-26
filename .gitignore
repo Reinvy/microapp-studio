@@ -42,3 +42,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright E2E test artifacts
+e2e-results.json
+e2e-summary.md
+e2e-report/
+e2e-output/
+test-results/
