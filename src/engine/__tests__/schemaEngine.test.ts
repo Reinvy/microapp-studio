@@ -228,6 +228,60 @@ describe('schemaEngine — validateField', () => {
       expect(validateField(field, false)).toBeNull();
     });
   });
+
+  describe('Slider / number type validation', () => {
+    it('validates slider as number type', () => {
+      const field = makeField({
+        type: 'slider',
+        min: 0,
+        max: 100,
+        step: 10,
+      });
+      expect(validateField(field, 50)).toBeNull();
+      expect(validateField(field, 55)).toBe(
+        'Test Field must be in increments of 10'
+      );
+    });
+  });
+
+  describe('Textarea type validation', () => {
+    it('validates textarea with minLength constraint', () => {
+      const field = makeField({
+        type: 'textarea',
+        validation: { minLength: 10, message: 'Too short' },
+      });
+      expect(validateField(field, 'short')).toBe('Too short');
+      expect(validateField(field, 'long enough text')).toBeNull();
+    });
+
+    it('validates textarea with pattern constraint', () => {
+      const field = makeField({
+        type: 'textarea',
+        validation: {
+          pattern: '^[A-Z].*',
+          message: 'Must start with uppercase',
+        },
+      });
+      expect(validateField(field, 'lowercase start')).toBe(
+        'Must start with uppercase'
+      );
+      expect(validateField(field, 'Uppercase start')).toBeNull();
+    });
+  });
+
+  describe('Toggle type validation', () => {
+    it('validates toggle type like checkbox', () => {
+      const field = makeField({
+        type: 'toggle',
+        required: true,
+        label: 'Enable feature',
+      });
+      expect(validateField(field, true)).toBeNull();
+      expect(validateField(field, false)).toBe(
+        'Enable feature must be checked'
+      );
+    });
+  });
 });
 
 describe('schemaEngine — executeSchema', () => {
