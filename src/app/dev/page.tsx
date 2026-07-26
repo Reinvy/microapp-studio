@@ -133,6 +133,7 @@ export default function DevPage() {
               size="icon"
               className="h-8 w-8 text-muted-foreground"
               onClick={() => router.push('/')}
+              aria-label="Back to dashboard"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -399,6 +400,7 @@ export default function DevPage() {
                               setInputNames(node.inputs);
                               setOutputNames(node.outputs);
                             }}
+                            aria-label={`Load ${node.name} into editor`}
                           >
                             <Code2 className="h-3 w-3" />
                           </Button>
@@ -407,6 +409,7 @@ export default function DevPage() {
                             size="icon"
                             className="h-6 w-6 text-muted-foreground hover:text-destructive"
                             onClick={() => handleDeleteNode(node.id)}
+                            aria-label={`Delete ${node.name}`}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>

@@ -68,6 +68,7 @@ export default function Toolbar() {
             size="icon"
             className="h-8 w-8 shrink-0 text-muted-foreground"
             onClick={() => router.push('/')}
+            aria-label="Back to dashboard"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
