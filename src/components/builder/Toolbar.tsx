@@ -113,6 +113,7 @@ export default function Toolbar() {
             size="icon"
             className="h-8 w-8 text-muted-foreground"
             disabled
+            aria-label="Undo (not available yet)"
           >
             <Undo2 className="h-4 w-4" />
           </Button>
@@ -121,6 +122,7 @@ export default function Toolbar() {
             size="icon"
             className="h-8 w-8 text-muted-foreground"
             disabled
+            aria-label="Redo (not available yet)"
           >
             <Redo2 className="h-4 w-4" />
           </Button>
