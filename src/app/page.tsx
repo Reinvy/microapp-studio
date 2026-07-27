@@ -240,67 +240,11 @@ export default function DashboardPage() {
               Create your first micro-app with a simple prompt — we&apos;ll generate the fields for
               you.
             </p>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="lg" className="gap-2">
-                  <Plus className="h-5 w-5" />
-                  Create Your First App
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Create New MicroApp</DialogTitle>
-                  <DialogDescription>
-                    Give your app a name and optionally describe what it should do.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <label htmlFor="empty-app-name" className="text-sm font-medium">App Name</label>
-                    <Input
-                      id="empty-app-name"
-                      placeholder="e.g. BMI Calculator"
-                      value={newAppName}
-                      onChange={(e) => setNewAppName(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="empty-app-prompt" className="text-sm font-medium">
-                      Prompt <span className="text-muted-foreground font-normal">(optional)</span>
-                    </label>
-                    <textarea
-                      id="empty-app-prompt"
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-                      placeholder="e.g. A calculator that adds, subtracts, multiplies, and divides two numbers"
-                      value={newAppPrompt}
-                      onChange={(e) => setNewAppPrompt(e.target.value)}
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Describe what your app does and we&apos;ll auto-generate the fields.
-                    </p>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleCreateApp}
-                    disabled={!newAppName.trim() || creating}
-                    className="gap-1.5"
-                  >
-                    {creating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                    {creating ? 'Creating...' : 'Create & Open'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button size="lg" className="gap-2" onClick={() => setDialogOpen(true)}>
+              <Plus className="h-5 w-5" />
+              Create Your First App
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
         )}
 
