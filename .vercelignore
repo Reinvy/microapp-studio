@@ -1,0 +1,6 @@
+browsers/
+node_modules/
+.next/
+.cron/
+e2e/
+.cache/
