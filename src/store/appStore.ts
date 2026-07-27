@@ -28,6 +28,7 @@ interface AppState {
   // Builder actions
   addField: (field: Partial<FieldSchema>) => void;
   updateField: (fieldId: string, updates: Partial<FieldSchema>) => void;
+  updateFieldStyle: (fieldId: string, style: Partial<FieldSchema>) => void;
   removeField: (fieldId: string) => void;
   reorderFields: (fromIndex: number, toIndex: number) => void;
   updateLayout: (layout: FieldLayout[]) => void;
@@ -101,6 +102,26 @@ export const useAppStore = create<AppState>((set) => ({
           ...state.activeApp,
           fields: state.activeApp.fields.map((f) =>
             f.id === fieldId ? { ...f, ...updates } : f
+          ),
+          updatedAt: Date.now(),
+        },
+      };
+    }),
+
+  updateFieldStyle: (fieldId, style) =>
+    set((state) => {
+      if (!state.activeApp) return state;
+      return {
+        activeApp: {
+          ...state.activeApp,
+          fields: state.activeApp.fields.map((f) =>
+            f.id === fieldId
+              ? {
+                  ...f,
+                  ...style,
+                  updatedAt: Date.now(),
+                }
+              : f
           ),
           updatedAt: Date.now(),
         },

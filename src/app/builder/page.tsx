@@ -2,25 +2,102 @@
 
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, LayoutTemplate, SquarePen, Settings2 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { microAppRepo } from '@/db/microAppRepo';
 import { generateId } from '@/lib/utils';
-import type { AppSchema } from '@/types/schema';
+import type { AppSchema, FieldType, FieldSchema } from '@/types/schema';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  closestCenter,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import Toolbar from '@/components/builder/Toolbar';
 import ComponentPalette from '@/components/builder/ComponentPalette';
-import Canvas from '@/components/builder/Canvas';
+import Canvas, { CanvasFieldCard } from '@/components/builder/Canvas';
 import PropertiesPanel from '@/components/builder/PropertiesPanel';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+type ActivePanel = 'components' | 'canvas' | 'properties';
+
+const TAB_ITEMS: { key: ActivePanel; label: string; icon: React.ReactNode }[] = [
+  { key: 'components', label: 'Components', icon: <LayoutTemplate className="h-4 w-4" /> },
+  { key: 'canvas', label: 'Canvas', icon: <SquarePen className="h-4 w-4" /> },
+  { key: 'properties', label: 'Properties', icon: <Settings2 className="h-4 w-4" /> },
+];
 
 function BuilderContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { setActiveApp, setLoading, isLoading, activeApp } = useAppStore();
+  const {
+    setActiveApp,
+    setLoading,
+    isLoading,
+    activeApp,
+    addField,
+    reorderFields,
+  } = useAppStore();
   const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
+  // Responsive layout state
+  const [activePanel, setActivePanel] = useState<ActivePanel>('canvas');
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
   const appId = searchParams.get('id');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveDragId(null);
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      // Check if this is a palette drop
+      if (active.data.current?.type === 'component') {
+        const fieldType = active.data.current?.fieldType as FieldType;
+        if (fieldType && activeApp) {
+          const newIndex = activeApp.fields.findIndex((f) => f.id === over.id);
+          addField({
+            type: fieldType,
+            label: `New ${String(fieldType).charAt(0).toUpperCase() + String(fieldType).slice(1)}`,
+          });
+          if (newIndex >= 0) {
+            reorderFields(activeApp.fields.length - 1, newIndex);
+          }
+        }
+        return;
+      }
+
+      // Reorder existing fields
+      const oldIndex = activeApp?.fields.findIndex((f) => f.id === active.id);
+      const newIndex = activeApp?.fields.findIndex((f) => f.id === over.id);
+      if (oldIndex !== undefined && newIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
+        reorderFields(oldIndex, newIndex);
+      }
+    },
+    [activeApp, addField, reorderFields]
+  );
 
   const loadApp = useCallback(async () => {
     setLoading(true);
@@ -62,6 +139,22 @@ function BuilderContent() {
     loadApp();
   }, [loadApp]);
 
+  /** Build a preview field for the DragOverlay */
+  const getDragOverlayField = (): FieldSchema | null => {
+    if (!activeDragId || !activeApp) return null;
+    // Check if it's a palette item
+    if (activeDragId.startsWith('palette-')) {
+      const fieldType = activeDragId.replace('palette-', '') as FieldType;
+      return {
+        id: 'overlay',
+        type: fieldType,
+        label: `New ${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`,
+      };
+    }
+    // Existing field
+    return activeApp.fields.find((f) => f.id === activeDragId) || null;
+  };
+
   if (error) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -95,14 +188,93 @@ function BuilderContent() {
     );
   }
 
+  const dragOverlayField = getDragOverlayField();
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Toolbar />
-      <div className="flex flex-1 overflow-hidden">
-        <ComponentPalette />
-        <Canvas />
-        <PropertiesPanel />
-      </div>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Desktop: show all panels side by side */}
+        {/* Mobile: show only active panel */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Component Palette — hidden on mobile unless active */}
+          <div className={cn(
+            'hidden sm:flex',
+            'sm:w-64 sm:flex-shrink-0'
+          )}>
+            <ComponentPalette />
+          </div>
+          <div className={cn(
+            'sm:hidden flex-1',
+            activePanel !== 'components' && 'hidden'
+          )}>
+            <ComponentPalette />
+          </div>
+
+          {/* Canvas — always flex-1 on desktop, hidden on mobile unless active */}
+          <div className={cn(
+            'flex-1 min-w-0',
+            'hidden sm:block',
+            activePanel === 'canvas' && 'sm:block'
+          )}>
+            <Canvas />
+          </div>
+          <div className={cn(
+            'sm:hidden flex-1',
+            activePanel !== 'canvas' && 'hidden'
+          )}>
+            <Canvas />
+          </div>
+
+          {/* Properties Panel — hidden on mobile unless active */}
+          <div className={cn(
+            'hidden sm:flex',
+            'sm:w-72 sm:flex-shrink-0'
+          )}>
+            <PropertiesPanel />
+          </div>
+          <div className={cn(
+            'sm:hidden flex-1',
+            activePanel !== 'properties' && 'hidden'
+          )}>
+            <PropertiesPanel />
+          </div>
+        </div>
+
+        <DragOverlay>
+          {dragOverlayField && (
+            <CanvasFieldCard field={dragOverlayField} />
+          )}
+        </DragOverlay>
+      </DndContext>
+
+      {/* Mobile tab bar */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-white/90 backdrop-blur-xl flex shadow-lg">
+        {TAB_ITEMS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActivePanel(tab.key)}
+            className={cn(
+              'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+              activePanel === tab.key
+                ? 'text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Spacer for mobile tab bar — push content up so it's not hidden behind the bar */}
+      <div className="sm:hidden h-14" />
     </div>
   );
 }

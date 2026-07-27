@@ -37,6 +37,18 @@ const fieldTypeIcons: Record<FieldType, React.ReactNode> = {
   file: <File className="h-3 w-3" />,
   slider: <Sliders className="h-3 w-3" />,
   toggle: <ToggleLeft className="h-3 w-3" />,
+  heading: <Type className="h-3 w-3" />,
+  paragraph: <AlignLeft className="h-3 w-3" />,
+  divider: <Type className="h-3 w-3" />,
+  spacer: <Type className="h-3 w-3" />,
+  image: <File className="h-3 w-3" />,
+  card: <Type className="h-3 w-3" />,
+  button: <Type className="h-3 w-3" />,
+  color: <Hash className="h-3 w-3" />,
+  email: <Type className="h-3 w-3" />,
+  phone: <Hash className="h-3 w-3" />,
+  url: <Type className="h-3 w-3" />,
+  rating: <List className="h-3 w-3" />,
 };
 
 const fieldTypeLabels: Record<FieldType, string> = {
@@ -49,6 +61,18 @@ const fieldTypeLabels: Record<FieldType, string> = {
   file: 'File',
   slider: 'Slider',
   toggle: 'Toggle',
+  heading: 'Heading',
+  paragraph: 'Paragraph',
+  divider: 'Divider',
+  spacer: 'Spacer',
+  image: 'Image',
+  card: 'Card',
+  button: 'Button',
+  color: 'Color',
+  email: 'Email',
+  phone: 'Phone',
+  url: 'URL',
+  rating: 'Rating',
 };
 
 function getFieldTypeCounts(fields: AppSchema['fields']): Map<FieldType, number> {
