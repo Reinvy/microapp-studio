@@ -171,7 +171,7 @@ export default function DashboardPage() {
                       </label>
                       <textarea
                         id="dialog-app-prompt"
-                        className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
                         placeholder="e.g. A calculator that adds, subtracts, multiplies, and divides two numbers"
                         value={newAppPrompt}
                         onChange={(e) => setNewAppPrompt(e.target.value)}
@@ -272,7 +272,7 @@ export default function DashboardPage() {
                     </label>
                     <textarea
                       id="empty-app-prompt"
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
                       placeholder="e.g. A calculator that adds, subtracts, multiplies, and divides two numbers"
                       value={newAppPrompt}
                       onChange={(e) => setNewAppPrompt(e.target.value)}
