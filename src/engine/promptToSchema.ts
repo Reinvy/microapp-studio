@@ -109,6 +109,15 @@ const PATTERNS: PatternDef[] = [
     }),
   },
   {
+    // Appointment / booking / reservation / scheduler
+    keywords: ['appointment', 'book', 'booking', 'reservation', 'schedule', 'meeting', 'slot', 'calendar', 'event', 'scheduler', 'timeslot', 'agenda', 'planner', 'check-in', 'checkin'],
+    build: (prompt) => ({
+      name: guessName(prompt, 'Scheduler'),
+      desc: guessDescription(prompt, 'An appointment or booking scheduler'),
+      fields: buildBookingFields(prompt),
+    }),
+  },
+  {
     // Generator / converter / transformer
     keywords: ['generator', 'generate', 'converter', 'convert', 'transformer', 'transform', 'maker', 'creator', 'builder', 'produce', 'create', 'password generator', 'qr code', 'color palette', 'unit converter', 'text transform'],
     build: (prompt) => ({
@@ -868,6 +877,117 @@ function buildJournalFields(prompt: string): FieldSchema[] {
   });
 
   return fields;
+}
+
+/**
+ * Build fields for a booking / appointment / scheduler app.
+ */
+function buildBookingFields(prompt: string): FieldSchema[] {
+  const fields: FieldSchema[] = [];
+
+  // Core booking fields
+  fields.push({
+    id: generateId(),
+    type: 'text',
+    label: 'Name',
+    placeholder: 'Enter your name',
+    required: true,
+  });
+
+  if (hasSomeKeywords(prompt, ['email', 'e-mail', 'contact'])) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Email',
+      placeholder: 'you@example.com',
+      required: true,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['phone', 'tel', 'mobile', 'whatsapp'])) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Phone',
+      placeholder: 'Enter phone number',
+      required: true,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['date', 'day', 'when', 'availability'])) {
+    fields.push({
+      id: generateId(),
+      type: 'date',
+      label: 'Preferred Date',
+      required: true,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['time', 'slot', 'hour', 'time slot'])) {
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Preferred Time',
+      options: generateTimeSlots(),
+      required: true,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['service', 'treatment', 'type', 'kind'])) {
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Service Type',
+      options: ['Consultation', 'General Checkup', 'Follow-up', 'Custom'],
+      required: true,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['people', 'guest', 'person', 'party', 'group', 'attendee'])) {
+    fields.push({
+      id: generateId(),
+      type: 'number',
+      label: 'Number of People',
+      min: 1,
+      max: 50,
+      step: 1,
+      defaultValue: 1,
+      required: true,
+    });
+  }
+
+  if (hasSomeKeywords(prompt, ['note', 'note', 'special', 'request', 'comment'])) {
+    fields.push({
+      id: generateId(),
+      type: 'textarea',
+      label: 'Special Requests',
+      placeholder: 'Any special requests or notes...',
+      required: false,
+    });
+  }
+
+  // Ensure at least 2 fields
+  while (fields.length < 2) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Details',
+      placeholder: 'Enter details',
+      required: false,
+    });
+  }
+
+  return fields;
+}
+
+/** Generate common time slot options for bookings */
+function generateTimeSlots(): string[] {
+  const slots: string[] = [];
+  for (let h = 8; h <= 17; h++) {
+    slots.push(`${h.toString().padStart(2, '0')}:00`);
+    slots.push(`${h.toString().padStart(2, '0')}:30`);
+  }
+  return slots;
 }
 
 function buildGeneratorFields(prompt: string): FieldSchema[] {

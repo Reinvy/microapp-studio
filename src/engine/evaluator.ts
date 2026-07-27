@@ -381,3 +381,93 @@ export function createStringOpNode(
     version: 1,
   };
 }
+
+/**
+ * Supported math operations for `createMathOpNode`.
+ */
+export type MathOperation =
+  | 'add'
+  | 'subtract'
+  | 'multiply'
+  | 'divide'
+  | 'power'
+  | 'sqrt'
+  | 'percentage'
+  | 'average';
+
+/**
+ * Pre-configured math operation node templates for the visual builder.
+ * Creates a LogicNode that performs a common arithmetic computation.
+ *
+ * @example
+ * ```ts
+ * const node = createMathOpNode('add');
+ * // => LogicNode with code: `return a + b`
+ * ```
+ *
+ * @example
+ * ```ts
+ * const node = createMathOpNode('percentage');
+ * // => LogicNode with code: `return (value / total) * 100`
+ * ```
+ */
+export function createMathOpNode(
+  operation: MathOperation,
+  options?: { precision?: number }
+): LogicNode {
+  const prec = options?.precision ?? 2;
+
+  const codes: Record<string, { code: string; inputs: string[]; outputs: string[] }> = {
+    add: {
+      code: `return (a + b).toFixed(${prec})`,
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    subtract: {
+      code: `return (a - b).toFixed(${prec})`,
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    multiply: {
+      code: `return (a * b).toFixed(${prec})`,
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    divide: {
+      code: `return b !== 0 ? (a / b).toFixed(${prec}) : 'Cannot divide by zero'`,
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    power: {
+      code: `return Math.pow(a, b).toFixed(${prec})`,
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    sqrt: {
+      code: `return a >= 0 ? Math.sqrt(a).toFixed(${prec}) : 'Cannot sqrt negative number'`,
+      inputs: ['a'],
+      outputs: ['result'],
+    },
+    percentage: {
+      code: `return ((value / total) * 100).toFixed(${prec})`,
+      inputs: ['value', 'total'],
+      outputs: ['result'],
+    },
+    average: {
+      code: `return (values.reduce((s, v) => s + v, 0) / values.length).toFixed(${prec})`,
+      inputs: ['values'],
+      outputs: ['result'],
+    },
+  };
+
+  const op = codes[operation] || codes.add;
+
+  return {
+    id: generateId(),
+    name: `${operation.charAt(0).toUpperCase() + operation.slice(1)} Math`,
+    code: op.code,
+    inputs: op.inputs,
+    outputs: op.outputs,
+    version: 1,
+  };
+}
