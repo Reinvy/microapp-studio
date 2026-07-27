@@ -61,7 +61,7 @@ function RegisterForm() {
     if (!validate()) return;
     setLoading(true);
     try {
-      const result = await register(name, email, password);
+      const result = await register(email, password, name);
       if (result.success) {
         // Auto-login after register
         router.push('/app');

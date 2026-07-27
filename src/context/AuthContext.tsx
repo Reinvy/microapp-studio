@@ -49,6 +49,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (email: string, password: string, name: string) => {
     const result = await registerUser(email, password, name);
+    // Auto-login after successful registration
+    if (result.success) {
+      const loginResult = await loginUser(email, password);
+      if (loginResult.success && loginResult.session) {
+        setSession(loginResult.session);
+      }
+    }
     return { success: result.success, error: result.error };
   }, []);
 
