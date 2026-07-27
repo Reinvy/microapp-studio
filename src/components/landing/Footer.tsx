@@ -44,37 +44,34 @@ const footerColumns = [
 
 export default function Footer() {
   return (
-    <footer className="relative border-t border-border/40 bg-card">
-      {/* Subtle gradient top border */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-
+    <footer className="relative border-t border-[#E8E0D8]/40 bg-[var(--clay-card)] shadow-[0_-4px_8px_var(--clay-shadow-dark)]">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1 lg:col-span-1">
             <Link href="/" className="mb-4 flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-purple-500 text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#D5B8F5] text-[#5D4E37] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)]">
                 <AppWindow className="h-4 w-4" />
               </div>
               <span className="text-base font-bold tracking-tight gradient-text">
                 MicroApp Studio
               </span>
             </Link>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-3 text-sm leading-relaxed text-[#B8A898]">
               Build, run, and share custom micro-apps with AI-powered prompts and a visual
               drag-and-drop builder.
             </p>
             <div className="mt-5 flex items-center gap-3">
               <a
                 href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-[#B8A898] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)] transition-all hover:shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] hover:-translate-y-[1px]"
                 aria-label="GitHub"
               >
                 <Globe className="h-4 w-4" />
               </a>
               <a
                 href="#"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-[#B8A898] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)] transition-all hover:shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] hover:-translate-y-[1px]"
                 aria-label="Twitter"
               >
                 <MessageCircle className="h-4 w-4" />
@@ -85,13 +82,13 @@ export default function Footer() {
           {/* Link columns */}
           {footerColumns.map((col) => (
             <div key={col.title}>
-              <h4 className="mb-3 text-sm font-semibold text-foreground">{col.title}</h4>
+              <h4 className="mb-3 text-sm font-semibold text-[#5D4E37]">{col.title}</h4>
               <ul className="space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                      className="text-sm text-[#B8A898] transition-all hover:text-[#5D4E37] hover:pl-1"
                     >
                       {link.label}
                     </Link>
@@ -103,8 +100,8 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-12 border-t border-border/40 pt-6">
-          <p className="text-center text-xs text-muted-foreground">
+        <div className="mt-12 border-t border-[#E8E0D8]/40 pt-6">
+          <p className="text-center text-xs text-[#B8A898]">
             &copy; {new Date().getFullYear()} MicroApp Studio. All rights reserved. Built with care.
           </p>
         </div>

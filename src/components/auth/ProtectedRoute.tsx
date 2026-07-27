@@ -2,35 +2,18 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { AppWindow } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-function GradientSpinner() {
+function ClaySpinner() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-screen items-center justify-center bg-[#FFF8F0]">
       <div className="flex flex-col items-center gap-4">
-        <div className="relative h-12 w-12">
-          {/* Spinning gradient circle */}
-          <div
-            className="h-12 w-12 animate-spin rounded-full"
-            style={{
-              border: '3px solid transparent',
-              borderTopColor: '#6366f1',
-              borderRightColor: '#a855f7',
-              borderBottomColor: '#6366f1',
-              borderLeftColor: 'transparent',
-            }}
-          />
-          {/* Inner glow */}
-          <div
-            className="absolute inset-0 rounded-full opacity-30 blur-sm"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-            }}
-          />
+        <div className="flex h-16 w-16 items-center justify-center rounded-[50%] clay-sm bg-[#D5B8F5] animate-float">
+          <AppWindow className="h-7 w-7 text-[#5D4E37]" />
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <div className="flex items-center gap-2 text-sm text-[#B8A898]">
+          <div className="h-2 w-2 rounded-full bg-[#D5B8F5] animate-pulse" />
           <span>Loading your workspace…</span>
         </div>
       </div>
@@ -53,7 +36,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [isLoading, user, router]);
 
   if (isLoading) {
-    return <GradientSpinner />;
+    return <ClaySpinner />;
   }
 
   if (!user) {

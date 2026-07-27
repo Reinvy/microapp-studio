@@ -34,42 +34,36 @@ const features = [
     title: 'AI Prompt Builder',
     description:
       'Describe your app in plain English and watch the AI generate a complete form or interface automatically.',
-    gradient: 'from-indigo-500 to-purple-500',
   },
   {
     icon: Layout,
     title: 'Drag & Drop Editor',
     description:
       'Visually arrange fields, reorder inputs, and customize layouts with an intuitive drag-and-drop canvas.',
-    gradient: 'from-rose-500 to-pink-500',
   },
   {
     icon: Code2,
     title: 'Custom JS Nodes',
     description:
       'Add custom JavaScript logic nodes for calculations, validations, and complex app behavior.',
-    gradient: 'from-amber-500 to-orange-500',
   },
   {
     icon: Shield,
     title: 'Local-First Storage',
     description:
       'Your data stays on your device with IndexedDB-backed persistence. Full privacy, zero cloud dependency.',
-    gradient: 'from-emerald-500 to-teal-500',
   },
   {
     icon: Play,
     title: 'App Runner',
     description:
       'Run your micro-apps instantly in a clean, interactive preview. Test inputs, see outputs, iterate fast.',
-    gradient: 'from-sky-500 to-cyan-500',
   },
   {
     icon: Zap,
     title: 'Dev Playground',
     description:
       'Live preview with Monaco editor, real-time schema validation, and instant feedback as you build.',
-    gradient: 'from-violet-500 to-indigo-500',
   },
 ];
 
@@ -123,63 +117,63 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[#FFF8F0]">
       <Navbar />
 
       <main className="flex-1">
         {/* ─── HERO SECTION ─── */}
-        <section className="hero-grid relative flex min-h-screen items-center overflow-hidden pt-16">
-          {/* Floating decorative elements */}
+        <section className="hero-clay relative flex min-h-screen items-center overflow-hidden pt-16">
+          {/* Floating decorative elements in clay pastel */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute left-[10%] top-[20%] animate-float text-primary/10">
+            <div className="absolute left-[10%] top-[20%] animate-float text-[#D5B8F5]/30">
               <Sparkles className="h-16 w-16" />
             </div>
             <div
-              className="absolute right-[15%] top-[30%] animate-float text-secondary/10"
+              className="absolute right-[15%] top-[30%] animate-float text-[#FFD5E5]/30"
               style={{ animationDelay: '1s' }}
             >
               <Zap className="h-20 w-20" />
             </div>
             <div
-              className="absolute bottom-[25%] left-[20%] animate-float text-purple-500/10"
+              className="absolute bottom-[25%] left-[20%] animate-float text-[#C5E8F7]/30"
               style={{ animationDelay: '0.5s' }}
             >
               <AppWindow className="h-12 w-12" />
             </div>
             <div
-              className="absolute bottom-[35%] right-[10%] animate-float text-primary/10"
+              className="absolute bottom-[35%] right-[10%] animate-float text-[#D5B8F5]/30"
               style={{ animationDelay: '1.5s' }}
             >
               <Bot className="h-14 w-14" />
             </div>
-            {/* Gradient orbs */}
-            <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-gradient-to-br from-primary/10 via-purple-500/10 to-transparent blur-3xl" />
-            <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-gradient-to-br from-secondary/10 via-pink-500/10 to-transparent blur-3xl" />
+            {/* Soft pastel gradient orbs */}
+            <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-gradient-to-br from-[#D5B8F5]/20 via-[#FFD5E5]/10 to-transparent blur-3xl" />
+            <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-gradient-to-br from-[#C5E8F7]/20 via-[#FFF2C5]/10 to-transparent blur-3xl" />
           </div>
 
           <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-3xl text-center">
-              {/* Badge */}
-              <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-medium text-primary">
+              {/* Badge — clay pill */}
+              <div className="mb-6 inline-flex items-center gap-1.5 rounded-full bg-[#D5B8F5]/30 px-5 py-2 text-xs font-medium text-[#5D4E37] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)]">
                 <Sparkles className="h-3.5 w-3.5" />
                 AI-Powered Micro-App Builder
               </div>
 
-              <h1 className="mb-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+              <h1 className="mb-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-[#5D4E37]">
                 Create{' '}
                 <span className="gradient-text">Mini Apps</span>
                 <br />
                 with AI Prompts
               </h1>
 
-              <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+              <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-[#B8A898] sm:text-xl">
                 Build fully functional micro-apps by describing them in plain English. Drag, drop,
                 and customize — no coding required.
               </p>
 
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link href="/register">
-                  <Button size="lg" className="h-12 gap-2 px-8 text-base shadow-md">
+                  <Button variant="primary" size="lg" className="h-12 gap-2 px-8 text-base">
                     Get Started Free
                     <ArrowRight className="h-5 w-5" />
                   </Button>
@@ -197,29 +191,29 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hero illustration / showcase */}
+            {/* Hero illustration / showcase — clay card */}
             <div className="mt-16 flex justify-center">
               <div className="relative w-full max-w-4xl">
-                <div className="aspect-[16/9] w-full rounded-2xl border border-border/60 bg-gradient-to-b from-card via-card to-muted/50 shadow-elevated">
+                <div className="aspect-[16/9] w-full rounded-2xl bg-[var(--clay-card)] shadow-[8px_8px_16px_var(--clay-shadow-dark),-6px_-6px_14px_var(--clay-shadow-light)]">
                   <div className="flex h-full flex-col">
                     {/* Fake window chrome */}
-                    <div className="flex items-center gap-1.5 border-b border-border/40 px-4 py-3">
-                      <div className="h-3 w-3 rounded-full bg-rose-400" />
-                      <div className="h-3 w-3 rounded-full bg-amber-400" />
-                      <div className="h-3 w-3 rounded-full bg-emerald-400" />
-                      <div className="ml-4 flex-1 rounded-md bg-muted px-3 py-1 text-center text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 border-b border-[#E8E0D8]/40 px-4 py-3">
+                      <div className="h-3 w-3 rounded-full bg-[#FFD0D0] shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]" />
+                      <div className="h-3 w-3 rounded-full bg-[#FFF2C5] shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]" />
+                      <div className="h-3 w-3 rounded-full bg-[#C5F0D5] shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]" />
+                      <div className="ml-4 flex-1 rounded-xl bg-[#F5EDE5] px-3 py-1 text-center text-xs text-[#B8A898] shadow-[inset_2px_2px_4px_var(--clay-shadow-dark),inset_-2px_-2px_4px_var(--clay-shadow-light)]">
                         my-micro-app
                       </div>
                     </div>
                     {/* Fake app content */}
                     <div className="flex flex-1 items-center justify-center gap-4 p-8">
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <AppWindow className="h-12 w-12 text-primary/40" />
+                      <div className="flex flex-col items-center gap-2 text-[#B8A898]">
+                        <AppWindow className="h-12 w-12 text-[#D5B8F5]/60" />
                         <span className="text-sm font-medium">Preview your app</span>
                       </div>
-                      <ChevronRight className="h-8 w-8 text-muted-foreground/40" />
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <Code2 className="h-12 w-12 text-secondary/40" />
+                      <ChevronRight className="h-8 w-8 text-[#B8A898]/40" />
+                      <div className="flex flex-col items-center gap-2 text-[#B8A898]">
+                        <Code2 className="h-12 w-12 text-[#FFD5E5]/60" />
                         <span className="text-sm font-medium">Edit with AI</span>
                       </div>
                     </div>
@@ -234,11 +228,11 @@ export default function LandingPage() {
         <section id="features" className="relative scroll-mt-20 py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto mb-14 max-w-2xl text-center">
-              <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-[#5D4E37] sm:text-4xl">
                 Everything you need to build{' '}
                 <span className="gradient-text">micro-apps</span>
               </h2>
-              <p className="text-lg leading-relaxed text-muted-foreground">
+              <p className="text-lg leading-relaxed text-[#B8A898]">
                 From AI-powered generation to a fully interactive runtime — all in one beautiful
                 studio.
               </p>
@@ -253,18 +247,18 @@ export default function LandingPage() {
         </section>
 
         {/* ─── STATS SECTION ─── */}
-        <section className="border-y border-border/40 bg-muted/30 py-16">
+        <section className="border-y border-[#E8E0D8]/40 bg-[#F5EDE5]/50 py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
               {stats.map((stat) => (
                 <div key={stat.label} className="flex flex-col items-center text-center">
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-purple-500/10 text-primary">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#D5B8F5] text-[#5D4E37] shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)]">
                     <stat.icon className="h-6 w-6" />
                   </div>
-                  <div className="text-2xl font-bold tracking-tight text-foreground">
+                  <div className="text-2xl font-bold tracking-tight text-[#5D4E37]">
                     {stat.value}
                   </div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
+                  <div className="text-sm text-[#B8A898]">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -275,10 +269,10 @@ export default function LandingPage() {
         <section id="how-it-works" className="relative scroll-mt-20 py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto mb-16 max-w-2xl text-center">
-              <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-[#5D4E37] sm:text-4xl">
                 How it <span className="gradient-text">works</span>
               </h2>
-              <p className="text-lg leading-relaxed text-muted-foreground">
+              <p className="text-lg leading-relaxed text-[#B8A898]">
                 Three simple steps to go from idea to running micro-app.
               </p>
             </div>
@@ -298,23 +292,23 @@ export default function LandingPage() {
 
         {/* ─── CTA SECTION ─── */}
         <section className="relative py-24">
-          {/* Gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-purple-500/5 to-secondary/5" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.08),transparent_50%)]" />
+          {/* Pastel gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#D5B8F5]/15 via-[#FFD5E5]/10 to-[#C5E8F7]/15" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(213,184,245,0.12),transparent_50%)]" />
 
           <div className="relative mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl">
-              <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-[#5D4E37] sm:text-4xl">
                 Ready to build your{' '}
                 <span className="gradient-text">first micro-app</span>?
               </h2>
-              <p className="mb-10 text-lg leading-relaxed text-muted-foreground">
+              <p className="mb-10 text-lg leading-relaxed text-[#B8A898]">
                 Join users building everything from calculators to databases. No signup required to
                 start — just describe and go.
               </p>
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link href="/register">
-                  <Button size="lg" className="h-12 gap-2 px-8 text-base shadow-md">
+                  <Button variant="primary" size="lg" className="h-12 gap-2 px-8 text-base">
                     Get Started Free
                     <ArrowRight className="h-5 w-5" />
                   </Button>

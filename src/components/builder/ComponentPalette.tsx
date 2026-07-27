@@ -121,11 +121,11 @@ function DraggableField({ item }: DraggableFieldProps) {
       {...attributes}
       style={style}
       className={cn(
-        'flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing select-none transition-all duration-150',
-        'bg-white/80 dark:bg-gray-900/80',
-        'hover:shadow-md hover:scale-[1.02] hover:border-transparent',
-        'text-sm font-medium text-foreground/80',
-        isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/30 scale-105'
+        'flex items-center gap-2.5 px-3 py-2 rounded-xl clay-sm cursor-grab active:cursor-grabbing select-none transition-all duration-150',
+        'bg-white/80 hover:bg-white',
+        'hover:scale-[1.02]',
+        'text-sm font-medium',
+        isDragging && 'opacity-50 ring-2 ring-clay-purple/30 scale-105 clay-inset'
       )}
     >
       <span className={cn('flex items-center justify-center w-7 h-7 rounded-md shrink-0', item.color.replace('text-', 'bg-').replace(/(\d{3})/, (m) => String(Number(m) * 10 / 100)))}>
@@ -156,10 +156,10 @@ export default function ComponentPalette() {
   };
 
   return (
-    <aside className="w-64 border-r border-border/50 bg-card/50 flex flex-col h-full overflow-hidden">
+    <aside className="w-64 clay-card rounded-none rounded-r-2xl flex flex-col h-full overflow-hidden" style={{ backgroundColor: '#FFFFFFF0' }}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border/50">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="px-4 py-4 border-b border-clay-border/40">
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5D4E37' }}>
           Components
         </h3>
       </div>
@@ -172,16 +172,15 @@ export default function ComponentPalette() {
             <div
               key={category.key}
               className={cn(
-                'rounded-xl border bg-gradient-to-br p-3 space-y-2',
-                category.gradient,
-                category.border
+                'rounded-xl p-3 space-y-2',
+                'bg-clay-cream/60 clay-sm'
               )}
             >
               <div className="flex items-center gap-1.5 px-1">
-                <span className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider">
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#5D4E37' }}>
                   {category.label}
                 </span>
-                <span className="text-[10px] text-muted-foreground ml-auto">
+                <span className="text-[10px] ml-auto" style={{ color: '#B8A898' }}>
                   {items.length}
                 </span>
               </div>
@@ -200,10 +199,10 @@ export default function ComponentPalette() {
                     key={item.type}
                     onClick={() => handleQuickAdd(item.type, item.label)}
                     className={cn(
-                      'flex flex-col items-center gap-0.5 py-1.5 rounded-md border border-border/40',
-                      'bg-white/60 dark:bg-gray-900/60 hover:bg-white dark:hover:bg-gray-800',
-                      'hover:border-primary/30 hover:shadow-sm transition-all',
-                      'text-[9px] text-muted-foreground hover:text-foreground',
+                      'flex flex-col items-center gap-0.5 py-1.5 rounded-xl clay-sm',
+                      'bg-white/80 hover:bg-white',
+                      'hover:scale-105 active:scale-95 transition-all',
+                      'text-[9px]',
                       item.color
                     )}
                     title={`Add ${item.label}`}

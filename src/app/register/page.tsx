@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   AppWindow,
   Mail,
@@ -16,7 +14,6 @@ import {
   Loader2,
   ArrowRight,
   Globe,
-  Check,
 } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -76,90 +73,98 @@ function RegisterForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 p-4">
-      <div className="w-full max-w-md animate-fade-in">
+    <div className="flex min-h-screen items-center justify-center bg-[#FFF8F0] p-4 relative overflow-hidden">
+      {/* Decorative clay blobs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-[#C5E8F7] clay" style={{filter:'blur(40px)', opacity:0.5}} />
+        <div className="absolute -bottom-20 -right-20 w-96 h-96 rounded-full bg-[#FFD5E5] clay" style={{filter:'blur(50px)', opacity:0.4}} />
+        <div className="absolute top-1/2 left-3/4 w-64 h-64 rounded-full bg-[#FFF2C5] clay" style={{filter:'blur(45px)', opacity:0.3}} />
+        <div className="absolute bottom-1/4 right-1/3 w-72 h-72 rounded-full bg-[#C5F0D5] clay" style={{filter:'blur(45px)', opacity:0.2}} />
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-500 text-white shadow-md transition-transform duration-300 group-hover:scale-105">
-              <AppWindow className="h-5 w-5" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl clay-sm bg-[#C5E8F7] text-[#5D4E37] transition-transform duration-300 group-hover:scale-105">
+              <AppWindow className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight gradient-text">MicroApp Studio</span>
+            <span className="text-xl font-bold tracking-tight text-[#5D4E37]">MicroApp Studio</span>
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-border/60 bg-card shadow-elevated">
-          <div className="rounded-t-2xl bg-gradient-to-r from-purple-500 to-secondary px-6 py-5">
-            <h1 className="text-xl font-bold text-white">Create an account</h1>
-            <p className="mt-1 text-sm text-white/80">Start building micro-apps in minutes.</p>
+        <div className="clay-card overflow-hidden">
+          <div className="bg-gradient-to-r from-[#C5E8F7] to-[#D5B8F5] px-6 py-5">
+            <h1 className="text-xl font-bold text-[#5D4E37]">Create an account</h1>
+            <p className="mt-1 text-sm text-[#5D4E37]/70">Start building micro-apps in minutes.</p>
           </div>
 
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               {apiError && (
-                <div className="animate-slide-down rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <div className="clay-sm bg-[#FFD0D0] px-4 py-3 text-sm text-[#5D4E37]">
                   {apiError}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Name</label>
+                <label className="text-sm font-medium text-[#5D4E37]">Name</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <input
                     placeholder="Your full name" value={name}
                     onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: '' })); }}
-                    className={`h-11 pl-10 ${errors.name ? 'border-destructive ring-1 ring-destructive' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 text-sm text-[#5D4E37] ${errors.name ? 'clay-input-error' : ''}`}
                     autoFocus
                   />
                 </div>
-                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                {errors.name && <p className="text-xs text-[#E87A7A]">{errors.name}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Email</label>
+                <label className="text-sm font-medium text-[#5D4E37]">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <input
                     type="email" placeholder="you@example.com" value={email}
                     onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: '' })); }}
-                    className={`h-11 pl-10 ${errors.email ? 'border-destructive ring-1 ring-destructive' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 text-sm text-[#5D4E37] ${errors.email ? 'clay-input-error' : ''}`}
                     autoComplete="email"
                   />
                 </div>
-                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                {errors.email && <p className="text-xs text-[#E87A7A]">{errors.email}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Password</label>
+                <label className="text-sm font-medium text-[#5D4E37]">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <input
                     type={showPassword ? 'text' : 'password'} placeholder="At least 6 characters" value={password}
                     onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: '' })); }}
-                    className={`h-11 pl-10 pr-10 ${errors.password ? 'border-destructive ring-1 ring-destructive' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 pr-10 text-sm text-[#5D4E37] ${errors.password ? 'clay-input-error' : ''}`}
                     autoComplete="new-password"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8A898] hover:text-[#5D4E37]"
                     aria-label={showPassword ? 'Hide' : 'Show'}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                {errors.password && <p className="text-xs text-[#E87A7A]">{errors.password}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Confirm Password</label>
+                <label className="text-sm font-medium text-[#5D4E37]">Confirm Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <input
                     type={showPassword ? 'text' : 'password'} placeholder="Repeat your password" value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); if (errors.confirmPassword) setErrors((p) => ({ ...p, confirmPassword: '' })); }}
-                    className={`h-11 pl-10 ${errors.confirmPassword ? 'border-destructive ring-1 ring-destructive' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 text-sm text-[#5D4E37] ${errors.confirmPassword ? 'clay-input-error' : ''}`}
                     autoComplete="new-password"
                   />
                 </div>
-                {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
+                {errors.confirmPassword && <p className="text-xs text-[#E87A7A]">{errors.confirmPassword}</p>}
               </div>
 
               {/* Terms */}
@@ -167,45 +172,46 @@ function RegisterForm() {
                 <input
                   type="checkbox" id="terms" checked={agreeTerms}
                   onChange={(e) => { setAgreeTerms(e.target.checked); if (errors.terms) setErrors((p) => ({ ...p, terms: '' })); }}
-                  className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  className="mt-1 h-4 w-4 rounded accent-[#D5B8F5]"
                 />
-                <label htmlFor="terms" className="text-xs leading-relaxed text-muted-foreground">
+                <label htmlFor="terms" className="text-xs leading-relaxed text-[#B8A898]">
                   I agree to the{' '}
-                  <button type="button" className="text-primary underline underline-offset-2 hover:text-primary/80">Terms of Service</button>
+                  <button type="button" className="text-[#5D4E37] underline underline-offset-2 hover:text-[#5D4E37]/80">Terms of Service</button>
                   {' '}and{' '}
-                  <button type="button" className="text-primary underline underline-offset-2 hover:text-primary/80">Privacy Policy</button>
+                  <button type="button" className="text-[#5D4E37] underline underline-offset-2 hover:text-[#5D4E37]/80">Privacy Policy</button>
                 </label>
               </div>
-              {errors.terms && <p className="text-xs text-destructive">{errors.terms}</p>}
+              {errors.terms && <p className="text-xs text-[#E87A7A]">{errors.terms}</p>}
 
-              <Button type="submit" disabled={loading} className="h-11 w-full gap-2 text-sm font-medium shadow-sm">
+              <button type="submit" disabled={loading}
+                className="clay-button h-11 w-full flex items-center justify-center gap-2 text-sm font-medium text-[#5D4E37] bg-[#C5E8F7] disabled:opacity-60">
                 {loading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Creating account...</>
                 ) : (
                   <>Create account <ArrowRight className="h-4 w-4" /></>
                 )}
-              </Button>
+              </button>
             </form>
 
             <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/60" /></div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#E8E0D8]" /></div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or sign up with</span>
+                <span className="bg-[#FFFFFFF0] px-2 text-[#B8A898]">Or sign up with</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" className="flex h-11 items-center justify-center gap-2 rounded-lg border border-border/60 bg-background text-sm font-medium transition-colors hover:bg-accent">
+              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFD5E5] text-sm font-medium text-[#5D4E37]">
                 <Globe className="h-4 w-4" /> Google
               </button>
-              <button type="button" className="flex h-11 items-center justify-center gap-2 rounded-lg border border-border/60 bg-background text-sm font-medium transition-colors hover:bg-accent">
+              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFF2C5] text-sm font-medium text-[#5D4E37]">
                 <Globe className="h-4 w-4" /> GitHub
               </button>
             </div>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
+            <p className="mt-6 text-center text-sm text-[#B8A898]">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">Sign in</Link>
+              <Link href="/login" className="font-medium text-[#5D4E37] underline-offset-4 hover:underline">Sign in</Link>
             </p>
           </div>
         </div>

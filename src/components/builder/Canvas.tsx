@@ -266,43 +266,43 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group relative rounded-lg border-2 bg-card cursor-pointer transition-all duration-200',
-        'hover:border-primary/40 hover:shadow-md',
+        'group relative clay-sm bg-card cursor-pointer transition-all duration-200',
+        'hover:shadow-md hover:scale-[1.01]',
         isSelected
-          ? 'border-primary shadow-lg shadow-primary/15 ring-2 ring-primary/30 animate-in fade-in zoom-in-95 duration-200'
-          : 'border-border/40',
-        isDragging && 'opacity-40 shadow-2xl z-50 scale-[1.02] rotate-[2deg]',
+          ? 'ring-2 ring-clay-purple/40 shadow-lg'
+          : 'shadow-sm',
+        isDragging && 'opacity-40 z-50 scale-[1.02] rotate-[2deg]',
         'overflow-hidden'
       )}
       onClick={() => onSelect(field.id)}
     >
       {/* Top bar: drag handle + type icon + label + delete */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 border-b border-border/20">
+      <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20 rounded-t-[14px]">
         {/* Drag handle */}
         <button
           {...attributes}
           {...listeners}
-          className="flex items-center justify-center h-7 w-5 rounded text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing transition-colors shrink-0"
+          className="flex items-center justify-center h-7 w-6 rounded-full clay-sm bg-clay-peach/40 cursor-grab active:cursor-grabbing transition-all shrink-0"
           onClick={(e) => e.stopPropagation()}
           aria-label={`Drag to reorder ${field.label}`}
         >
-          <GripVertical className="h-3.5 w-3.5" />
+          <GripVertical className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
         </button>
 
         {/* Type icon */}
-        <div className={cn('flex items-center justify-center w-6 h-6 rounded-md shrink-0', typeColors[field.type] || 'bg-muted text-muted-foreground')}>
+        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm shrink-0" style={{ backgroundColor: typeColors[field.type]?.split(' ')[0] || '#F5EDE5' }}>
           {fieldIcons[field.type]}
         </div>
 
         {/* Label */}
-        <span className="flex-1 text-sm font-medium truncate min-w-0">
+        <span className="flex-1 text-sm font-medium truncate min-w-0" style={{ color: '#5D4E37' }}>
           {field.label}
         </span>
 
         {/* Type badge */}
-        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal uppercase shrink-0">
+        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: '#5D4E37' }}>
           {field.type}
-        </Badge>
+        </span>
 
         {/* Delete button */}
         <button
@@ -310,10 +310,10 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
             e.stopPropagation();
             onRemove(field.id);
           }}
-          className="flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+          className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-rose/30 opacity-0 group-hover:opacity-100 hover:bg-clay-rose/60 transition-all shrink-0"
           aria-label={`Delete ${field.label}`}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
         </button>
       </div>
 
@@ -329,15 +329,15 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
 
 export function CanvasFieldCard({ field }: { field: FieldSchema }) {
   return (
-    <div className="w-72 rounded-lg border-2 border-primary/50 bg-card shadow-2xl overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 border-b border-border/20">
-        <div className={cn('flex items-center justify-center w-6 h-6 rounded-md shrink-0', typeColors[field.type] || 'bg-muted')}>
+    <div className="w-72 clay-sm bg-card shadow-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20">
+        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm" style={{ backgroundColor: typeColors[field.type]?.split(' ')[0] || '#F5EDE5' }}>
           {fieldIcons[field.type]}
         </div>
-        <span className="flex-1 text-sm font-medium truncate">{field.label}</span>
-        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal uppercase shrink-0">
+        <span className="flex-1 text-sm font-medium truncate" style={{ color: '#5D4E37' }}>{field.label}</span>
+        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: '#5D4E37' }}>
           {field.type}
-        </Badge>
+        </span>
       </div>
       <div className="px-4 py-3">
         <FieldPreview field={field} />
@@ -368,13 +368,13 @@ export default function Canvas() {
 
   if (!activeApp) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/20">
-        <div className="text-center p-8">
-          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-            <Type className="h-8 w-8 text-muted-foreground" />
+      <div className="flex-1 flex items-center justify-center bg-clay-cream">
+        <div className="text-center clay-sm p-8 bg-white/60">
+          <div className="w-16 h-16 rounded-2xl clay-sm bg-clay-peach/60 flex items-center justify-center mx-auto mb-4">
+            <Type className="h-8 w-8" style={{ color: '#B8A898' }} />
           </div>
-          <h3 className="text-lg font-semibold mb-1">No app selected</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="text-lg font-semibold mb-1" style={{ color: '#5D4E37' }}>No app selected</h3>
+          <p className="text-sm" style={{ color: '#B8A898' }}>
             Select or create an app to start building.
           </p>
         </div>
@@ -383,27 +383,28 @@ export default function Canvas() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-muted/20">
-      {/* Canvas inner with grid pattern */}
+    <div className="flex-1 flex flex-col overflow-hidden clay-inset bg-clay-cream/80">
+      {/* Canvas inner with warm dot grid pattern */}
       <div
         className="flex-1 overflow-y-auto"
         style={{
           backgroundImage: `
-            linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px)
+            radial-gradient(#D5C8B8 0.8px, transparent 0.8px),
+            radial-gradient(#D5C8B8 0.8px, transparent 0.8px)
           `,
-          backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+          backgroundSize: `${30 * zoom}px ${30 * zoom}px, ${30 * zoom}px ${30 * zoom}px`,
+          backgroundPosition: '0 0, 15px 15px',
         }}
       >
         <div className="max-w-3xl mx-auto p-6" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
           {/* Canvas toolbar */}
-          <div className="flex items-center justify-between mb-4 bg-background/80 backdrop-blur-sm rounded-lg border border-border/40 px-3 py-2">
+          <div className="flex items-center justify-between mb-4 clay-sm bg-white/80 px-3 py-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-xs font-medium" style={{ color: '#5D4E37' }}>
                 {fields.length} field{fields.length !== 1 ? 's' : ''}
               </span>
               {!isEmpty && (
-                <span className="text-[10px] text-muted-foreground/60">
+                <span className="text-[10px]" style={{ color: '#B8A898' }}>
                   &middot; Drag to reorder
                 </span>
               )}
@@ -411,35 +412,36 @@ export default function Canvas() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
-                className="flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all"
                 aria-label="Zoom out"
               >
-                <ZoomOut className="h-3.5 w-3.5" />
+                <ZoomOut className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
               </button>
-              <span className="text-[11px] font-mono text-muted-foreground w-10 text-center">
+              <span className="text-[11px] font-mono w-10 text-center" style={{ color: '#B8A898' }}>
                 {Math.round(zoom * 100)}%
               </span>
               <button
                 onClick={() => setZoom((z) => Math.min(2, z + 0.1))}
-                className="flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-blue/40 hover:bg-clay-blue/60 transition-all"
                 aria-label="Zoom in"
               >
-                <ZoomIn className="h-3.5 w-3.5" />
+                <ZoomIn className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
               </button>
-              <div className="w-px h-4 bg-border mx-1" />
+              <div className="w-px h-5 bg-clay-border mx-1" />
               <button
                 onClick={() => setZoom(1)}
-                className="flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-green/40 hover:bg-clay-green/60 transition-all"
                 aria-label="Reset zoom"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
               </button>
               {!isEmpty && (
                 <>
-                  <div className="w-px h-4 bg-border mx-1" />
+                  <div className="w-px h-5 bg-clay-border mx-1" />
                   <button
                     onClick={handleClearAll}
-                    className="flex items-center gap-1 h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="flex items-center gap-1 h-8 px-3 rounded-xl text-[11px] clay-sm bg-clay-rose/40 hover:bg-clay-rose/60 transition-all"
+                    style={{ color: '#5D4E37' }}
                   >
                     <Trash2 className="h-3 w-3" />
                     Clear all
@@ -453,54 +455,40 @@ export default function Canvas() {
             items={fields.map((f) => f.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-2 min-h-[300px]">
+            <div className="space-y-3 min-h-[300px]">
               {isEmpty && (
-                <div className="flex flex-col items-center justify-center py-20 px-4 rounded-xl border-2 border-dashed border-border/50 bg-card/30 animate-in fade-in duration-500">
+                <div className="flex flex-col items-center justify-center py-20 px-4 clay-lg bg-white/60 animate-fade-in">
                   <div className="relative mb-6">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center animate-pulse">
-                      <Layout className="h-8 w-8 text-primary/60" />
+                    <div className="w-20 h-20 rounded-full clay-lg bg-clay-yellow/40 flex items-center justify-center animate-pulse-soft">
+                      <Layout className="h-10 w-10" style={{ color: '#D5B8F5' }} />
                     </div>
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/30 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-5 w-5 bg-primary/20 items-center justify-center">
-                        <span className="text-[9px] text-primary font-bold">+</span>
+                    <span className="absolute -top-1 -right-1 flex h-6 w-6">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-clay-purple/40 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-6 w-6 clay-sm bg-clay-purple items-center justify-center">
+                        <span className="text-[11px] font-bold" style={{ color: '#5D4E37' }}>+</span>
                       </span>
                     </span>
                   </div>
-                  <h3 className="text-base font-semibold mb-1.5">Drop components here</h3>
-                  <p className="text-sm text-muted-foreground text-center max-w-sm">
+                  <h3 className="text-base font-semibold mb-1.5" style={{ color: '#5D4E37' }}>Drop components here</h3>
+                  <p className="text-sm text-center max-w-sm" style={{ color: '#B8A898' }}>
                     Drag fields from the palette on the left, or click a field type to add it to your app.
                   </p>
-                  <div className="flex items-center gap-2 mt-4 text-[10px] text-muted-foreground/60">
+                  <div className="flex items-center gap-2 mt-4 text-[10px]" style={{ color: '#B8A898' }}>
                     <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-clay-purple/60 animate-bounce" style={{ animationDelay: '0ms' }} />
                       Drag & drop
                     </span>
-                    <span className="text-muted-foreground/30">&bull;</span>
+                    <span style={{ color: '#D5C8B8' }}>&bull;</span>
                     <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-clay-pink/60 animate-bounce" style={{ animationDelay: '150ms' }} />
                       Click to add
                     </span>
-                    <span className="text-muted-foreground/30">&bull;</span>
+                    <span style={{ color: '#D5C8B8' }}>&bull;</span>
                     <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-clay-blue/60 animate-bounce" style={{ animationDelay: '300ms' }} />
                       Reorder
                     </span>
                   </div>
-                  {/* Animated dotted border */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ borderRadius: 'inherit' }}>
-                    <rect
-                      x="2"
-                      y="2"
-                      width="calc(100% - 4px)"
-                      height="calc(100% - 4px)"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeDasharray="8 8"
-                      className="text-primary/20 animate-[dash_1.5s_linear_infinite]"
-                    />
-                  </svg>
                 </div>
               )}
 

@@ -16,9 +16,6 @@ import {
   File,
 } from 'lucide-react';
 import type { AppSchema, FieldType } from '@/types/schema';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 
 interface AppCardProps {
@@ -90,74 +87,69 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
   const logicCount = app.logicNodes?.length || 0;
 
   return (
-    <Card className="group relative overflow-hidden hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 border-border/50 hover:border-border">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base font-semibold truncate flex-1">
-            {app.name}
-          </CardTitle>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-              onClick={() => router.push(`/builder?id=${app.id}`)}
-              aria-label={`Edit ${app.name}`}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => onDelete(app.id)}
-              aria-label={`Delete ${app.name}`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+    <div className="clay-card group relative overflow-hidden p-5 transition-all duration-300 hover:-translate-y-1">
+      {/* Top row: name + actions */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h3 className="text-base font-semibold text-[#5D4E37] truncate flex-1">
+          {app.name}
+        </h3>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            className="clay-sm flex h-7 w-7 items-center justify-center bg-[#F5EDE5] text-[#B8A898] hover:text-[#5D4E37]"
+            onClick={() => router.push(`/builder?id=${app.id}`)}
+            aria-label={`Edit ${app.name}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className="clay-sm flex h-7 w-7 items-center justify-center bg-[#FFD0D0] text-[#B8A898] hover:text-[#5D4E37]"
+            onClick={() => onDelete(app.id)}
+            aria-label={`Delete ${app.name}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <CardDescription className="text-xs line-clamp-2 min-h-[2em]">
-          {app.description || 'No description'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pb-3">
-        <div className="flex flex-wrap gap-1.5">
-          {Array.from(fieldCounts.entries()).slice(0, 5).map(([type, count]) => (
-            <Badge
-              key={type}
-              variant="secondary"
-              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-normal"
-            >
-              {fieldTypeIcons[type]}
-              {fieldTypeLabels[type]}
-              {count > 1 && <span className="text-muted-foreground">×{count}</span>}
-            </Badge>
-          ))}
-          {Array.from(fieldCounts.keys()).length > 5 && (
-            <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-normal">
-              +{Array.from(fieldCounts.keys()).length - 5} more
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-      <CardFooter className="pt-0 flex items-center justify-between">
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+      </div>
+
+      {/* Description */}
+      <p className="text-xs text-[#B8A898] line-clamp-2 min-h-[2em] mb-3">
+        {app.description || 'No description'}
+      </p>
+
+      {/* Field type badges */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {Array.from(fieldCounts.entries()).slice(0, 5).map(([type, count]) => (
+          <span
+            key={type}
+            className="clay-sm inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-normal text-[#5D4E37] bg-[#F5EDE5]"
+          >
+            {fieldTypeIcons[type]}
+            {fieldTypeLabels[type]}
+            {count > 1 && <span className="text-[#B8A898]">×{count}</span>}
+          </span>
+        ))}
+        {Array.from(fieldCounts.keys()).length > 5 && (
+          <span className="clay-sm inline-flex items-center px-2 py-0.5 text-[10px] font-normal text-[#B8A898] bg-[#F5EDE5]">
+            +{Array.from(fieldCounts.keys()).length - 5} more
+          </span>
+        )}
+      </div>
+
+      {/* Footer: meta + run button */}
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center gap-3 text-[10px] text-[#B8A898]">
           <span>{totalFields} field{totalFields !== 1 ? 's' : ''}</span>
           {logicCount > 0 && <span>{logicCount} node{logicCount !== 1 ? 's' : ''}</span>}
           <span>{formatDate(app.updatedAt)}</span>
         </div>
-        <Button
-          variant="default"
-          size="sm"
-          className="h-7 px-3 text-xs gap-1.5"
+        <button
+          className="clay-button flex h-7 items-center gap-1.5 px-3 text-xs font-medium text-[#5D4E37] bg-[#C5E8F7]"
           onClick={() => onRun(app.id)}
         >
           <Play className="h-3 w-3 fill-current" />
           Run
-        </Button>
-      </CardFooter>
-    </Card>
+        </button>
+      </div>
+    </div>
   );
 }

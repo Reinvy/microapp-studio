@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   AppWindow,
   Mail,
@@ -66,100 +64,109 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 p-4">
-      <div className="w-full max-w-md animate-fade-in">
+    <div className="flex min-h-screen items-center justify-center bg-[#FFF8F0] p-4 relative overflow-hidden">
+      {/* Decorative clay blobs */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-[#FFD5E5] clay" style={{filter:'blur(40px)', opacity:0.5}} />
+        <div className="absolute -bottom-20 -left-20 w-96 h-96 rounded-full bg-[#C5E8F7] clay" style={{filter:'blur(50px)', opacity:0.4}} />
+        <div className="absolute top-1/3 left-1/4 w-64 h-64 rounded-full bg-[#FFF2C5] clay" style={{filter:'blur(45px)', opacity:0.3}} />
+        <div className="absolute bottom-1/3 right-1/4 w-72 h-72 rounded-full bg-[#D5B8F5] clay" style={{filter:'blur(45px)', opacity:0.25}} />
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-500 text-white shadow-md transition-transform duration-300 group-hover:scale-105">
-              <AppWindow className="h-5 w-5" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl clay-sm bg-[#D5B8F5] text-[#5D4E37] transition-transform duration-300 group-hover:scale-105">
+              <AppWindow className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight gradient-text">MicroApp Studio</span>
+            <span className="text-xl font-bold tracking-tight text-[#5D4E37]">MicroApp Studio</span>
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-border/60 bg-card shadow-elevated">
-          <div className="rounded-t-2xl bg-gradient-to-r from-primary to-purple-500 px-6 py-5">
-            <h1 className="text-xl font-bold text-white">Welcome back</h1>
-            <p className="mt-1 text-sm text-white/80">Sign in to continue building your apps.</p>
+        <div className="clay-card overflow-hidden">
+          <div className="bg-gradient-to-r from-[#D5B8F5] to-[#FFD5E5] px-6 py-5">
+            <h1 className="text-xl font-bold text-[#5D4E37]">Welcome back</h1>
+            <p className="mt-1 text-sm text-[#5D4E37]/70">Sign in to continue building your apps.</p>
           </div>
 
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-5" noValidate>
               {apiError && (
-                <div className="animate-slide-down rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <div className="clay-sm bg-[#FFD0D0] px-4 py-3 text-sm text-[#5D4E37]">
                   {apiError}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label htmlFor="login-email" className="text-sm font-medium text-foreground">Email</label>
+                <label htmlFor="login-email" className="text-sm font-medium text-[#5D4E37]">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <input
                     id="login-email" type="email" placeholder="you@example.com"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
-                    className={`h-11 pl-10 ${errors.email ? 'border-destructive ring-1 ring-destructive' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 text-sm text-[#5D4E37] ${errors.email ? 'clay-input-error' : ''}`}
                     autoComplete="email" autoFocus
                   />
                 </div>
-                {errors.email && <p className="animate-slide-down text-xs text-destructive">{errors.email}</p>}
+                {errors.email && <p className="text-xs text-[#E87A7A]">{errors.email}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="login-password" className="text-sm font-medium text-foreground">Password</label>
+                <label htmlFor="login-password" className="text-sm font-medium text-[#5D4E37]">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <input
                     id="login-password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password"
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
-                    className={`h-11 pl-10 pr-10 ${errors.password ? 'border-destructive ring-1 ring-destructive' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 pr-10 text-sm text-[#5D4E37] ${errors.password ? 'clay-input-error' : ''}`}
                     autoComplete="current-password"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8A898] hover:text-[#5D4E37]"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {errors.password && <p className="animate-slide-down text-xs text-destructive">{errors.password}</p>}
+                {errors.password && <p className="text-xs text-[#E87A7A]">{errors.password}</p>}
               </div>
 
               <div className="flex justify-end">
-                <button type="button" className="text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
+                <button type="button" className="text-xs text-[#B8A898] underline-offset-4 hover:text-[#5D4E37] hover:underline">
                   Forgot password?
                 </button>
               </div>
 
-              <Button type="submit" disabled={loading} className="h-11 w-full gap-2 text-sm font-medium shadow-sm">
+              <button type="submit" disabled={loading}
+                className="clay-button h-11 w-full flex items-center justify-center gap-2 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5] disabled:opacity-60">
                 {loading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Signing in...</>
                 ) : (
                   <>Sign In <ArrowRight className="h-4 w-4" /></>
                 )}
-              </Button>
+              </button>
             </form>
 
             <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/60" /></div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#E8E0D8]" /></div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                <span className="bg-[#FFFFFFF0] px-2 text-[#B8A898]">Or continue with</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" className="flex h-11 items-center justify-center gap-2 rounded-lg border border-border/60 bg-background text-sm font-medium text-foreground transition-colors hover:bg-accent">
+              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#C5E8F7] text-sm font-medium text-[#5D4E37]">
                 <Globe className="h-4 w-4" /> Google
               </button>
-              <button type="button" className="flex h-11 items-center justify-center gap-2 rounded-lg border border-border/60 bg-background text-sm font-medium text-foreground transition-colors hover:bg-accent">
+              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFD5E5] text-sm font-medium text-[#5D4E37]">
                 <Globe className="h-4 w-4" /> GitHub
               </button>
             </div>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
+            <p className="mt-6 text-center text-sm text-[#B8A898]">
               Don&apos;t have an account?{' '}
-              <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">Sign up</Link>
+              <Link href="/register" className="font-medium text-[#5D4E37] underline-offset-4 hover:underline">Sign up</Link>
             </p>
           </div>
         </div>

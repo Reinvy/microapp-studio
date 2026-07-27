@@ -83,15 +83,14 @@ function buildLabelColor(field: FieldSchema): React.CSSProperties['color'] {
 
 function useInputClasses(field: FieldSchema, error?: string | null): string {
   return cn(
-    'flex w-full rounded-md border bg-transparent shadow-sm transition-all duration-200',
-    'placeholder:text-muted-foreground/60',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+    'flex w-full rounded-xl bg-transparent transition-all duration-200 clay-input',
+    'placeholder:opacity-60',
     'disabled:cursor-not-allowed disabled:opacity-50',
     getSizeClasses(field.size),
     getInputPadding(field.size),
     error
-      ? 'border-destructive focus-visible:ring-destructive/50'
-      : 'border-input hover:border-primary/40 focus-visible:border-primary',
+      ? '!shadow-[inset_3px_3px_6px_rgba(174,162,146,0.2)]'
+      : '',
     getFieldBorderRadius(field.style)
   );
 }
@@ -142,7 +141,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
       h6: 'text-sm font-medium',
     };
     const renderHeading = () => {
-      const cls = cn(sizeMap[level] || sizeMap.h2, 'text-foreground');
+      const cls = cn(sizeMap[level] || sizeMap.h2, 'text-clay');
       const style: React.CSSProperties = { ...buildContainerStyle(field) };
       const color = buildLabelColor(field);
       if (color) style.color = color;
@@ -172,7 +171,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
         <p
           className={cn(
             'text-sm leading-relaxed',
-            field.style?.textColor || field.textColor ? '' : 'text-muted-foreground'
+            field.style?.textColor || field.textColor ? '' : 'text-clay'
           )}
           style={{ color: buildLabelColor(field) }}
         >
@@ -313,7 +312,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
         </div>
         <div className="flex items-center gap-3">
           <div
-            className="h-10 w-10 rounded-xl border-2 border-border/60 shadow-sm shrink-0 ring-1 ring-inset ring-white/20"
+            className="h-10 w-10 rounded-xl clay-sm shrink-0"
             style={{ backgroundColor: hexValue }}
           />
           <input
@@ -322,10 +321,9 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             value={hexValue}
             onChange={(e) => onChange(field.id, e.target.value)}
             className={cn(
-              'flex-1 h-10 rounded-lg border border-input bg-transparent px-1 py-1 shadow-sm transition-all duration-200',
-              'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex-1 h-10 rounded-xl clay-input px-1 py-1 transition-all duration-200',
               'cursor-pointer',
-              error ? 'border-destructive' : ''
+              error ? '!shadow-[inset_3px_3px_6px_rgba(174,162,146,0.2)]' : ''
             )}
           />
         </div>
@@ -366,9 +364,10 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
                 onMouseEnter={() => setRatingHover(star)}
                 onMouseLeave={() => setRatingHover(null)}
                 className={cn(
-                  'p-1 transition-all duration-150 rounded-md',
+                  'p-1 transition-all duration-150 rounded-xl clay-sm',
                   'hover:scale-110 active:scale-95',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                  filled ? 'bg-clay-pink/30' : 'bg-white/50',
+                  'focus-visible:outline-none'
                 )}
                 aria-label={`${star} star${star !== 1 ? 's' : ''}`}
               >
@@ -376,8 +375,8 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
                   className={cn(
                     'h-6 w-6 transition-all duration-150',
                     filled
-                      ? 'fill-amber-400 text-amber-400 drop-shadow-sm'
-                      : 'text-muted-foreground/30 hover:text-muted-foreground/50'
+                      ? 'fill-clay-pink text-clay-pink drop-shadow-sm'
+                      : 'text-clay-muted hover:text-clay-muted'
                   )}
                   strokeWidth={filled ? 0 : 1.5}
                 />
@@ -509,9 +508,9 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               id={field.id}
               checked={!!value}
               onChange={handleChange}
-              className="h-4 w-4 rounded border-input bg-transparent text-primary focus:ring-primary/30 focus:ring-2 accent-primary cursor-pointer transition-all duration-200"
+              className="h-5 w-5 rounded-xl clay-sm bg-white accent-clay-purple cursor-pointer transition-all duration-200"
             />
-            <label htmlFor={field.id} className="text-sm cursor-pointer select-none">
+            <label htmlFor={field.id} className="text-sm cursor-pointer select-none text-clay">
               {field.placeholder || field.label}
             </label>
           </div>
@@ -549,7 +548,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               onChange={handleChange}
               className={cn(
                 inputClasses,
-                'file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:text-xs file:font-medium hover:file:bg-primary/20 file:transition-colors file:cursor-pointer cursor-pointer'
+                'file:mr-3 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:bg-clay-purple/20 file:text-clay file:text-xs file:font-medium hover:file:bg-clay-purple/30 file:transition-all file:cursor-pointer cursor-pointer'
               )}
             />
           </div>
@@ -566,16 +565,16 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               min={field.min ?? 0}
               max={field.max ?? 100}
               step={field.step ?? 1}
-              className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer accent-primary
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 
-                [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-md
+              className="w-full h-3 rounded-full clay-inset appearance-none cursor-pointer accent-clay-purple
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 
+                [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:clay-sm
                 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing
                 [&::-webkit-slider-thumb]:transition-all [&::-webkit-slider-thumb]:duration-150
                 [&::-webkit-slider-thumb]:hover:scale-110"
             />
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center justify-between text-xs" style={{ color: '#B8A898' }}>
               <span>{field.min ?? 0}</span>
-              <span className="font-semibold text-foreground bg-muted/50 px-2 py-0.5 rounded-md text-sm">
+              <span className="font-semibold text-clay clay-sm px-3 py-0.5 rounded-lg bg-white text-sm">
                 {String(value ?? field.min ?? 0)}
               </span>
               <span>{field.max ?? 100}</span>
@@ -593,21 +592,21 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               aria-checked={!!value}
               onClick={() => onChange(field.id, !value)}
               className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                value ? 'bg-primary' : 'bg-muted hover:bg-muted/80'
+                'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 clay-sm',
+                'focus-visible:outline-none',
+                value ? 'bg-clay-blue' : 'bg-clay-cream'
               )}
             >
               <span
                 className={cn(
-                  'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-md ring-0 transition-all duration-200',
-                  value ? 'translate-x-4' : 'translate-x-0'
+                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-all duration-200',
+                  value ? 'translate-x-5' : 'translate-x-0.5'
                 )}
               />
             </button>
             <label
               htmlFor={field.id}
-              className="text-sm cursor-pointer select-none"
+              className="text-sm cursor-pointer select-none text-clay"
               onClick={() => onChange(field.id, !value)}
             >
               {field.placeholder || field.label}
@@ -640,26 +639,26 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
         <div className="flex items-center justify-between">
           <label
             htmlFor={field.id}
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-clay"
             style={{ color: buildLabelColor(field) }}
           >
             {field.label}
             {field.required && (
-              <span className="text-destructive ml-1">*</span>
+              <span className="text-clay ml-1" style={{ color: '#FFD0D0' }}>*</span>
             )}
           </label>
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+          <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: '#B8A898' }}>
             {field.type}
           </span>
         </div>
       )}
       {renderInput()}
       {field.helpText && !error && (
-        <p className="text-[11px] text-muted-foreground/70 mt-1">{field.helpText}</p>
+        <p className="text-[11px] mt-1" style={{ color: '#B8A898' }}>{field.helpText}</p>
       )}
       {error && (
-        <p className="text-xs text-destructive mt-1 flex items-center gap-1 animate-fade-in">
-          <span className="inline-block w-1 h-1 rounded-full bg-destructive shrink-0" />
+        <p className="text-xs mt-1 flex items-center gap-1 animate-fade-in" style={{ color: '#FFD0D0' }}>
+          <span className="inline-block w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: '#FFD0D0' }} />
           {error}
         </p>
       )}

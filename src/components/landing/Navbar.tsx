@@ -17,12 +17,12 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">
-      <div className="glass border-b border-border/40">
+      <div className="bg-white/90 backdrop-blur-md border-b border-[#E8E0D8]/40 shadow-[0_4px_8px_var(--clay-shadow-dark),0_-2px_6px_var(--clay-shadow-light)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-purple-500 text-white shadow-sm transition-transform duration-300 group-hover:scale-105">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#D5B8F5] text-[#5D4E37] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)] transition-all duration-300 group-hover:shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] group-hover:translate-y-[-1px]">
                 <AppWindow className="h-5 w-5" />
               </div>
               <span className="text-lg font-bold tracking-tight gradient-text">
@@ -41,7 +41,7 @@ export default function Navbar() {
                     <Link
                       key={link.label}
                       href={link.href}
-                      className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      className="rounded-xl px-4 py-2 text-sm font-medium text-[#B8A898] transition-all hover:text-[#5D4E37] hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
                     >
                       {link.label}
                     </Link>
@@ -52,7 +52,7 @@ export default function Navbar() {
                   <a
                     key={link.label}
                     href={link.href}
-                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                    className="rounded-xl px-4 py-2 text-sm font-medium text-[#B8A898] transition-all hover:text-[#5D4E37] hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
                   >
                     {link.label}
                   </a>
@@ -60,7 +60,7 @@ export default function Navbar() {
               })}
               <div className="ml-2 flex items-center gap-2">
                 <Link href="/register">
-                  <Button className="gap-1.5 shadow-sm">
+                  <Button variant="primary" className="gap-1.5">
                     Get Started
                     <ArrowRight className="h-4 w-4" />
                   </Button>
@@ -71,7 +71,7 @@ export default function Navbar() {
             {/* Mobile hamburger */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent md:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-[#B8A898] transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5] md:hidden"
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -83,7 +83,7 @@ export default function Navbar() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-[rgba(174,162,146,0.2)] backdrop-blur-sm md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -91,15 +91,15 @@ export default function Navbar() {
       {/* Mobile slide-in menu */}
       <div
         className={cn(
-          'fixed inset-y-0 right-0 z-50 w-72 border-l border-border/60 bg-card shadow-xl transition-transform duration-300 ease-in-out md:hidden',
+          'fixed inset-y-0 right-0 z-50 w-72 border-l border-[#E8E0D8]/60 bg-[var(--clay-card)] shadow-[8px_8px_16px_var(--clay-shadow-dark),-6px_-6px_14px_var(--clay-shadow-light)] transition-transform duration-300 ease-in-out md:hidden',
           mobileOpen ? 'translate-x-0' : 'translate-x-full'
         )}
       >
-        <div className="flex items-center justify-between border-b border-border/40 px-4 py-4">
-          <span className="text-sm font-semibold text-foreground">Menu</span>
+        <div className="flex items-center justify-between border-b border-[#E8E0D8]/40 px-4 py-4">
+          <span className="text-sm font-semibold text-[#5D4E37]">Menu</span>
           <button
             onClick={() => setMobileOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-[#B8A898] hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
             aria-label="Close menu"
           >
             <X className="h-4 w-4" />
@@ -109,27 +109,27 @@ export default function Navbar() {
           <a
             href="#features"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-xl px-4 py-3 text-sm font-medium text-[#5D4E37] transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
           >
             Features
           </a>
           <a
             href="#how-it-works"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-xl px-4 py-3 text-sm font-medium text-[#5D4E37] transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
           >
             How It Works
           </a>
           <Link
             href="/login"
             onClick={() => setMobileOpen(false)}
-            className="rounded-lg px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="rounded-xl px-4 py-3 text-sm font-medium text-[#5D4E37] transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
           >
             Login
           </Link>
-          <hr className="my-2 border-border/40" />
+          <hr className="my-2 border-[#E8E0D8]/40" />
           <Link href="/register" onClick={() => setMobileOpen(false)}>
-            <Button className="w-full gap-1.5">
+            <Button variant="primary" className="w-full gap-1.5">
               Get Started
               <ArrowRight className="h-4 w-4" />
             </Button>

@@ -143,16 +143,17 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-border/40 rounded-lg overflow-hidden bg-card/30">
+    <div className="clay-sm bg-clay-cream/60 overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hover:bg-muted/30 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider hover:bg-clay-cream/80 transition-colors"
+        style={{ color: '#5D4E37' }}
       >
-        {icon && <span className="text-muted-foreground/70">{icon}</span>}
+        {icon && <span style={{ color: '#B8A898' }}>{icon}</span>}
         <span className="flex-1">{title}</span>
         {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
       </button>
-      {open && <div className="px-3 py-2 space-y-2.5 border-t border-border/30">{children}</div>}
+      {open && <div className="px-3 py-2.5 space-y-2.5 border-t border-clay-border/30">{children}</div>}
     </div>
   );
 }
@@ -175,17 +176,18 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
     <div className="space-y-2.5">
       {/* ── Type Change ── */}
       <Section title="Field Type" icon={<Settings2 className="h-3 w-3" />} defaultOpen={false}>
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-4 gap-1.5">
           {FIELD_TYPE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onChange({ type: opt.value })}
               className={cn(
-                'flex flex-col items-center gap-0.5 py-1.5 rounded-md border text-[9px] transition-all',
+                'flex flex-col items-center gap-0.5 py-1.5 rounded-xl clay-sm text-[9px] transition-all',
                 field.type === opt.value
-                  ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                  : 'border-border/50 text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                  ? 'bg-clay-purple/30 shadow-inner'
+                  : 'bg-white/60 hover:bg-white hover:scale-105'
               )}
+              style={{ color: field.type === opt.value ? '#5D4E37' : '#B8A898' }}
               title={opt.label}
             >
               {opt.icon}
@@ -199,24 +201,24 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       <Section title="Basic" icon={<Type className="h-3 w-3" />}>
         {/* Label */}
         <div className="space-y-1">
-          <label className="text-[10px] font-medium text-muted-foreground">Label</label>
-          <Input
+          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Label</label>
+          <input
             value={field.label}
             onChange={(e) => onChange({ label: e.target.value })}
             placeholder="Field label"
-            className="h-7 text-xs"
+            className="clay-input h-8 text-xs w-full px-3"
           />
         </div>
 
         {/* Placeholder - for input types */}
         {isInputType && field.type !== 'checkbox' && field.type !== 'toggle' && field.type !== 'color' && field.type !== 'rating' && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground">Placeholder</label>
-            <Input
+            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Placeholder</label>
+            <input
               value={field.placeholder || ''}
               onChange={(e) => onChange({ placeholder: e.target.value })}
               placeholder="Placeholder text"
-              className="h-7 text-xs"
+              className="clay-input h-8 text-xs w-full px-3"
             />
           </div>
         )}
@@ -224,18 +226,18 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Required toggle */}
         {isInputType && (
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-medium text-muted-foreground">Required</label>
+            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Required</label>
             <button
               onClick={() => onChange({ required: !field.required })}
               className={cn(
-                'relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0',
-                field.required ? 'bg-primary' : 'bg-muted'
+                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 clay-sm',
+                field.required ? 'bg-clay-pink' : 'bg-clay-cream'
               )}
             >
               <span
                 className={cn(
-                  'inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform',
-                  field.required ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                  'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  field.required ? 'translate-x-[18px]' : 'translate-x-[2px]'
                 )}
               />
             </button>
@@ -245,12 +247,12 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Content text - for heading/paragraph */}
         {(field.type === 'heading' || field.type === 'paragraph') && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground">Content Text</label>
-            <Input
+            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Content Text</label>
+            <input
               value={field.content || ''}
               onChange={(e) => onChange({ content: e.target.value })}
               placeholder={field.type === 'heading' ? 'Heading Text' : 'Paragraph text...'}
-              className="h-7 text-xs"
+              className="clay-input h-8 text-xs w-full px-3"
             />
           </div>
         )}
@@ -258,11 +260,11 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Heading level */}
         {field.type === 'heading' && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground">Level</label>
+            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Level</label>
             <select
               value={field.level || 'h2'}
               onChange={(e) => onChange({ level: e.target.value as HeadingLevel })}
-              className="flex h-7 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="clay-input h-8 w-full px-2 text-xs"
             >
               {HEADING_LEVELS.map((hl) => (
                 <option key={hl.value} value={hl.value}>{hl.label}</option>
@@ -274,18 +276,19 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Alignment - heading/paragraph */}
         {(field.type === 'heading' || field.type === 'paragraph') && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground">Alignment</label>
+            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Alignment</label>
             <div className="flex gap-1">
               {ALIGNMENTS.map((a) => (
                 <button
                   key={a.value}
                   onClick={() => onChange({ alignment: a.value })}
                   className={cn(
-                    'flex-1 py-1 rounded text-[10px] border transition-colors',
+                    'flex-1 py-1 rounded-xl text-[10px] clay-sm transition-all',
                     (field.alignment === a.value || (!field.alignment && a.value === 'left'))
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/50 text-muted-foreground hover:border-primary/30'
+                      ? 'bg-clay-blue/40 shadow-inner'
+                      : 'bg-white/60 hover:bg-white'
                   )}
+                  style={{ color: '#5D4E37' }}
                 >
                   {a.label}
                 </button>
@@ -298,18 +301,19 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {field.type === 'button' && (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground">Variant</label>
+              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Variant</label>
               <div className="flex gap-1 flex-wrap">
                 {BUTTON_VARIANTS.map((v) => (
                   <button
                     key={v.value}
                     onClick={() => onChange({ variant: v.value })}
                     className={cn(
-                      'px-2 py-1 rounded text-[10px] border transition-colors',
+                      'px-2 py-1 rounded-xl text-[10px] clay-sm transition-all',
                       (field.variant === v.value || (!field.variant && v.value === 'primary'))
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border/50 text-muted-foreground hover:border-primary/30'
+                        ? 'bg-clay-purple/40 shadow-inner'
+                        : 'bg-white/60 hover:bg-white'
                     )}
+                    style={{ color: '#5D4E37' }}
                   >
                     {v.label}
                   </button>
@@ -317,11 +321,11 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground">Action Type</label>
+              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Action Type</label>
               <select
                 value={field.actionType || 'submit'}
                 onChange={(e) => onChange({ actionType: e.target.value as 'submit' | 'reset' | 'link' })}
-                className="flex h-7 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="clay-input h-8 w-full px-2 text-xs"
               >
                 <option value="submit">Submit</option>
                 <option value="reset">Reset</option>
@@ -330,12 +334,12 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             </div>
             {field.actionType === 'link' && (
               <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground">URL</label>
-                <Input
+                <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>URL</label>
+                <input
                   value={field.href || ''}
                   onChange={(e) => onChange({ href: e.target.value })}
                   placeholder="https://..."
-                  className="h-7 text-xs"
+                  className="clay-input h-8 text-xs w-full px-3"
                 />
               </div>
             )}
@@ -346,29 +350,29 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {field.type === 'image' && (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground">Image URL</label>
-              <Input
+              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Image URL</label>
+              <input
                 value={field.src || ''}
                 onChange={(e) => onChange({ src: e.target.value })}
                 placeholder="https://example.com/image.jpg"
-                className="h-7 text-xs"
+                className="clay-input h-8 text-xs w-full px-3"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground">Alt Text</label>
-              <Input
+              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Alt Text</label>
+              <input
                 value={field.alt || ''}
                 onChange={(e) => onChange({ alt: e.target.value })}
                 placeholder="Describe the image"
-                className="h-7 text-xs"
+                className="clay-input h-8 text-xs w-full px-3"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground">Aspect Ratio</label>
+              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Aspect Ratio</label>
               <select
                 value={field.aspectRatio || 'auto'}
                 onChange={(e) => onChange({ aspectRatio: e.target.value as AspectRatio })}
-                className="flex h-7 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="clay-input h-8 w-full px-2 text-xs"
               >
                 {ASPECT_RATIO_OPTIONS.map((ar) => (
                   <option key={ar.value} value={ar.value}>{ar.label}</option>
@@ -381,30 +385,30 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Select options */}
         {field.type === 'select' && (
           <div className="space-y-1.5">
-            <label className="text-[10px] font-medium text-muted-foreground">Options</label>
+            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Options</label>
             <div className="space-y-1 max-h-[120px] overflow-y-auto">
               {(field.options || []).map((opt, i) => (
                 <div key={i} className="flex items-center gap-1">
-                  <span className="flex-1 text-xs px-2 py-0.5 rounded bg-muted/50 truncate">{opt}</span>
+                  <span className="flex-1 text-xs px-2 py-0.5 rounded clay-sm bg-clay-cream/80 truncate">{opt}</span>
                   <button
                     onClick={() => {
                       const newOpts = [...(field.options || [])];
                       newOpts.splice(i, 1);
                       onChange({ options: newOpts });
                     }}
-                    className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                    className="flex items-center justify-center h-6 w-6 rounded-xl clay-sm bg-clay-rose/30 hover:bg-clay-rose/60 transition-all shrink-0"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3 w-3" style={{ color: '#5D4E37' }} />
                   </button>
                 </div>
               ))}
             </div>
             <div className="flex items-center gap-1">
-              <Input
+              <input
                 value={newOption}
                 onChange={(e) => setNewOption(e.target.value)}
                 placeholder="Add option..."
-                className="h-7 text-xs flex-1"
+                className="clay-input h-8 text-xs flex-1 px-3"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newOption.trim()) {
                     onChange({ options: [...(field.options || []), newOption.trim()] });
@@ -419,9 +423,9 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                     setNewOption('');
                   }
                 }}
-                className="flex items-center justify-center h-7 w-7 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
+                className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-blue/40 hover:bg-clay-blue/60 transition-all shrink-0"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
               </button>
             </div>
           </div>
@@ -430,18 +434,18 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Default value - checkbox/toggle */}
         {(field.type === 'checkbox' || field.type === 'toggle') && (
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-medium text-muted-foreground">Default Value</label>
+            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Default Value</label>
             <button
               onClick={() => onChange({ defaultValue: !field.defaultValue })}
               className={cn(
-                'relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0',
-                field.defaultValue ? 'bg-primary' : 'bg-muted'
+                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 clay-sm',
+                field.defaultValue ? 'bg-clay-blue' : 'bg-clay-cream'
               )}
             >
               <span
                 className={cn(
-                  'inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform',
-                  field.defaultValue ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                  'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  field.defaultValue ? 'translate-x-[18px]' : 'translate-x-[2px]'
                 )}
               />
             </button>
@@ -456,8 +460,8 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Min Length</label>
-                  <Input
+                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Min Length</label>
+                  <input
                     type="number"
                     value={field.validation?.minLength ?? ''}
                     onChange={(e) =>
@@ -468,12 +472,12 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                         },
                       })
                     }
-                    className="h-7 text-xs"
+                    className="clay-input h-8 text-xs w-full px-3"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Max Length</label>
-                  <Input
+                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Max Length</label>
+                  <input
                     type="number"
                     value={field.validation?.maxLength ?? ''}
                     onChange={(e) =>
@@ -484,13 +488,13 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                         },
                       })
                     }
-                    className="h-7 text-xs"
+                    className="clay-input h-8 text-xs w-full px-3"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Regex Pattern</label>
-                <Input
+                <label className="text-[10px]" style={{ color: '#B8A898' }}>Regex Pattern</label>
+                <input
                   value={field.validation?.pattern || ''}
                   onChange={(e) =>
                     onChange({
@@ -501,12 +505,12 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                     })
                   }
                   placeholder="e.g. ^[a-zA-Z]+$"
-                  className="h-7 text-xs font-mono"
+                  className="clay-input h-8 text-xs w-full px-3 font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Error Message</label>
-                <Input
+                <label className="text-[10px]" style={{ color: '#B8A898' }}>Error Message</label>
+                <input
                   value={field.validation?.message || ''}
                   onChange={(e) =>
                     onChange({
@@ -517,7 +521,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                     })
                   }
                   placeholder="Custom error message"
-                  className="h-7 text-xs"
+                  className="clay-input h-8 text-xs w-full px-3"
                 />
               </div>
             </>
@@ -526,38 +530,38 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Min</label>
-                  <Input
+                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Min</label>
+                  <input
                     type="number"
                     value={field.min ?? ''}
                     onChange={(e) =>
                       onChange({ min: e.target.value ? Number(e.target.value) : undefined })
                     }
-                    className="h-7 text-xs"
+                    className="clay-input h-8 text-xs w-full px-3"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground">Max</label>
-                  <Input
+                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Max</label>
+                  <input
                     type="number"
                     value={field.max ?? ''}
                     onChange={(e) =>
                       onChange({ max: e.target.value ? Number(e.target.value) : undefined })
                     }
-                    className="h-7 text-xs"
+                    className="clay-input h-8 text-xs w-full px-3"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-muted-foreground">Step</label>
-                <Input
+                <label className="text-[10px]" style={{ color: '#B8A898' }}>Step</label>
+                <input
                   type="number"
                   step="any"
                   value={field.step ?? ''}
                   onChange={(e) =>
                     onChange({ step: e.target.value ? Number(e.target.value) : undefined })
                   }
-                  className="h-7 text-xs"
+                  className="clay-input h-8 text-xs w-full px-3"
                 />
               </div>
             </>
@@ -568,18 +572,19 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       {/* ── Styling Section ── */}
       <Section title="Styling" icon={<Palette className="h-3 w-3" />}>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium text-muted-foreground">Width</label>
+          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Width</label>
           <div className="flex gap-1">
             {WIDTH_OPTIONS.map((w) => (
               <button
                 key={w.value}
                 onClick={() => onChange({ widthStyle: w.value })}
                 className={cn(
-                  'flex-1 py-1 rounded text-[10px] border transition-colors',
+                  'flex-1 py-1 rounded-xl text-[10px] clay-sm transition-all',
                   (field.widthStyle === w.value || (!field.widthStyle && w.value === 'full'))
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border/50 text-muted-foreground hover:border-primary/30'
+                    ? 'bg-clay-blue/40 shadow-inner'
+                    : 'bg-white/60 hover:bg-white'
                 )}
+                style={{ color: '#5D4E37' }}
               >
                 {w.label}
               </button>
@@ -589,59 +594,59 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
 
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className="text-[10px] text-muted-foreground">BG Color</label>
+            <label className="text-[10px]" style={{ color: '#B8A898' }}>BG Color</label>
             <div className="flex items-center gap-1">
-              <Input
+              <input
                 value={field.bgColor || ''}
                 onChange={(e) => onChange({ bgColor: e.target.value })}
                 placeholder="#fff"
-                className="h-7 text-xs flex-1"
+                className="clay-input h-8 text-xs flex-1 px-2"
               />
               {field.type === 'color' && (
-                <Input
+                <input
                   type="color"
                   value={field.bgColor || '#ffffff'}
                   onChange={(e) => onChange({ bgColor: e.target.value })}
-                  className="h-7 w-8 p-0.5 border"
+                  className="h-8 w-8 p-0.5 rounded-xl clay-sm"
                 />
               )}
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] text-muted-foreground">Text Color</label>
-            <Input
+            <label className="text-[10px]" style={{ color: '#B8A898' }}>Text Color</label>
+            <input
               value={field.textColor || ''}
               onChange={(e) => onChange({ textColor: e.target.value })}
               placeholder="#000"
-              className="h-7 text-xs"
+              className="clay-input h-8 text-xs w-full px-2"
             />
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="text-[10px] font-medium text-muted-foreground">Show Border</label>
+          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Show Border</label>
           <button
             onClick={() => onChange({ border: !field.border })}
             className={cn(
-              'relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0',
-              field.border ? 'bg-primary' : 'bg-muted'
+              'relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 clay-sm',
+              field.border ? 'bg-clay-pink' : 'bg-clay-cream'
             )}
           >
             <span
               className={cn(
-                'inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform',
-                field.border ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                field.border ? 'translate-x-[18px]' : 'translate-x-[2px]'
               )}
             />
           </button>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] text-muted-foreground">Border Radius</label>
+          <label className="text-[10px]" style={{ color: '#B8A898' }}>Border Radius</label>
           <select
             value={field.borderRadius || 'md'}
             onChange={(e) => onChange({ borderRadius: e.target.value as BorderRadius })}
-            className="flex h-7 w-full rounded-md border border-input bg-transparent px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="clay-input h-8 w-full px-2 text-xs"
           >
             {BORDER_RADIUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -650,18 +655,19 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] text-muted-foreground">Shadow</label>
+          <label className="text-[10px]" style={{ color: '#B8A898' }}>Shadow</label>
           <div className="flex gap-1 flex-wrap">
             {SHADOW_OPTIONS.map((s) => (
               <button
                 key={s.value}
                 onClick={() => onChange({ shadow: s.value })}
                 className={cn(
-                  'px-2 py-1 rounded text-[10px] border transition-colors',
+                  'px-2 py-1 rounded-xl text-[10px] clay-sm transition-all',
                   (field.shadow === s.value || (!field.shadow && s.value === 'none'))
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border/50 text-muted-foreground hover:border-primary/30'
+                    ? 'bg-clay-purple/40 shadow-inner'
+                    : 'bg-white/60 hover:bg-white'
                 )}
+                style={{ color: '#5D4E37' }}
               >
                 {s.label}
               </button>
@@ -678,11 +684,12 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               key={a.value}
               onClick={() => onChange({ animation: a.value })}
               className={cn(
-                'px-2 py-1 rounded text-[10px] border transition-colors',
+                'px-2 py-1 rounded-xl text-[10px] clay-sm transition-all',
                 (field.animation === a.value || (!field.animation && a.value === 'none'))
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border/50 text-muted-foreground hover:border-primary/30'
+                  ? 'bg-clay-yellow/40 shadow-inner'
+                  : 'bg-white/60 hover:bg-white'
               )}
+              style={{ color: '#5D4E37' }}
             >
               {a.label}
             </button>
@@ -693,45 +700,44 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       {/* ── Advanced Section ── */}
       <Section title="Advanced" icon={<Settings2 className="h-3 w-3" />} defaultOpen={false}>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium text-muted-foreground">Default Value</label>
-          <Input
+          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Default Value</label>
+          <input
             value={typeof field.defaultValue === 'string' || typeof field.defaultValue === 'number' ? String(field.defaultValue) : ''}
             onChange={(e) => onChange({ defaultValue: e.target.value })}
             placeholder="Default value"
-            className="h-7 text-xs"
+            className="clay-input h-8 text-xs w-full px-3"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium text-muted-foreground">Custom CSS Class</label>
-          <Input
+          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Custom CSS Class</label>
+          <input
             value={field.cssClass || ''}
             onChange={(e) => onChange({ cssClass: e.target.value })}
             placeholder="my-custom-class"
-            className="h-7 text-xs font-mono"
+            className="clay-input h-8 text-xs w-full px-3 font-mono"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium text-muted-foreground">Help Text</label>
+          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Help Text</label>
           <textarea
             value={field.helpText || ''}
             onChange={(e) => onChange({ helpText: e.target.value })}
             placeholder="Additional information for users..."
-            className="flex min-h-[50px] w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+            className="clay-input min-h-[50px] w-full px-3 py-1.5 text-xs resize-none"
           />
         </div>
       </Section>
 
       {/* ── Delete ── */}
       <div className="pt-1">
-        <Button
-          variant="destructive"
-          size="sm"
-          className="w-full gap-1.5 text-xs h-7"
+        <button
           onClick={onRemove}
+          className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium clay-sm bg-clay-rose/40 hover:bg-clay-rose/60 transition-all"
+          style={{ color: '#5D4E37' }}
         >
           <Trash2 className="h-3.5 w-3.5" />
           Remove Field
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -761,27 +767,27 @@ export default function PropertiesPanel() {
   }, [selectedFieldId, removeField]);
 
   return (
-    <aside className="w-72 border-l border-border/50 bg-card/50 flex flex-col h-full overflow-hidden">
+    <aside className="w-72 clay-card rounded-none rounded-l-2xl flex flex-col h-full overflow-hidden" style={{ backgroundColor: '#FFFFFFF0' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 shrink-0">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-clay-border/40 shrink-0">
         <div className="flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <Settings2 className="h-4 w-4" style={{ color: '#B8A898' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5D4E37' }}>
             Properties
           </h3>
         </div>
         {selectedFieldId && (
           <button
             onClick={() => selectField(null)}
-            className="flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
           </button>
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {selectedField ? (
           <FieldEditor
             key={selectedField.id}
@@ -791,17 +797,17 @@ export default function PropertiesPanel() {
           />
         ) : (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mb-4 animate-pulse">
-              <Settings2 className="h-7 w-7 text-primary/50" />
+            <div className="w-16 h-16 rounded-full clay-lg bg-clay-yellow/30 flex items-center justify-center mb-4 animate-pulse-soft">
+              <Settings2 className="h-7 w-7" style={{ color: '#D5B8F5' }} />
             </div>
-            <h4 className="text-sm font-medium mb-1">No field selected</h4>
-            <p className="text-xs text-muted-foreground max-w-[180px] leading-relaxed">
+            <h4 className="text-sm font-medium mb-1" style={{ color: '#5D4E37' }}>No field selected</h4>
+            <p className="text-xs max-w-[180px] leading-relaxed" style={{ color: '#B8A898' }}>
               Click on a field in the canvas to edit its properties here.
             </p>
-            <div className="mt-4 flex gap-2 text-[10px] text-muted-foreground/50">
-              <span className="px-2 py-1 rounded bg-muted/50">Label</span>
-              <span className="px-2 py-1 rounded bg-muted/50">Validation</span>
-              <span className="px-2 py-1 rounded bg-muted/50">Style</span>
+            <div className="mt-4 flex gap-2 text-[10px]" style={{ color: '#B8A898' }}>
+              <span className="px-2 py-1 rounded-xl clay-sm bg-clay-peach/30">Label</span>
+              <span className="px-2 py-1 rounded-xl clay-sm bg-clay-blue/30">Validation</span>
+              <span className="px-2 py-1 rounded-xl clay-sm bg-clay-purple/30">Style</span>
             </div>
           </div>
         )}

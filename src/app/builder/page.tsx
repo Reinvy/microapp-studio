@@ -157,13 +157,13 @@ function BuilderContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
+      <div className="min-h-screen bg-clay-cream flex items-center justify-center">
+        <div className="text-center max-w-sm clay p-8">
+          <div className="w-16 h-16 rounded-2xl bg-clay-rose flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <AlertTriangle className="h-8 w-8" style={{ color: '#5D4E37' }} />
           </div>
-          <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
-          <p className="text-sm text-muted-foreground mb-6">{error}</p>
+          <h2 className="text-lg font-semibold mb-2" style={{ color: '#5D4E37' }}>Something went wrong</h2>
+          <p className="text-sm mb-6" style={{ color: '#B8A898' }}>{error}</p>
           <div className="flex items-center justify-center gap-2">
             <Button variant="outline" onClick={() => router.push('/')}>
               Back to Dashboard
@@ -177,10 +177,10 @@ function BuilderContent() {
 
   if (isLoading || !initialized) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
+      <div className="min-h-screen bg-clay-cream flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 clay-sm p-6">
+          <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#D5B8F5' }} />
+          <p className="text-sm" style={{ color: '#B8A898' }}>
             {appId ? 'Loading app...' : 'Creating new app...'}
           </p>
         </div>
@@ -191,7 +191,7 @@ function BuilderContent() {
   const dragOverlayField = getDragOverlayField();
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-screen flex flex-col bg-clay-cream overflow-hidden">
       <Toolbar />
 
       <DndContext
@@ -255,16 +255,16 @@ function BuilderContent() {
       </DndContext>
 
       {/* Mobile tab bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/60 bg-white/90 backdrop-blur-xl flex shadow-lg">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 clay-card rounded-none rounded-t-2xl flex shadow-lg">
         {TAB_ITEMS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActivePanel(tab.key)}
             className={cn(
-              'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+              'flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors',
               activePanel === tab.key
-                ? 'text-primary'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-clay'
+                : 'hover:text-clay'
             )}
           >
             {tab.icon}
@@ -283,10 +283,10 @@ export default function BuilderPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen bg-clay-cream flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Loading builder...</p>
+            <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#D5B8F5' }} />
+            <p className="text-sm" style={{ color: '#B8A898' }}>Loading builder...</p>
           </div>
         </div>
       }

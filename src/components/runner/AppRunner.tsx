@@ -59,31 +59,32 @@ function LivePreview({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-card overflow-hidden transition-all duration-300',
-        'h-full flex flex-col'
+        'clay-card h-full flex flex-col overflow-hidden transition-all duration-300',
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-muted/20">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-clay-border/30 bg-clay-cream/40">
         <button
           onClick={onToggle}
-          className="flex items-center gap-2 text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+          className="flex items-center gap-2 text-sm font-medium transition-colors"
+          style={{ color: '#5D4E37' }}
         >
           {isVisible ? (
-            <Eye className="h-3.5 w-3.5 text-primary" />
+            <Eye className="h-3.5 w-3.5" style={{ color: '#D5B8F5' }} />
           ) : (
-            <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+            <EyeOff className="h-3.5 w-3.5" style={{ color: '#B8A898' }} />
           )}
           Live Preview
         </button>
         <div className="flex items-center gap-2">
           {liveResult && (
-            <Badge
-              variant={errorCount > 0 ? 'destructive' : 'secondary'}
+            <span
               className={cn(
-                'text-[10px] px-1.5 py-0 h-4 gap-1',
-                errorCount === 0 && 'bg-emerald-500/10 text-emerald-600 border-emerald-200'
+                'text-[10px] px-2 py-0.5 rounded-full clay-sm flex items-center gap-1',
+                errorCount === 0 && 'bg-clay-green/40',
+                errorCount > 0 && 'bg-clay-rose/40'
               )}
+              style={{ color: '#5D4E37' }}
             >
               {errorCount > 0 ? (
                 <XCircle className="h-2.5 w-2.5" />
@@ -91,11 +92,11 @@ function LivePreview({
                 <CheckCircle2 className="h-2.5 w-2.5" />
               )}
               {errorCount > 0 ? `${errorCount} err` : 'valid'}
-            </Badge>
+            </span>
           )}
-          <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-mono">
+          <span className="text-[9px] px-2 py-0.5 rounded-full clay-sm bg-clay-blue/20 font-mono" style={{ color: '#5D4E37' }}>
             {Object.keys(values).length} vals
-          </Badge>
+          </span>
         </div>
       </div>
 
@@ -105,20 +106,21 @@ function LivePreview({
           {/* Live JSON */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#B8A898' }}>
                 Current Values
               </span>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(jsonPreview);
                 }}
-                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                className="text-[10px] transition-colors flex items-center gap-1 clay-sm px-2 py-0.5 bg-clay-peach/30 hover:bg-clay-peach/50"
+                style={{ color: '#5D4E37' }}
               >
                 <Copy className="h-3 w-3" />
                 Copy
               </button>
             </div>
-            <pre className="text-[11px] font-mono leading-relaxed bg-muted/40 rounded-lg p-3 border border-border/30 overflow-x-auto whitespace-pre-wrap break-all max-h-48">
+            <pre className="text-[11px] font-mono leading-relaxed clay-inset p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-48" style={{ color: '#5D4E37' }}>
               {jsonPreview}
             </pre>
           </div>
@@ -126,18 +128,18 @@ function LivePreview({
           {/* Computed outputs */}
           {liveResult && Object.keys(liveResult.outputs).length > 0 && (
             <div>
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+              <span className="text-[10px] font-medium uppercase tracking-wider block mb-1.5" style={{ color: '#B8A898' }}>
                 Computed Results
               </span>
               <div className="space-y-1">
                 {Object.entries(liveResult.outputs).map(([key, val]) => (
                   <div
                     key={key}
-                    className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/10 group"
+                    className="flex items-center justify-between p-2 rounded-xl clay-sm bg-clay-purple/10 group"
                   >
-                    <span className="text-xs font-medium truncate mr-2">{key}</span>
+                    <span className="text-xs font-medium truncate mr-2" style={{ color: '#5D4E37' }}>{key}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs font-mono bg-background/80 px-1.5 py-0.5 rounded border border-border/30 max-w-[120px] truncate">
+                      <span className="text-xs font-mono bg-white/80 px-1.5 py-0.5 rounded-lg clay-sm max-w-[120px] truncate" style={{ color: '#5D4E37' }}>
                         {typeof val === 'object'
                           ? JSON.stringify(val)
                           : String(val ?? '-')}
@@ -148,7 +150,8 @@ function LivePreview({
                             String(val ?? '')
                           );
                         }}
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
+                        className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
+                        style={{ color: '#5D4E37' }}
                       >
                         <Copy className="h-3 w-3" />
                       </button>
@@ -161,18 +164,19 @@ function LivePreview({
 
           {/* Live errors inline */}
           {liveResult && errorCount > 0 && (
-            <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-3">
+            <div className="rounded-xl clay-sm bg-clay-rose/20 p-3">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <AlertCircle className="h-3 w-3 text-destructive" />
-                <span className="text-xs font-medium text-destructive">Issues</span>
+                <AlertCircle className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                <span className="text-xs font-medium" style={{ color: '#5D4E37' }}>Issues</span>
               </div>
               <ul className="space-y-0.5">
                 {liveResult.errors.slice(0, 3).map((err, i) => (
                   <li
                     key={i}
-                    className="text-[11px] text-destructive/80 flex items-start gap-1.5"
+                    className="text-[11px] flex items-start gap-1.5"
+                    style={{ color: '#5D4E37' }}
                   >
-                    <span className="inline-block w-1 h-1 rounded-full bg-destructive/60 mt-1 shrink-0" />
+                    <span className="inline-block w-1 h-1 rounded-full bg-clay-rose/60 mt-1 shrink-0" />
                     {err}
                   </li>
                 ))}
@@ -344,7 +348,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
 
   return (
     <div className={cn(
-      'min-h-screen bg-background',
+      'min-h-screen bg-clay-cream',
       fullscreen && 'fixed inset-0 z-50 overflow-auto'
     )}>
       <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
@@ -356,61 +360,57 @@ export default function AppRunner({ app }: AppRunnerProps) {
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight gradient-text">
                   {app.name}
                 </h1>
-                <Badge variant="outline" className="shrink-0 text-[10px] px-2 py-0.5 font-mono border-primary/20 text-primary/70">
+                <span className="shrink-0 text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-purple/20 font-mono" style={{ color: '#5D4E37' }}>
                   v{app.version}
-                </Badge>
+                </span>
               </div>
               {app.description && (
-                <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
+                <p className="text-sm mt-1.5 max-w-2xl" style={{ color: '#B8A898' }}>
                   {app.description}
                 </p>
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              <button
                 onClick={handleShare}
+                className="flex items-center justify-center h-9 w-9 rounded-xl clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
                 title="Share this app"
               >
                 {copiedShare ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  <Check className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
                 ) : (
-                  <Share2 className="h-3.5 w-3.5" />
+                  <Share2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
                 )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              </button>
+              <button
                 onClick={toggleFullscreen}
+                className="flex items-center justify-center h-9 w-9 rounded-xl clay-sm bg-clay-peach/30 hover:bg-clay-peach/50 transition-all"
                 title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
               >
                 {fullscreen ? (
-                  <Minimize2 className="h-3.5 w-3.5" />
+                  <Minimize2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
                 ) : (
-                  <Maximize2 className="h-3.5 w-3.5" />
+                  <Maximize2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
                 )}
-              </Button>
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1">
+            <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-yellow/30 flex items-center gap-1" style={{ color: '#5D4E37' }}>
               <Sparkles className="h-2.5 w-2.5" />
               {app.fields.length} field{app.fields.length !== 1 ? 's' : ''}
-            </Badge>
+            </span>
             {hasLogicNodes && (
-              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1">
+              <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-blue/30 flex items-center gap-1" style={{ color: '#5D4E37' }}>
                 <Activity className="h-2.5 w-2.5" />
                 {app.logicNodes.length} logic node{app.logicNodes.length !== 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
             {liveResult && liveResult.errors.length > 0 && (
-              <Badge variant="destructive" className="text-[10px] px-2 py-0.5 gap-1">
+              <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-rose/40 flex items-center gap-1" style={{ color: '#5D4E37' }}>
                 <AlertCircle className="h-2.5 w-2.5" />
                 {liveResult.errors.length} issue{liveResult.errors.length !== 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
           </div>
         </div>
@@ -419,88 +419,79 @@ export default function AppRunner({ app }: AppRunnerProps) {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* ── Form Column ────────────────────────────────────────────────── */}
           <div className="flex-1 min-w-0">
-            <Card className="border-border/40 shadow-card overflow-visible">
-              <CardContent className="p-5 md:p-6">
-                {/* Empty state */}
-                {!hasFields && (
-                  <div className="flex flex-col items-center justify-center py-16 rounded-xl border-2 border-dashed border-border/40 bg-muted/20">
-                    <AlertCircle className="h-10 w-10 text-muted-foreground/40 mb-4" />
-                    <p className="text-sm text-muted-foreground text-center max-w-xs">
-                      This app has no fields yet. Go to the builder to add some.
-                    </p>
-                  </div>
-                )}
+            <div className="clay-card overflow-visible p-5 md:p-6">
+              {/* Empty state */}
+              {!hasFields && (
+                <div className="flex flex-col items-center justify-center py-16 clay-lg bg-clay-cream/60">
+                  <AlertCircle className="h-10 w-10 mb-4" style={{ color: '#B8A898' }} />
+                  <p className="text-sm text-center max-w-xs" style={{ color: '#B8A898' }}>
+                    This app has no fields yet. Go to the builder to add some.
+                  </p>
+                </div>
+              )}
 
-                {/* Fields */}
-                {hasFields && (
-                  <div className="space-y-5">
-                    {app.fields.map((field, idx) => (
-                      <div
-                        key={field.id}
-                        className={cn(
-                          'rounded-xl border border-border/40 bg-card p-4 md:p-5',
-                          'shadow-sm hover:shadow-card transition-all duration-300',
-                          'animate-slide-up',
-                          field.style?.borderRadius ? getFieldBorderRadius(field.style) : 'rounded-xl',
-                          field.style?.bgColor ? '' : 'bg-card',
-                          getFieldShadow(field.style),
-                        )}
-                        style={{
-                          animationDelay: `${idx * 40}ms`,
-                          animationFillMode: 'backwards',
-                          backgroundColor: field.style?.bgColor,
-                          ...(field.style?.border ? { border: '1px solid var(--border)' } : {}),
-                        }}
-                      >
-                        <RenderField
-                          field={field}
-                          value={values[field.id]}
-                          error={errors[field.id]}
-                          onChange={handleChange}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                {hasFields && (
-                  <div className="flex items-center gap-3 pt-6 mt-2 border-t border-border/30">
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={running}
-                      size="lg"
-                      className="gap-2 min-w-[130px] relative overflow-hidden group"
-                    >
-                      {running ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Processing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 fill-current" />
-                          <span>{hasLogicNodes ? 'Calculate' : 'Submit'}</span>
-                        </>
+              {/* Fields */}
+              {hasFields && (
+                <div className="space-y-5">
+                  {app.fields.map((field, idx) => (
+                    <div
+                      key={field.id}
+                      className={cn(
+                        'clay-sm bg-white p-4 md:p-5',
+                        'animate-slide-up',
+                        field.style?.borderRadius ? getFieldBorderRadius(field.style) : '',
+                        field.style?.bgColor ? '' : 'bg-white',
                       )}
-                      <div className={cn(
-                        'absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-0 transition-transform duration-500',
-                        running ? 'hidden' : ''
-                      )} />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleReset}
-                      disabled={running}
-                      className="gap-2"
+                      style={{
+                        animationDelay: `${idx * 40}ms`,
+                        animationFillMode: 'backwards',
+                        backgroundColor: field.style?.bgColor || undefined,
+                      }}
                     >
-                      <RotateCcw className="h-4 w-4" />
-                      Reset
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      <RenderField
+                        field={field}
+                        value={values[field.id]}
+                        error={errors[field.id]}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {hasFields && (
+                <div className="flex items-center gap-3 pt-6 mt-2 border-t border-clay-border/30">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={running}
+                    className="flex items-center gap-2 min-w-[130px] h-11 px-6 rounded-xl text-sm font-medium clay-button bg-clay-purple transition-all hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ color: '#5D4E37' }}
+                  >
+                    {running ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 fill-current" />
+                        <span>{hasLogicNodes ? 'Calculate' : 'Submit'}</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    disabled={running}
+                    className="flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium clay-sm bg-clay-peach/50 hover:bg-clay-peach/70 transition-all disabled:opacity-60"
+                    style={{ color: '#5D4E37' }}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ── Live Preview (desktop: sidebar, mobile: below) ────────────── */}
@@ -520,33 +511,33 @@ export default function AppRunner({ app }: AppRunnerProps) {
         {/* ── Submit Results ────────────────────────────────────────────────── */}
         {(result || running) && (
           <div ref={resultRef} className="mt-8 animate-slide-up">
-            <Card className="border-border/40 shadow-elevated overflow-hidden">
-              <CardContent className="p-0">
+            <div className="clay-card overflow-hidden">
+              <div className="p-0">
                 {/* Results header */}
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/30 bg-muted/10">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-clay-border/30 bg-clay-cream/40">
                   <div className="flex items-center gap-2.5">
                     {result && result.errors.length > 0 ? (
-                      <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center">
-                        <XCircle className="h-4 w-4 text-destructive" />
+                      <div className="w-8 h-8 rounded-xl clay-sm bg-clay-rose/30 flex items-center justify-center">
+                        <XCircle className="h-4 w-4" style={{ color: '#5D4E37' }} />
                       </div>
                     ) : result ? (
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <div className="w-8 h-8 rounded-xl clay-sm bg-clay-green/30 flex items-center justify-center">
+                        <CheckCircle2 className="h-4 w-4" style={{ color: '#5D4E37' }} />
                       </div>
                     ) : (
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      <div className="w-8 h-8 rounded-xl clay-sm bg-clay-peach/30 flex items-center justify-center">
+                        <Loader2 className="h-4 w-4 animate-spin" style={{ color: '#5D4E37' }} />
                       </div>
                     )}
                     <div>
-                      <span className="text-sm font-semibold">
+                      <span className="text-sm font-semibold" style={{ color: '#5D4E37' }}>
                         {running ? 'Processing...' : result?.errors.length === 0 ? 'Success' : 'Validation Errors'}
                       </span>
                       {result && (
                         <span className={cn(
                           'text-[11px] ml-2',
-                          result.errors.length === 0 ? 'text-emerald-600' : 'text-destructive'
-                        )}>
+                          result.errors.length === 0 ? 'text-clay' : ''
+                        )} style={{ color: result.errors.length === 0 ? '#5D4E37' : '#5D4E37' }}>
                           {result.errors.length === 0
                             ? 'All fields valid'
                             : `${result.errors.length} error${result.errors.length !== 1 ? 's' : ''} found`}
@@ -555,10 +546,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     </div>
                   </div>
                   {result && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs gap-1.5 text-muted-foreground"
+                    <button
                       onClick={() => {
                         const text = JSON.stringify({
                           inputs: result.inputs,
@@ -567,10 +555,12 @@ export default function AppRunner({ app }: AppRunnerProps) {
                         }, null, 2);
                         navigator.clipboard.writeText(text);
                       }}
+                      className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
+                      style={{ color: '#5D4E37' }}
                     >
                       <Download className="h-3 w-3" />
                       Export
-                    </Button>
+                    </button>
                   )}
                 </div>
 
@@ -579,14 +569,15 @@ export default function AppRunner({ app }: AppRunnerProps) {
                   <div className="px-5 py-4 space-y-4">
                     {/* Errors section */}
                     {result.errors.length > 0 && (
-                      <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-4">
+                      <div className="rounded-xl clay-sm bg-clay-rose/15 p-4">
                         <ul className="space-y-1.5">
                           {result.errors.map((err, i) => (
                             <li
                               key={i}
-                              className="text-xs text-destructive/90 flex items-start gap-2"
+                              className="text-xs flex items-start gap-2"
+                              style={{ color: '#5D4E37' }}
                             >
-                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-destructive/60 mt-1 shrink-0" />
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-clay-rose/60 mt-1 shrink-0" />
                               {err}
                             </li>
                           ))}
@@ -598,12 +589,13 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     {result.inputs && Object.keys(result.inputs).length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#B8A898' }}>
                             Input Values
                           </span>
                           <button
                             onClick={() => setShowRaw(!showRaw)}
-                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors font-medium"
+                            className="text-[10px] font-medium transition-colors clay-sm px-2 py-0.5 bg-clay-peach/30 hover:bg-clay-peach/50"
+                            style={{ color: '#5D4E37' }}
                           >
                             {showRaw ? 'Show formatted' : 'Show raw'}
                           </button>
@@ -615,28 +607,28 @@ export default function AppRunner({ app }: AppRunnerProps) {
                               <div
                                 key={field.id}
                                 className={cn(
-                                  'flex items-center justify-between p-2.5 rounded-lg border border-border/30 bg-muted/20 group',
-                                  'hover:border-border/60 hover:bg-muted/30 transition-all'
+                                  'flex items-center justify-between p-2.5 rounded-xl clay-sm bg-clay-cream/60 group',
+                                  'hover:bg-clay-cream/80 transition-all'
                                 )}
                               >
-                                <span className="text-xs text-muted-foreground truncate mr-3 font-medium">
+                                <span className="text-xs truncate mr-3 font-medium" style={{ color: '#B8A898' }}>
                                   {field.label}
                                 </span>
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                  <span className="text-xs font-mono bg-background/80 px-2 py-0.5 rounded border border-border/20 truncate max-w-[140px]">
+                                  <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm truncate max-w-[140px]" style={{ color: '#5D4E37' }}>
                                     {showRaw
                                       ? JSON.stringify(val)
                                       : String(val ?? '-')}
                                   </span>
                                   <button
                                     onClick={() => handleCopyValue(val, field.id)}
-                                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
+                                    className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
                                     title="Copy value"
                                   >
                                     {copiedId === field.id ? (
-                                      <Check className="h-3 w-3 text-emerald-500" />
+                                      <Check className="h-3 w-3" style={{ color: '#5D4E37' }} />
                                     ) : (
-                                      <Copy className="h-3 w-3" />
+                                      <Copy className="h-3 w-3" style={{ color: '#5D4E37' }} />
                                     )}
                                   </button>
                                 </div>
@@ -651,41 +643,38 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     {outputEntries.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#B8A898' }}>
                             Computed Results
                           </span>
-                          <Badge
-                            variant="secondary"
-                            className="text-[9px] px-1.5 py-0 h-4"
-                          >
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full clay-sm bg-clay-purple/20" style={{ color: '#5D4E37' }}>
                             {outputEntries.length}
-                          </Badge>
+                          </span>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                           {outputEntries.map(([key, val]) => (
                             <div
                               key={key}
                               className={cn(
-                                'flex items-center justify-between p-2.5 rounded-lg border border-primary/10 bg-primary/[0.03] group',
-                                'hover:border-primary/20 hover:bg-primary/[0.05] transition-all'
+                                'flex items-center justify-between p-2.5 rounded-xl clay-sm bg-clay-purple/5 group',
+                                'hover:bg-clay-purple/10 transition-all'
                               )}
                             >
-                              <span className="text-sm font-medium truncate mr-2">{key}</span>
+                              <span className="text-sm font-medium truncate mr-2" style={{ color: '#5D4E37' }}>{key}</span>
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-xs font-mono bg-background/80 px-2 py-0.5 rounded border border-border/20 max-w-[140px] truncate">
+                                <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm max-w-[140px] truncate" style={{ color: '#5D4E37' }}>
                                   {typeof val === 'object'
                                     ? JSON.stringify(val)
                                     : String(val ?? '-')}
                                 </span>
                                 <button
                                   onClick={() => handleCopyValue(val, key)}
-                                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
+                                  className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
                                   title="Copy value"
                                 >
                                   {copiedId === key ? (
-                                    <Check className="h-3 w-3 text-emerald-500" />
+                                    <Check className="h-3 w-3" style={{ color: '#5D4E37' }} />
                                   ) : (
-                                    <Copy className="h-3 w-3" />
+                                    <Copy className="h-3 w-3" style={{ color: '#5D4E37' }} />
                                   )}
                                 </button>
                               </div>
@@ -698,17 +687,17 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     {/* Success with no outputs */}
                     {result.errors.length === 0 && outputEntries.length === 0 && (
                       <div className="flex flex-col items-center py-8 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-3">
-                          <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+                        <div className="w-14 h-14 rounded-full clay-sm bg-clay-green/30 flex items-center justify-center mb-3">
+                          <CheckCircle2 className="h-7 w-7" style={{ color: '#5D4E37' }} />
                         </div>
-                        <p className="text-sm font-medium text-foreground">Form submitted successfully!</p>
-                        <p className="text-xs text-muted-foreground mt-1">All inputs are valid.</p>
+                        <p className="text-sm font-medium" style={{ color: '#5D4E37' }}>Form submitted successfully!</p>
+                        <p className="text-xs mt-1" style={{ color: '#B8A898' }}>All inputs are valid.</p>
                       </div>
                     )}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )}
       </div>
