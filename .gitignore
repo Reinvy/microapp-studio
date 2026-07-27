@@ -39,6 +39,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# playwright browsers
+browsers/
+
 # E2E test artifacts
 /e2e-output/
 /e2e-report/

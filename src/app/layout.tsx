@@ -8,9 +8,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MicroApp Studio",
+  title: "MicroApp Studio — Create Mini Apps with AI",
   description:
-    "Build, run, and share custom micro-apps with an intuitive drag-and-drop builder.",
+    "Build, run, and share custom micro-apps with AI-powered prompts and visual drag-and-drop builder.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -24,10 +24,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} dark h-full antialiased`}
+      className={`${inter.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         {children}
       </body>
     </html>
