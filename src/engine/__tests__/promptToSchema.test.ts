@@ -142,13 +142,130 @@ describe('promptToSchema — Pattern Recognition', () => {
     });
   });
 
+  describe('Budget pattern', () => {
+    it('detects budget keywords and builds expense fields', () => {
+      const result = parsePrompt('Track my monthly budget and expenses');
+
+      expect(result.appName).toMatch(/budget/i);
+      const numberFields = result.fields.filter((f) => f.type === 'number');
+      expect(numberFields.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('adds category select for budget prompts with category keywords', () => {
+      const result = parsePrompt(
+        'Budget tracker with spending category and cost tracking'
+      );
+
+      const selectFields = result.fields.filter((f) => f.type === 'select');
+      expect(selectFields.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Counter pattern', () => {
+    it('detects counter keywords and builds minimal fields', () => {
+      const result = parsePrompt('A simple click counter');
+
+      expect(result.appName).toMatch(/counter/i);
+      expect(result.fields.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('detects timer prompts as counter pattern', () => {
+      const result = parsePrompt('A countdown timer for workouts');
+
+      expect(result.appName).toMatch(/timer/i);
+    });
+  });
+
+  describe('Validator pattern', () => {
+    it('detects validator keywords', () => {
+      const result = parsePrompt(
+        'An input validator that checks email format'
+      );
+
+      expect(result.appName).toMatch(/validator/i);
+      expect(result.fields.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Journal / diary pattern', () => {
+    it('detects journal keywords and builds textarea fields', () => {
+      const result = parsePrompt('A daily journal for personal reflection');
+
+      expect(result.appName).toMatch(/journal/i);
+      const textareaFields = result.fields.filter(
+        (f) => f.type === 'textarea'
+      );
+      expect(textareaFields.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('detects habit tracker prompts', () => {
+      const result = parsePrompt('Track my daily habits and mood');
+
+      const textareaFields = result.fields.filter(
+        (f) => f.type === 'textarea'
+      );
+      expect(textareaFields.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Generator pattern', () => {
+    it('detects generator keywords and builds appropriate fields', () => {
+      const result = parsePrompt('A QR code generator');
+
+      expect(result.appName).toMatch(/generator/i);
+      expect(result.fields.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('detects converter prompts', () => {
+      const result = parsePrompt('Unit converter for temperatures');
+
+      expect(result.appName).toMatch(/converter/i);
+    });
+
+    it('detects creator/builder prompts as generator', () => {
+      const result = parsePrompt('A password creator with special chars');
+
+      expect(result.fields.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Edge cases', () => {
+    it('handles prompts with special characters gracefully', () => {
+      const result = parsePrompt(
+        'Create a @form! with #name, $email, and %password!!!'
+      );
+
+      expect(result.fields.length).toBeGreaterThanOrEqual(1);
+      expect(result.appName).toBeTruthy();
+    });
+
+    it('handles very long prompts without crashing', () => {
+      const longPrompt =
+        'I need an app that tracks ' + 'everything '.repeat(50);
+      const result = parsePrompt(longPrompt);
+
+      expect(result.fields.length).toBeGreaterThanOrEqual(1);
+      expect(result.appName).toBeTruthy();
+    });
+
+    it('extracts field types from mixed keyword prompts (fallback)', () => {
+      const result = parsePrompt(
+        'Something that logs date selection and number count'
+      );
+
+      const types = result.fields.map((f) => f.type);
+      expect(types).toContain('date');
+      expect(types).toContain('number');
+    });
+  });
+
   describe('Pattern priority', () => {
     it('prefers calculator pattern over form when both keywords present', () => {
       const result = parsePrompt(
         'A calculator form for math calculations'
       );
 
-      // Calculator pattern comes first in PATTERNS array — earlier match wins
+      expect(result.appName).toMatch(/calculator/i);
       const numberFields = result.fields.filter((f) => f.type === 'number');
       expect(numberFields.length).toBeGreaterThanOrEqual(1);
     });

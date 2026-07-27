@@ -19,6 +19,8 @@ import {
   evaluateNodeAsync,
   validateCode,
   runPipeline,
+  formatValue,
+  createStringOpNode,
 } from '@/engine/evaluator';
 
 describe('evaluator — executeCode', () => {
@@ -313,5 +315,128 @@ describe('evaluator — runPipeline', () => {
     expect(result.success).toBe(true);
     // When node has no declared outputs, context.result is set
     // finalOutput checks for finalOutput key first, then falls back to result
+  });
+});
+
+describe('evaluator — formatValue', () => {
+  it('formats numbers with default 2 decimal places', () => {
+    expect(formatValue(1234.5678)).toBe('1,234.57');
+  });
+
+  it('formats numbers with custom decimal places', () => {
+    expect(formatValue(1234.5678, { decimals: 0 })).toBe('1,235');
+    expect(formatValue(1234.5678, { decimals: 3 })).toBe('1,234.568');
+  });
+
+  it('formats numbers with prefix and suffix', () => {
+    expect(formatValue(42, { prefix: '$', suffix: ' USD' })).toBe(
+      '$42.00 USD'
+    );
+  });
+
+  it('formats booleans as Yes/No', () => {
+    expect(formatValue(true)).toBe('Yes');
+    expect(formatValue(false)).toBe('No');
+  });
+
+  it('formats Date objects', () => {
+    const date = new Date(2024, 0, 15);
+    expect(formatValue(date)).toBe('1/15/2024');
+  });
+
+  it('formats date strings', () => {
+    expect(formatValue('2024-01-15')).toBe('1/15/2024');
+  });
+
+  it('returns empty string for null/undefined', () => {
+    expect(formatValue(null)).toBe('');
+    expect(formatValue(undefined)).toBe('');
+  });
+
+  it('returns prefix+suffix for null with custom options', () => {
+    expect(formatValue(null, { prefix: 'N/A' })).toBe('N/A');
+  });
+
+  it('formats plain strings as-is', () => {
+    expect(formatValue('hello world')).toBe('hello world');
+  });
+
+  it('formats numbers with locale option', () => {
+    const value = 1234.56;
+    // German locale uses comma as decimal separator
+    const result = formatValue(value, { locale: 'de-DE' });
+    expect(result).toBe('1.234,56');
+  });
+});
+
+describe('evaluator — createStringOpNode', () => {
+  it('creates uppercase string operation node', () => {
+    const node = createStringOpNode('uppercase');
+
+    expect(node.name).toMatch(/Uppercase/i);
+    expect(node.inputs).toContain('input');
+    expect(node.outputs).toContain('result');
+    expect(node.version).toBe(1);
+    expect(node.id).toBeTruthy();
+  });
+
+  it('creates lowercase string operation node', () => {
+    const node = createStringOpNode('lowercase');
+
+    expect(node.name).toMatch(/Lowercase/i);
+    expect(node.inputs).toContain('input');
+  });
+
+  it('creates trim string operation node', () => {
+    const node = createStringOpNode('trim');
+
+    expect(node.name).toMatch(/Trim/i);
+    expect(node.inputs).toContain('input');
+  });
+
+  it('creates reverse string operation node', () => {
+    const node = createStringOpNode('reverse');
+
+    expect(node.name).toMatch(/Reverse/i);
+    expect(node.inputs).toContain('input');
+  });
+
+  it('creates length string operation node', () => {
+    const node = createStringOpNode('length');
+
+    expect(node.name).toMatch(/Length/i);
+    expect(node.inputs).toContain('input');
+  });
+
+  it('creates concat string operation node', () => {
+    const node = createStringOpNode('concat');
+
+    expect(node.name).toMatch(/Concat/i);
+    expect(node.inputs).toContain('input');
+    expect(node.inputs).toContain('other');
+  });
+
+  it('falls back to uppercase code for unknown operations', () => {
+    const node = createStringOpNode('unknown' as any);
+
+    // Name uses the operation input, but code falls back to uppercase
+    expect(node.name).toMatch(/Unknown/i);
+    expect(node.inputs).toContain('input');
+  });
+
+  it('executes uppercase operation correctly via evaluator', () => {
+    const node = createStringOpNode('uppercase');
+    const result = evaluateNode(node, { input: 'hello' });
+
+    expect(result.error).toBeNull();
+    expect(result.result).toBe('HELLO');
+  });
+
+  it('executes concat operation with separator', () => {
+    const node = createStringOpNode('concat', { separator: ', ' });
+    const result = evaluateNode(node, { input: 'Hello', other: 'World' });
+
+    expect(result.error).toBeNull();
+    expect(result.result).toBe('Hello, World');
   });
 });
