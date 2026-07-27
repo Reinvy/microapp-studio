@@ -142,6 +142,67 @@ export function validateField(
       break;
     }
 
+    case 'email': {
+      const str = String(value);
+      // Basic email regex: local@domain.tld
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(str)) {
+        return `${label} must be a valid email address`;
+      }
+      break;
+    }
+
+    case 'phone': {
+      const str = String(value).replace(/[\s\-\(\)\.\+]/g, '');
+      // Must be at least 7 digits (min phone length) and contain only digits
+      if (!/^\d{7,15}$/.test(str)) {
+        return `${label} must be a valid phone number`;
+      }
+      break;
+    }
+
+    case 'url': {
+      const str = String(value);
+      try {
+        const url = new URL(str);
+        if (!url.protocol.startsWith('http')) {
+          return `${label} must be a valid URL`;
+        }
+      } catch {
+        return `${label} must be a valid URL`;
+      }
+      break;
+    }
+
+    case 'color': {
+      const str = String(value).trim();
+      // Accept 3- or 6-char hex colors with optional #
+      if (!/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(str)) {
+        return `${label} must be a valid hex color`;
+      }
+      break;
+    }
+
+    case 'rating': {
+      const num = Number(value);
+      if (isNaN(num)) {
+        return `${label} must be a valid number`;
+      }
+      if (field.min !== undefined && num < field.min) {
+        return `${label} must be at least ${field.min}`;
+      }
+      if (field.max !== undefined && num > field.max) {
+        return `${label} must be no more than ${field.max}`;
+      }
+      if (field.step !== undefined) {
+        const remainder = Math.abs(num - (field.min ?? 0)) % Math.abs(field.step);
+        if (remainder > 0.0001 && Math.abs(remainder - Math.abs(field.step)) > 0.0001) {
+          return `${label} must be in increments of ${field.step}`;
+        }
+      }
+      break;
+    }
+
     default:
       break;
   }
