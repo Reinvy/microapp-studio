@@ -471,3 +471,135 @@ export function createMathOpNode(
     version: 1,
   };
 }
+
+/**
+ * Supported comparison operations for `createComparisonOpNode`.
+ */
+export type ComparisonOperation =
+  | 'equals'
+  | 'notEquals'
+  | 'greaterThan'
+  | 'lessThan'
+  | 'greaterEqual'
+  | 'lessEqual'
+  | 'between'
+  | 'isEmpty'
+  | 'isNotEmpty'
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith'
+  | 'matches';
+
+/**
+ * Pre-configured comparison/logic operation node templates for the visual builder.
+ * Creates a LogicNode that performs a comparison or validation check.
+ * All comparison nodes return a boolean `result`.
+ *
+ * @example
+ * ```ts
+ * const node = createComparisonOpNode('equals');
+ * // => LogicNode that checks `a === b`
+ * ```
+ */
+export function createComparisonOpNode(
+  operation: ComparisonOperation,
+): LogicNode {
+  const codes: Record<string, { code: string; inputs: string[]; outputs: string[] }> = {
+    equals: {
+      code: 'return a === b',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    notEquals: {
+      code: 'return a !== b',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    greaterThan: {
+      code: 'return a > b',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    lessThan: {
+      code: 'return a < b',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    greaterEqual: {
+      code: 'return a >= b',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    lessEqual: {
+      code: 'return a <= b',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    between: {
+      code: 'return typeof a === "number" && a >= min && a <= max',
+      inputs: ['a', 'min', 'max'],
+      outputs: ['result'],
+    },
+    isEmpty: {
+      code: 'return a === null || a === undefined || a === "" || (Array.isArray(a) && a.length === 0) || (typeof a === "object" && Object.keys(a).length === 0)',
+      inputs: ['a'],
+      outputs: ['result'],
+    },
+    isNotEmpty: {
+      code: 'return !(a === null || a === undefined || a === "" || (Array.isArray(a) && a.length === 0) || (typeof a === "object" && Object.keys(a).length === 0))',
+      inputs: ['a'],
+      outputs: ['result'],
+    },
+    contains: {
+      code: 'return typeof a === "string" && typeof b === "string" ? a.includes(b) : Array.isArray(a) ? a.includes(b) : String(a).includes(String(b))',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    startsWith: {
+      code: 'return typeof a === "string" && typeof b === "string" ? a.startsWith(b) : false',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    endsWith: {
+      code: 'return typeof a === "string" && typeof b === "string" ? a.endsWith(b) : false',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+    matches: {
+      code: 'return typeof a === "string" && typeof b === "string" ? new RegExp(b).test(a) : false',
+      inputs: ['a', 'b'],
+      outputs: ['result'],
+    },
+  };
+
+  const op = codes[operation] || codes.equals;
+
+  return {
+    id: generateId(),
+    name: getComparisonDisplayName(operation),
+    code: op.code,
+    inputs: op.inputs,
+    outputs: op.outputs,
+    version: 1,
+  };
+}
+
+/** Get a human-readable display name for a comparison operation. */
+function getComparisonDisplayName(op: ComparisonOperation): string {
+  const names: Record<ComparisonOperation, string> = {
+    equals: 'Equals',
+    notEquals: 'Not Equals',
+    greaterThan: 'Greater Than',
+    lessThan: 'Less Than',
+    greaterEqual: 'Greater or Equal',
+    lessEqual: 'Less or Equal',
+    between: 'Between',
+    isEmpty: 'Is Empty',
+    isNotEmpty: 'Is Not Empty',
+    contains: 'Contains',
+    startsWith: 'Starts With',
+    endsWith: 'Ends With',
+    matches: 'Matches Pattern',
+  };
+  return names[op] || 'Compare';
+}

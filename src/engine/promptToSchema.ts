@@ -126,6 +126,15 @@ const PATTERNS: PatternDef[] = [
       fields: buildGeneratorFields(prompt),
     }),
   },
+  {
+    // Shop / e-commerce / product listing / catalog
+    keywords: ['shop', 'store', 'product', 'ecommerce', 'e-commerce', 'catalog', 'gallery', 'buy', 'sell', 'purchase', 'marketplace', 'cart', 'checkout', 'shopping', 'order', 'merchandise', 'inventory', 'pricing'],
+    build: (prompt) => ({
+      name: guessName(prompt, 'Shop'),
+      desc: guessDescription(prompt, 'A product listing or e-commerce page'),
+      fields: buildShopFields(prompt),
+    }),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1100,6 +1109,177 @@ function buildGeneratorFields(prompt: string): FieldSchema[] {
       required: true,
     });
   }
+
+  return fields;
+}
+
+/**
+ * Build fields for an e-commerce / shop / product listing app.
+ * Uses image, heading, paragraph, select, number, rating, button fields.
+ */
+function buildShopFields(prompt: string): FieldSchema[] {
+  const fields: FieldSchema[] = [];
+
+  // Product title / search
+  if (hasSomeKeywords(prompt, ['search', 'find', 'lookup', 'query'])) {
+    fields.push({
+      id: generateId(),
+      type: 'text',
+      label: 'Search Products',
+      placeholder: 'Search by name or keyword...',
+      required: false,
+    });
+  }
+
+  // Product image
+  if (hasSomeKeywords(prompt, ['image', 'photo', 'picture', 'visual', 'gallery'])) {
+    fields.push({
+      id: generateId(),
+      type: 'image',
+      label: 'Product Image',
+      src: 'https://placehold.co/400x300/C5E8F7/5D4E37?text=Product',
+      alt: 'Product image',
+      aspectRatio: '16:9',
+      required: false,
+    });
+  }
+
+  // Product heading / title
+  fields.push({
+    id: generateId(),
+    type: 'heading',
+    label: 'Product Title',
+    content: guessName(prompt, 'Premium Product'),
+    headingLevel: 'h2',
+    level: 'h2',
+    alignment: 'left',
+    required: false,
+  });
+
+  // Product description
+  if (hasSomeKeywords(prompt, ['description', 'desc', 'detail', 'info'])) {
+    fields.push({
+      id: generateId(),
+      type: 'paragraph',
+      label: 'Product Description',
+      content: 'High-quality product designed for modern needs. Features premium materials and exceptional craftsmanship.',
+      alignment: 'left',
+      required: false,
+    });
+  }
+
+  // Price
+  fields.push({
+    id: generateId(),
+    type: 'number',
+    label: 'Price',
+    placeholder: '0.00',
+    required: true,
+    min: 0,
+    step: 0.01,
+    style: { size: 'lg' },
+  });
+
+  // Category / department
+  if (hasSomeKeywords(prompt, ['category', 'department', 'type', 'kind', 'section'])) {
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Category',
+      options: ['Electronics', 'Clothing', 'Home & Garden', 'Books', 'Sports', 'Beauty', 'Food & Drinks', 'Other'],
+      required: true,
+    });
+  }
+
+  // Size / variant selector
+  if (hasSomeKeywords(prompt, ['size', 'variant', 'option', 'version'])) {
+    fields.push({
+      id: generateId(),
+      type: 'select',
+      label: 'Size',
+      options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+      required: true,
+    });
+  }
+
+  // Quantity
+  fields.push({
+    id: generateId(),
+    type: 'number',
+    label: 'Quantity',
+    defaultValue: 1,
+    min: 1,
+    max: 99,
+    step: 1,
+    required: true,
+  });
+
+  // Rating / review
+  if (hasSomeKeywords(prompt, ['rating', 'review', 'star', 'score', 'feedback'])) {
+    fields.push({
+      id: generateId(),
+      type: 'rating',
+      label: 'Product Rating',
+      defaultValue: 4,
+      required: false,
+    });
+  }
+
+  // Color selector
+  if (hasSomeKeywords(prompt, ['color', 'colour', 'shade'])) {
+    fields.push({
+      id: generateId(),
+      type: 'color',
+      label: 'Color',
+      defaultValue: '#FFD5E5',
+      required: false,
+    });
+  }
+
+  // Price range filter (slider)
+  if (hasSomeKeywords(prompt, ['range', 'budget', 'filter', 'max price'])) {
+    fields.push({
+      id: generateId(),
+      type: 'slider',
+      label: 'Max Price',
+      defaultValue: 100,
+      min: 0,
+      max: 1000,
+      step: 10,
+      required: false,
+    });
+  }
+
+  // In stock toggle
+  if (hasSomeKeywords(prompt, ['stock', 'availability', 'available', 'in stock'])) {
+    fields.push({
+      id: generateId(),
+      type: 'checkbox',
+      label: 'In Stock Only',
+      defaultValue: true,
+      required: false,
+    });
+  }
+
+  // Add to cart / buy button
+  fields.push({
+    id: generateId(),
+    type: 'button',
+    label: 'Add to Cart',
+    variant: 'primary',
+    action: 'submit',
+    actionType: 'submit',
+    style: { size: 'lg' },
+    required: false,
+  });
+
+  // Divider between products
+  fields.push({
+    id: generateId(),
+    type: 'divider',
+    label: '',
+    required: false,
+  });
 
   return fields;
 }
