@@ -72,26 +72,26 @@ const CATEGORIES: { key: string; label: string; gradient: string; border: string
   {
     key: 'input',
     label: 'Input Fields',
-    gradient: 'from-blue-50/50 via-cyan-50/30 to-transparent dark:from-blue-950/20 dark:via-cyan-950/10',
-    border: 'border-blue-200/40 dark:border-blue-800/30',
+    gradient: 'from-blue-50/50 via-cyan-50/30 to-transparent',
+    border: 'border-blue-200/40',
   },
   {
     key: 'layout',
     label: 'Layout Elements',
-    gradient: 'from-amber-50/50 via-orange-50/30 to-transparent dark:from-amber-950/20 dark:via-orange-950/10',
-    border: 'border-amber-200/40 dark:border-amber-800/30',
+    gradient: 'from-amber-50/50 via-orange-50/30 to-transparent',
+    border: 'border-amber-200/40',
   },
   {
     key: 'content',
     label: 'Rich Content',
-    gradient: 'from-emerald-50/50 via-green-50/30 to-transparent dark:from-emerald-950/20 dark:via-green-950/10',
-    border: 'border-emerald-200/40 dark:border-emerald-800/30',
+    gradient: 'from-emerald-50/50 via-green-50/30 to-transparent',
+    border: 'border-emerald-200/40',
   },
   {
     key: 'actions',
     label: 'Actions',
-    gradient: 'from-purple-50/50 via-violet-50/30 to-transparent dark:from-purple-950/20 dark:via-violet-950/10',
-    border: 'border-purple-200/40 dark:border-purple-800/30',
+    gradient: 'from-purple-50/50 via-violet-50/30 to-transparent',
+    border: 'border-purple-200/40',
   },
 ];
 

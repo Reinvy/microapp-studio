@@ -261,12 +261,15 @@ function BuilderContent() {
             key={tab.key}
             onClick={() => setActivePanel(tab.key)}
             className={cn(
-              'flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors',
+              'flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors relative',
               activePanel === tab.key
-                ? 'text-clay'
-                : 'hover:text-clay'
+                ? 'text-[#5D4E37]'
+                : 'text-[#B8A898] hover:text-[#5D4E37]'
             )}
           >
+            {activePanel === tab.key && (
+              <span className="absolute -top-px left-1/4 right-1/4 h-0.5 rounded-full bg-[#D5B8F5]" />
+            )}
             {tab.icon}
             <span>{tab.label}</span>
           </button>
