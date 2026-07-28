@@ -282,6 +282,102 @@ describe('schemaEngine — validateField', () => {
       );
     });
   });
+
+  describe('Email field validation', () => {
+    it('rejects invalid email format', () => {
+      const field = makeField({ type: 'email', label: 'Email' });
+      expect(validateField(field, 'not-an-email')).toBe('Email must be a valid email address');
+      expect(validateField(field, '@domain.com')).toBe('Email must be a valid email address');
+      expect(validateField(field, 'user@')).toBe('Email must be a valid email address');
+      expect(validateField(field, 'user@.com')).toBe('Email must be a valid email address');
+    });
+
+    it('accepts valid email addresses', () => {
+      const field = makeField({ type: 'email', label: 'Email' });
+      expect(validateField(field, 'user@example.com')).toBeNull();
+      expect(validateField(field, 'test.name+tag@domain.co.uk')).toBeNull();
+      expect(validateField(field, 'a@b.io')).toBeNull();
+    });
+
+    it('rejects empty email for required field', () => {
+      const field = makeField({ type: 'email', label: 'Email', required: true });
+      expect(validateField(field, '')).toBe('Email is required');
+    });
+  });
+
+  describe('Phone field validation', () => {
+    it('rejects invalid phone formats', () => {
+      const field = makeField({ type: 'phone', label: 'Phone' });
+      expect(validateField(field, 'abc')).toBe('Phone must be a valid phone number');
+      expect(validateField(field, '123')).toBe('Phone must be a valid phone number');
+    });
+
+    it('accepts valid phone numbers', () => {
+      const field = makeField({ type: 'phone', label: 'Phone' });
+      expect(validateField(field, '+1-555-555-5555')).toBeNull();
+      expect(validateField(field, '(555) 123-4567')).toBeNull();
+      expect(validateField(field, '+628123456789')).toBeNull();
+      expect(validateField(field, '5551234567')).toBeNull();
+    });
+  });
+
+  describe('URL field validation', () => {
+    it('rejects invalid URLs', () => {
+      const field = makeField({ type: 'url', label: 'Website' });
+      expect(validateField(field, 'not-a-url')).toBe('Website must be a valid URL');
+      expect(validateField(field, 'http://')).toBe('Website must be a valid URL');
+    });
+
+    it('accepts valid URLs', () => {
+      const field = makeField({ type: 'url', label: 'Website' });
+      expect(validateField(field, 'https://example.com')).toBeNull();
+      expect(validateField(field, 'http://sub.domain.com/path?q=1')).toBeNull();
+      expect(validateField(field, 'https://example.com:8080/path')).toBeNull();
+    });
+  });
+
+  describe('Color field validation', () => {
+    it('rejects invalid color values', () => {
+      const field = makeField({ type: 'color', label: 'Color' });
+      expect(validateField(field, 'red')).toBe('Color must be a valid hex color');
+      expect(validateField(field, '#GGG')).toBe('Color must be a valid hex color');
+      expect(validateField(field, '#12345')).toBe('Color must be a valid hex color');
+    });
+
+    it('accepts valid hex color values', () => {
+      const field = makeField({ type: 'color', label: 'Color' });
+      expect(validateField(field, '#FF5733')).toBeNull(); // 6-char
+      expect(validateField(field, '#FFF')).toBeNull(); // 3-char
+      expect(validateField(field, '#aabbcc')).toBeNull(); // lowercase
+      expect(validateField(field, '#A1B2C3')).toBeNull(); // mixed
+    });
+  });
+
+  describe('Rating field validation', () => {
+    it('rejects ratings outside valid range', () => {
+      const field = makeField({ type: 'rating', label: 'Rating', min: 0, max: 5 });
+      expect(validateField(field, -1)).toBe('Rating must be at least 0');
+      expect(validateField(field, 6)).toBe('Rating must be no more than 5');
+    });
+
+    it('accepts ratings within valid range', () => {
+      const field = makeField({ type: 'rating', label: 'Rating', min: 0, max: 5 });
+      expect(validateField(field, 0)).toBeNull();
+      expect(validateField(field, 3)).toBeNull();
+      expect(validateField(field, 5)).toBeNull();
+    });
+
+    it('handles decimal ratings', () => {
+      const field = makeField({ type: 'rating', label: 'Rating', min: 0, max: 5, step: 0.5 });
+      expect(validateField(field, 3.5)).toBeNull();
+      expect(validateField(field, 3.7)).toBe('Rating must be in increments of 0.5');
+    });
+
+    it('rejects non-numeric ratings', () => {
+      const field = makeField({ type: 'rating', label: 'Rating' });
+      expect(validateField(field, 'good')).toBe('Rating must be a valid number');
+    });
+  });
 });
 
 describe('schemaEngine — executeSchema', () => {
