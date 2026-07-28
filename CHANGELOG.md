@@ -110,6 +110,16 @@
 - **DevOps**: Agent failed (job b30761c27886) — no PR created, no deploy
 - No force pushes or merge conflicts in successfully merged PRs
 
+## [2026-07-28] — Maintenance
+
+### Changed
+- Security audit: reviewed vulnerabilities (12 high severity — brace-expansion in eslint & sharp in next require breaking changes, skipped per policy)
+- Dependency updates: @radix-ui/react-* packages (5 patch), lucide-react (minor), next@16.2.12, react@19.2.8, react-dom@19.2.8, eslint-config-next@16.2.12
+- Code cleanup: removed unused `useRouter` import + dead `router` variable in `src/app/page.tsx`, removed unused lucide-react icons (Palette, Check, Users)
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [Unreleased]
 
 ### ✨ Initial Release — MicroApp Studio
