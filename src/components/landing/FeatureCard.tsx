@@ -30,7 +30,7 @@ export default function FeatureCard({
   const pastelBg = pastelBgColors[bgIndex];
 
   return (
-    <div className="group relative rounded-2xl bg-[var(--clay-card)] p-6 shadow-[8px_8px_16px_var(--clay-shadow-dark),-6px_-6px_14px_var(--clay-shadow-light)] transition-all duration-300 hover:shadow-[6px_6px_12px_var(--clay-shadow-dark),-4px_-4px_10px_var(--clay-shadow-light)] hover:-translate-y-1">
+    <div className="group relative rounded-3xl bg-[var(--clay-card)] p-6 shadow-[8px_8px_16px_var(--clay-shadow-dark),-6px_-6px_14px_var(--clay-shadow-light)] transition-all duration-300 hover:shadow-[6px_6px_12px_var(--clay-shadow-dark),-4px_-4px_10px_var(--clay-shadow-light)] hover:-translate-y-1">
       {/* Pastel accent top bar */}
       <div className={cn('absolute top-0 left-4 right-4 h-1.5 rounded-full', pastelBg)} />
 

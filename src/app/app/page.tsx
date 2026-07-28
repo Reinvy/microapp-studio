@@ -131,7 +131,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8F0] relative">
+    <div className="min-h-screen bg-background relative">
       {/* Decorative clay blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-[#FFD5E5] clay" style={{filter:'blur(60px)', opacity:0.3}} />
@@ -141,22 +141,22 @@ export default function DashboardPage() {
       </div>
 
       {/* Top Navigation */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl clay-card rounded-none border-b border-[#E8E0D8]">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl clay-card rounded-none border-b border-border">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl clay-sm bg-[#D5B8F5] text-[#5D4E37]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl clay-sm bg-[#D5B8F5] text-foreground">
               <AppWindow className="h-5 w-5" />
             </div>
-            <span className="text-lg font-bold text-[#5D4E37]">MicroApp Studio</span>
+            <span className="text-lg font-bold text-foreground">MicroApp Studio</span>
           </div>
           <div className="flex items-center gap-3">
             {user && (
-              <span className="hidden text-sm text-[#B8A898] sm:block">
-                Hi, <span className="font-medium text-[#5D4E37]">{user.name}</span>
+              <span className="hidden text-sm text-muted-foreground sm:block">
+                Hi, <span className="font-medium text-foreground">{user.name}</span>
               </span>
             )}
             <button onClick={handleLogout}
-              className="clay-sm flex h-9 items-center gap-2 px-3 text-sm text-[#5D4E37] bg-[#FFD5E5]">
+              className="clay-sm flex h-9 items-center gap-2 px-3 text-sm text-foreground bg-[#FFD5E5]">
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline">Logout</span>
             </button>
@@ -168,14 +168,14 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#5D4E37]">Your Micro Apps</h1>
-            <p className="mt-1 text-sm text-[#B8A898]">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Your Micro Apps</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
               {totalApps} {totalApps === 1 ? 'app' : 'apps'} created
               {totalPages > 1 && ` — Page ${page} of ${totalPages}`}
             </p>
           </div>
           <button onClick={() => setShowNewDialog(true)}
-            className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5]">
+            className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-foreground bg-[#D5B8F5]">
             <Plus className="h-4 w-4" />
             New App
           </button>
