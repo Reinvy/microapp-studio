@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { generateId } from '@/lib/utils';
 import parsePrompt from '@/engine/promptToSchema';
-import { microAppRepo } from '@/db/microAppRepo';
+import { appService } from '@/services/appService';
 import type { AppSchema } from '@/types/schema';
 import AppCard from '@/components/dashboard/AppCard';
 import {
@@ -16,7 +15,11 @@ import {
   LogOut,
   Sparkles,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+
+const PAGE_SIZE = 12;
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -24,28 +27,53 @@ export default function DashboardPage() {
   const [apps, setApps] = useState<AppSchema[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalApps, setTotalApps] = useState(0);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newAppName, setNewAppName] = useState('');
   const [newAppPrompt, setNewAppPrompt] = useState('');
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadApps = useCallback(async () => {
+  const loadApps = useCallback(async (q: string, p: number) => {
     setLoading(true);
-    const all = await microAppRepo.getAll();
-    setApps(all);
-    setLoading(false);
+    try {
+      if (q.trim()) {
+        const result = await appService.searchApps(q, p, PAGE_SIZE);
+        setApps(result.items);
+        setTotalPages(result.totalPages);
+        setTotalApps(result.total);
+      } else {
+        const result = await appService.getApps(p, PAGE_SIZE);
+        setApps(result.items);
+        setTotalPages(result.totalPages);
+        setTotalApps(result.total);
+      }
+    } catch (err) {
+      console.error('Failed to load apps:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { loadApps(); }, [loadApps]);
+  useEffect(() => {
+    loadApps(searchQuery, page);
+  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filteredApps = apps.filter((app) =>
-    app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Debounced search — resets to page 1 on query change
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      setPage(1);
+      loadApps(value, 1);
+    }, 300);
+  };
 
   const handleCreateApp = async () => {
     if (!newAppName.trim()) return;
     const parsed = parsePrompt(newAppPrompt || `Create a ${newAppName} app`);
-    
+
     const newApp: AppSchema = {
       id: generateId(),
       name: newAppName,
@@ -58,23 +86,48 @@ export default function DashboardPage() {
       updatedAt: Date.now(),
       version: 1,
     };
-    
-    await microAppRepo.create(newApp);
+
+    await appService.createApp(newApp);
     setShowNewDialog(false);
     setNewAppName('');
     setNewAppPrompt('');
-    loadApps();
+    // Reset to first page and reload
+    setPage(1);
+    loadApps(searchQuery, 1);
     router.push(`/builder?id=${newApp.id}`);
   };
 
   const handleDeleteApp = async (id: string) => {
-    await microAppRepo.remove(id);
-    loadApps();
+    await appService.removeApp(id);
+    loadApps(searchQuery, page);
   };
 
   const handleLogout = () => {
     logout();
     router.push('/');
+  };
+
+  const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Generate pagination range
+  const getPageRange = (): (number | 'ellipsis')[] => {
+    const range: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) range.push(i);
+    } else {
+      range.push(1);
+      if (page > 3) range.push('ellipsis');
+      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+        range.push(i);
+      }
+      if (page < totalPages - 2) range.push('ellipsis');
+      range.push(totalPages);
+    }
+    return range;
   };
 
   return (
@@ -117,7 +170,8 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[#5D4E37]">Your Micro Apps</h1>
             <p className="mt-1 text-sm text-[#B8A898]">
-              {apps.length} {apps.length === 1 ? 'app' : 'apps'} created
+              {totalApps} {totalApps === 1 ? 'app' : 'apps'} created
+              {totalPages > 1 && ` — Page ${page} of ${totalPages}`}
             </p>
           </div>
           <button onClick={() => setShowNewDialog(true)}
@@ -133,7 +187,7 @@ export default function DashboardPage() {
           <input
             placeholder="Search your apps..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="clay-input h-10 w-full pl-10 text-sm text-[#5D4E37]"
           />
         </div>
@@ -145,32 +199,85 @@ export default function DashboardPage() {
               <div key={i} className="h-44 clay-card shimmer" />
             ))}
           </div>
-        ) : filteredApps.length === 0 ? (
+        ) : apps.length === 0 ? (
           <div className="flex flex-col items-center justify-center clay-card px-6 py-16 text-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[50%] clay-sm bg-[#FFF2C5]">
               <Sparkles className="h-8 w-8 text-[#5D4E37]" />
             </div>
-            <h3 className="text-lg font-semibold text-[#5D4E37]">No apps yet</h3>
+            <h3 className="text-lg font-semibold text-[#5D4E37]">
+              {searchQuery.trim() ? 'No matching apps' : 'No apps yet'}
+            </h3>
             <p className="mt-1 max-w-sm text-sm text-[#B8A898]">
-              Create your first micro-app with AI — describe what you want to build and we&apos;ll generate it for you.
+              {searchQuery.trim()
+                ? 'Try a different search term or clear the filter.'
+                : 'Create your first micro-app with AI — describe what you want to build and we\'ll generate it for you.'}
             </p>
-            <button onClick={() => setShowNewDialog(true)}
-              className="clay-button mt-6 flex items-center gap-2 px-4 h-10 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5]">
-              <Plus className="h-4 w-4" />
-              Create Your First App
-            </button>
+            {!searchQuery.trim() && (
+              <button onClick={() => setShowNewDialog(true)}
+                className="clay-button mt-6 flex items-center gap-2 px-4 h-10 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5]">
+                <Plus className="h-4 w-4" />
+                Create Your First App
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredApps.map((app) => (
-              <AppCard
-                key={app.id}
-                app={app}
-                onRun={(id) => router.push(`/run/${id}`)}
-                onDelete={() => handleDeleteApp(app.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {apps.map((app) => (
+                <AppCard
+                  key={app.id}
+                  app={app}
+                  onRun={(id) => router.push(`/run/${id}`)}
+                  onDelete={() => handleDeleteApp(app.id)}
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <nav className="mt-8 flex items-center justify-center gap-1.5">
+                <button
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page === 1}
+                  className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-[#5D4E37] disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                {getPageRange().map((item, idx) =>
+                  item === 'ellipsis' ? (
+                    <span key={`ellipsis-${idx}`} className="flex h-9 w-9 items-center justify-center text-sm text-[#B8A898]">
+                      &hellip;
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => goToPage(item)}
+                      className={`clay-sm flex h-9 w-9 items-center justify-center text-sm font-medium transition-all duration-200 ${
+                        item === page
+                          ? 'bg-[#D5B8F5] text-[#5D4E37] scale-105'
+                          : 'bg-[#F5EDE5] text-[#5D4E37] hover:scale-105'
+                      }`}
+                      aria-label={`Page ${item}`}
+                      aria-current={item === page ? 'page' : undefined}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+                <button
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page === totalPages}
+                  className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-[#5D4E37] disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </nav>
+            )}
+          </>
         )}
 
         {/* New App Dialog */}
