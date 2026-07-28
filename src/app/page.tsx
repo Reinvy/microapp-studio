@@ -1,18 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Sparkles,
   Zap,
-  Palette,
   AppWindow,
   Shield,
   ArrowRight,
-  Check,
   Star,
-  Users,
   Code2,
   Brain,
   Bot,
@@ -96,7 +92,6 @@ const stats = [
 ];
 
 export default function LandingPage() {
-  const router = useRouter();
 
   useEffect(() => {
     // Smooth scroll for anchor links
