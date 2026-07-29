@@ -247,7 +247,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
               {stats.map((stat) => (
                 <div key={stat.label} className="flex flex-col items-center text-center">
-                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#D5B8F5] text-foreground shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)]">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-clay-purple text-foreground shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)]">
                     <stat.icon className="h-6 w-6" />
                   </div>
                   <div className="text-2xl font-bold tracking-tight text-foreground">

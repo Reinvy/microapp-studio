@@ -7,7 +7,6 @@ interface FeatureCardProps {
   icon: LucideIcon;
   title: string;
   description: string;
-  gradient?: string;
 }
 
 const pastelBgColors = [
@@ -23,7 +22,6 @@ export default function FeatureCard({
   icon: Icon,
   title,
   description,
-  gradient = 'from-indigo-500 to-purple-500',
 }: FeatureCardProps) {
   // Pick a pastel bg color based on title hash
   const bgIndex = title.length % pastelBgColors.length;
@@ -37,18 +35,18 @@ export default function FeatureCard({
       {/* Clay icon circle */}
       <div
         className={cn(
-          'mb-4 mt-2 flex h-14 w-14 items-center justify-center rounded-2xl text-[#5D4E37] shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)]',
+          'mb-4 mt-2 flex h-14 w-14 items-center justify-center rounded-2xl text-foreground shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)]',
           pastelBg
         )}
       >
         <Icon className="h-7 w-7" />
       </div>
 
-      <h3 className="mb-2 text-base font-semibold tracking-tight text-[#5D4E37]">
+      <h3 className="mb-2 text-base font-semibold tracking-tight text-foreground">
         {title}
       </h3>
 
-      <p className="text-sm leading-relaxed text-[#B8A898]">
+      <p className="text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>
