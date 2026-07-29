@@ -14,7 +14,6 @@ import {
   Search,
   LogOut,
   Sparkles,
-  Loader2,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
