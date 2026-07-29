@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Menu, X, AppWindow, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { contentRepo, type NavLink } from '@/db/contentRepo';
 
-const navLinks = [
+const fallbackNavLinks: NavLink[] = [
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Login', href: '/login' },
@@ -14,6 +15,17 @@ const navLinks = [
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [navLinks, setNavLinks] = useState<NavLink[]>(fallbackNavLinks);
+
+  useEffect(() => {
+    contentRepo.getByType('nav-links').then((content) => {
+      if (content && Array.isArray(content.data)) {
+        setNavLinks(content.data as NavLink[]);
+      }
+    }).catch(() => {
+      // Fallback already set
+    });
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">

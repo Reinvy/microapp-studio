@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppWindow, Globe, MessageCircle } from 'lucide-react';
+import { contentRepo, type FooterColumn } from '@/db/contentRepo';
 
-const footerColumns = [
+const fallbackFooterColumns: FooterColumn[] = [
   {
     title: 'Product',
     links: [
@@ -43,6 +45,17 @@ const footerColumns = [
 ];
 
 export default function Footer() {
+  const [footerColumns, setFooterColumns] = useState<FooterColumn[]>(fallbackFooterColumns);
+
+  useEffect(() => {
+    contentRepo.getByType('footer-columns').then((content) => {
+      if (content && Array.isArray(content.data)) {
+        setFooterColumns(content.data as FooterColumn[]);
+      }
+    }).catch(() => {
+      // Fallback already set
+    });
+  }, []);
   return (
     <footer className="relative border-t border-[#E8E0D8]/40 bg-[var(--clay-card)] shadow-[0_-4px_8px_var(--clay-shadow-dark)]">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
