@@ -45,30 +45,60 @@ export const microAppRepo = {
     }
   },
 
-  /** Search apps by name or description with pagination */
+  /** Search apps by name or description with pagination — optimized for large datasets */
   async search(
     query: string,
     page: number = 1,
     pageSize: number = 12
   ): Promise<PaginatedResult<AppSchema>> {
     try {
-      const all = await db.apps.toArray();
-      const q = query.toLowerCase();
-      const filtered = all.filter(
-        (app) =>
+      const q = query.toLowerCase().trim();
+
+      // If query looks like a name prefix (no spaces or short), use indexed prefix search
+      if (q.length > 0 && !q.includes(' ')) {
+        const prefixResults = await db.apps
+          .where('name')
+          .startsWithIgnoreCase(q)
+          .reverse()
+          .sortBy('updatedAt');
+
+        const matched = prefixResults.filter(
+          (app) =>
+            app.name.toLowerCase().includes(q) ||
+            app.description.toLowerCase().includes(q)
+        );
+
+        const total = matched.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        const safePage = Math.min(Math.max(1, page), totalPages);
+        const offset = (safePage - 1) * pageSize;
+
+        return {
+          items: matched.slice(offset, offset + pageSize),
+          total,
+          page: safePage,
+          pageSize,
+          totalPages,
+        };
+      }
+
+      // For generic queries, use Dexie collection filter (more memory-efficient than toArray)
+      const all = await db.apps
+        .orderBy('updatedAt')
+        .reverse()
+        .filter((app) =>
           app.name.toLowerCase().includes(q) ||
           app.description.toLowerCase().includes(q)
-      );
-      const total = filtered.length;
+        )
+        .toArray();
+
+      const total = all.length;
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
       const safePage = Math.min(Math.max(1, page), totalPages);
       const offset = (safePage - 1) * pageSize;
 
-      // Sort by updatedAt descending
-      filtered.sort((a, b) => b.updatedAt - a.updatedAt);
-
       return {
-        items: filtered.slice(offset, offset + pageSize),
+        items: all.slice(offset, offset + pageSize),
         total,
         page: safePage,
         pageSize,
@@ -76,6 +106,45 @@ export const microAppRepo = {
       };
     } catch {
       return { items: [], total: 0, page, pageSize, totalPages: 0 };
+    }
+  },
+
+  /** Get recently updated apps (for dashboard quick-load) */
+  async getRecentApps(limit: number = 6): Promise<AppSchema[]> {
+    try {
+      return await db.apps
+        .orderBy('updatedAt')
+        .reverse()
+        .limit(limit)
+        .toArray();
+    } catch {
+      return [];
+    }
+  },
+
+  /** Get apps whose name starts with a given prefix (autocomplete) */
+  async getByNamePrefix(
+    prefix: string,
+    limit: number = 10
+  ): Promise<AppSchema[]> {
+    try {
+      if (!prefix.trim()) return [];
+      return await db.apps
+        .where('name')
+        .startsWithIgnoreCase(prefix.trim())
+        .limit(limit)
+        .toArray();
+    } catch {
+      return [];
+    }
+  },
+
+  /** Batch delete multiple apps at once */
+  async batchRemove(ids: string[]): Promise<void> {
+    try {
+      await db.apps.bulkDelete(ids);
+    } catch (error) {
+      console.error('[MicroAppRepo] batchRemove failed:', error);
     }
   },
 

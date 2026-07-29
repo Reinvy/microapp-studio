@@ -1,0 +1,104 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Sparkles } from 'lucide-react';
+import { generateId } from '@/lib/utils';
+import parsePrompt from '@/engine/promptToSchema';
+import { appService } from '@/services/appService';
+import type { AppSchema } from '@/types/schema';
+
+interface NewAppDialogProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [prompt, setPrompt] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  if (!open) return null;
+
+  const handleCreate = async () => {
+    if (!name.trim() || creating) return;
+    setCreating(true);
+    try {
+      const parsed = parsePrompt(prompt || `Create a ${name} app`);
+
+      const newApp: AppSchema = {
+        id: generateId(),
+        name: name.trim(),
+        description: parsed.description || `A ${name.trim()} micro-app`,
+        prompt,
+        fields: parsed.fields,
+        logicNodes: [],
+        layout: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        version: 1,
+      };
+
+      await appService.createApp(newApp);
+      setName('');
+      setPrompt('');
+      onClose();
+      router.push(`/builder?id=${newApp.id}`);
+    } catch (err) {
+      console.error('Failed to create app:', err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-fade-in">
+      <div className="mx-4 w-full max-w-md animate-scale-in clay-card overflow-hidden">
+        <div className="bg-gradient-to-r from-[#D5B8F5] to-[#FFD5E5] px-6 py-4">
+          <h2 className="text-lg font-bold text-[#5D4E37]">Create New App</h2>
+          <p className="mt-0.5 text-sm text-[#5D4E37]/70">Describe what you want to build</p>
+        </div>
+        <div className="space-y-4 p-6">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[#5D4E37]">App Name</label>
+            <input
+              placeholder="My Calculator"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="clay-input h-10 w-full text-sm text-[#5D4E37]"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[#5D4E37]">Prompt (optional)</label>
+            <textarea
+              placeholder="e.g. A discount calculator with price, discount %, and tax fields..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="clay-input min-h-[100px] w-full px-3 py-2 text-sm text-[#5D4E37] resize-none"
+            />
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={onClose}
+              disabled={creating}
+              className="clay-button flex-1 h-10 text-sm font-medium text-[#5D4E37] bg-[#F5EDE5] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={!name.trim() || creating}
+              className="clay-button flex-1 h-10 flex items-center justify-center gap-2 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5] disabled:opacity-60"
+            >
+              <Sparkles className="h-4 w-4" />
+              {creating ? 'Creating...' : 'Generate'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

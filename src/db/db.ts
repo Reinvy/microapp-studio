@@ -17,6 +17,10 @@ export class MicroAppDB extends Dexie {
       apps: 'id, name, createdAt, updatedAt',
       content: 'id, type',
     });
+    this.version(3).stores({
+      apps: 'id, name, createdAt, updatedAt, [name+updatedAt]',
+      content: 'id, type',
+    });
   }
 }
 

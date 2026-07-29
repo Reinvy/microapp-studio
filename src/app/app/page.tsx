@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/context/AuthContext';
-import { generateId } from '@/lib/utils';
-import parsePrompt from '@/engine/promptToSchema';
 import { appService } from '@/services/appService';
 import type { AppSchema } from '@/types/schema';
 import AppCard from '@/components/dashboard/AppCard';
@@ -19,6 +18,12 @@ import {
 } from 'lucide-react';
 
 const PAGE_SIZE = 12;
+
+// Lazy-load heavy dialog (parsePrompt engine import is heavy)
+const NewAppDialog = dynamic(
+  () => import('@/components/dashboard/NewAppDialog'),
+  { ssr: false }
+);
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -67,33 +72,6 @@ export default function DashboardPage() {
       setPage(1);
       loadApps(value, 1);
     }, 300);
-  };
-
-  const handleCreateApp = async () => {
-    if (!newAppName.trim()) return;
-    const parsed = parsePrompt(newAppPrompt || `Create a ${newAppName} app`);
-
-    const newApp: AppSchema = {
-      id: generateId(),
-      name: newAppName,
-      description: parsed.description || `A ${newAppName} micro-app`,
-      prompt: newAppPrompt,
-      fields: parsed.fields,
-      logicNodes: [],
-      layout: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      version: 1,
-    };
-
-    await appService.createApp(newApp);
-    setShowNewDialog(false);
-    setNewAppName('');
-    setNewAppPrompt('');
-    // Reset to first page and reload
-    setPage(1);
-    loadApps(searchQuery, 1);
-    router.push(`/builder?id=${newApp.id}`);
   };
 
   const handleDeleteApp = async (id: string) => {
@@ -279,49 +257,18 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* New App Dialog */}
-        {showNewDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-fade-in">
-            <div className="mx-4 w-full max-w-md animate-scale-in clay-card overflow-hidden">
-              <div className="bg-gradient-to-r from-[#D5B8F5] to-[#FFD5E5] px-6 py-4">
-                <h2 className="text-lg font-bold text-[#5D4E37]">Create New App</h2>
-                <p className="mt-0.5 text-sm text-[#5D4E37]/70">Describe what you want to build</p>
-              </div>
-              <div className="space-y-4 p-6">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-[#5D4E37]">App Name</label>
-                  <input
-                    placeholder="My Calculator"
-                    value={newAppName}
-                    onChange={(e) => setNewAppName(e.target.value)}
-                    className="clay-input h-10 w-full text-sm text-[#5D4E37]"
-                    autoFocus
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-[#5D4E37]">Prompt (optional)</label>
-                  <textarea
-                    placeholder="e.g. A discount calculator with price, discount %, and tax fields..."
-                    value={newAppPrompt}
-                    onChange={(e) => setNewAppPrompt(e.target.value)}
-                    className="clay-input min-h-[100px] w-full px-3 py-2 text-sm text-[#5D4E37] resize-none"
-                  />
-                </div>
-                <div className="flex items-center gap-3 pt-2">
-                  <button onClick={() => setShowNewDialog(false)}
-                    className="clay-button flex-1 h-10 text-sm font-medium text-[#5D4E37] bg-[#F5EDE5]">
-                    Cancel
-                  </button>
-                  <button onClick={handleCreateApp} disabled={!newAppName.trim()}
-                    className="clay-button flex-1 h-10 flex items-center justify-center gap-2 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5] disabled:opacity-60">
-                    <Sparkles className="h-4 w-4" />
-                    Generate
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* New App Dialog — lazily loaded via next/dynamic */}
+        <NewAppDialog
+          open={showNewDialog}
+          onClose={() => {
+            setShowNewDialog(false);
+            setNewAppName('');
+            setNewAppPrompt('');
+            // Reset to first page and reload
+            setPage(1);
+            loadApps(searchQuery, 1);
+          }}
+        />
       </main>
     </div>
   );
