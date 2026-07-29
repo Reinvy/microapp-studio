@@ -33,22 +33,22 @@ export default function StepCard({
       <div className="relative mb-5">
         <div
           className={cn(
-            'flex h-16 w-16 items-center justify-center rounded-3xl text-[#5D4E37] shadow-[6px_6px_12px_var(--clay-shadow-dark),-6px_-6px_12px_var(--clay-shadow-light)]',
+            'flex h-16 w-16 items-center justify-center rounded-3xl text-foreground shadow-[6px_6px_12px_var(--clay-shadow-dark),-6px_-6px_12px_var(--clay-shadow-light)]',
           )}
           style={{ backgroundColor: bgColor }}
         >
           <Icon className="h-7 w-7" />
         </div>
-        <div className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-2xl bg-[#FFF2C5] text-sm font-bold text-[#5D4E37] shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)]">
+        <div className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-2xl bg-[#FFF2C5] text-sm font-bold text-foreground shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)]">
           {number}
         </div>
       </div>
 
-      <h3 className="mb-2 text-lg font-semibold tracking-tight text-[#5D4E37]">
+      <h3 className="mb-2 text-lg font-semibold tracking-tight text-foreground">
         {title}
       </h3>
 
-      <p className="max-w-xs text-sm leading-relaxed text-[#B8A898]">
+      <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>

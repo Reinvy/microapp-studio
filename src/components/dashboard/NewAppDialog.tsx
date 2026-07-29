@@ -55,43 +55,43 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-fade-in">
       <div className="mx-4 w-full max-w-md animate-scale-in clay-card overflow-hidden">
-        <div className="bg-gradient-to-r from-[#D5B8F5] to-[#FFD5E5] px-6 py-4">
-          <h2 className="text-lg font-bold text-[#5D4E37]">Create New App</h2>
-          <p className="mt-0.5 text-sm text-[#5D4E37]/70">Describe what you want to build</p>
+        <div className="border-b border-clay-border/30 bg-clay-peach/50 px-6 py-4">
+          <h2 className="text-lg font-bold text-foreground">Create New App</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">Describe what you want to build</p>
         </div>
         <div className="space-y-4 p-6">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#5D4E37]">App Name</label>
+            <label className="text-sm font-medium text-foreground">App Name</label>
             <input
               placeholder="My Calculator"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="clay-input h-10 w-full text-sm text-[#5D4E37]"
+              className="clay-input h-10 w-full text-sm text-foreground"
               autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#5D4E37]">Prompt (optional)</label>
+            <label className="text-sm font-medium text-foreground">Prompt (optional)</label>
             <textarea
               placeholder="e.g. A discount calculator with price, discount %, and tax fields..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="clay-input min-h-[100px] w-full px-3 py-2 text-sm text-[#5D4E37] resize-none"
+              className="clay-input min-h-[100px] w-full px-3 py-2 text-sm text-foreground resize-none"
             />
           </div>
           <div className="flex items-center gap-3 pt-2">
             <button
               onClick={onClose}
               disabled={creating}
-              className="clay-button flex-1 h-10 text-sm font-medium text-[#5D4E37] bg-[#F5EDE5] disabled:opacity-50"
+              className="clay-button flex-1 h-10 text-sm font-medium text-foreground bg-clay-emboss disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={handleCreate}
               disabled={!name.trim() || creating}
-              className="clay-button flex-1 h-10 flex items-center justify-center gap-2 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5] disabled:opacity-60"
+              className="clay-button flex-1 h-10 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-clay-purple disabled:opacity-60"
             >
               <Sparkles className="h-4 w-4" />
               {creating ? 'Creating...' : 'Generate'}

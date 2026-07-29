@@ -70,21 +70,21 @@ export default function Footer() {
                 MicroApp Studio
               </span>
             </Link>
-            <p className="mt-3 text-sm leading-relaxed text-[#B8A898]">
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               Build, run, and share custom micro-apps with AI-powered prompts and a visual
               drag-and-drop builder.
             </p>
             <div className="mt-5 flex items-center gap-3">
               <a
                 href="#"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-[#B8A898] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)] transition-all hover:shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] hover:-translate-y-[1px]"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-muted-foreground clay-sm transition-all hover:-translate-y-[1px]"
                 aria-label="GitHub"
               >
                 <Globe className="h-4 w-4" />
               </a>
               <a
                 href="#"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-[#B8A898] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)] transition-all hover:shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] hover:-translate-y-[1px]"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-muted-foreground clay-sm transition-all hover:-translate-y-[1px]"
                 aria-label="Twitter"
               >
                 <MessageCircle className="h-4 w-4" />
@@ -95,13 +95,13 @@ export default function Footer() {
           {/* Link columns */}
           {footerColumns.map((col) => (
             <div key={col.title}>
-              <h4 className="mb-3 text-sm font-semibold text-[#5D4E37]">{col.title}</h4>
+              <h4 className="mb-3 text-sm font-semibold text-foreground">{col.title}</h4>
               <ul className="space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-sm text-[#B8A898] transition-all hover:text-[#5D4E37] hover:pl-1"
+                      className="text-sm text-muted-foreground transition-all hover:text-foreground hover:pl-1"
                     >
                       {link.label}
                     </Link>
@@ -114,7 +114,7 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-12 border-t border-[#E8E0D8]/40 pt-6">
-          <p className="text-center text-xs text-[#B8A898]">
+          <p className="text-center text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} MicroApp Studio. All rights reserved. Built with care.
           </p>
         </div>
