@@ -8,7 +8,6 @@ import {
   Play,
   Undo2,
   Redo2,
-  Eye,
   Settings2,
   Loader2,
 } from 'lucide-react';

@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-07-29] — Maintenance
+
+### Changed
+- Security audit: reviewed 12 high severity vulnerabilities (brace-expansion in eslint, postcss/sharp in next require breaking changes — skipped per policy)
+- Dependency check: npm outdated — all packages at wanted versions, no safe patch/minor updates available
+- Code cleanup: removed unused `Loader2` import in `src/app/app/page.tsx`, removed unused `Eye` import in `src/components/builder/Toolbar.tsx`
+- CHANGELOG.md updated with today's maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2025-07-25] — Daily Update
 
 ### ✅ Merged
