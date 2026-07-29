@@ -148,6 +148,35 @@ class AppService {
     this.setCache(cacheKey, count);
     return count;
   }
+
+  /** Get recently updated apps (dashboard quick-load) */
+  async getRecentApps(limit: number = 6): Promise<AppSchema[]> {
+    const cacheKey = `recent:${limit}`;
+    const cached = this.getCached<AppSchema[]>(cacheKey);
+    if (cached) return cached;
+
+    const apps = await microAppRepo.getRecentApps(limit);
+    this.setCache(cacheKey, apps);
+    return apps;
+  }
+
+  /** Get apps by name prefix (autocomplete) */
+  async getByNamePrefix(prefix: string, limit: number = 10): Promise<AppSchema[]> {
+    if (!prefix.trim()) return [];
+    return await microAppRepo.getByNamePrefix(prefix, limit);
+  }
+
+  /** Batch delete multiple apps */
+  async batchRemoveApps(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    try {
+      await microAppRepo.batchRemove(ids);
+      this.clearCache();
+      this.notify();
+    } catch (error) {
+      console.error('[AppService] batchRemoveApps failed:', error);
+    }
+  }
 }
 
 /** Singleton instance */
