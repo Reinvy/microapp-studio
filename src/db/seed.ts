@@ -1,0 +1,391 @@
+'use client';
+
+import { microAppRepo } from './microAppRepo';
+import { contentRepo, type SiteContent } from './contentRepo';
+import type { AppSchema, FieldSchema } from '@/types/schema';
+
+// ─── Generator helpers ───
+
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
+
+const pastelColors = [
+  '#FFD5E5', '#C5E8F7', '#D5B8F5', '#FFF2C5', '#C5F0D5', '#FFE5D0',
+];
+
+const buttonVariants = ['primary', 'secondary', 'outline', 'ghost', 'danger'] as const;
+
+// ─── Field generators ───
+
+function headingField(id: string, label: string, level: string, content: string): FieldSchema {
+  return {
+    id,
+    type: 'heading',
+    label,
+    content,
+    headingLevel: level as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6',
+    level: level as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6',
+    textColor: '#4A3F35',
+    alignment: 'center',
+    style: { borderRadius: 'none', shadow: 'none' },
+  };
+}
+
+function paragraphField(id: string, label: string, content: string): FieldSchema {
+  return {
+    id,
+    type: 'paragraph',
+    label,
+    content,
+    textColor: '#4A3F35',
+    alignment: 'left',
+    style: { borderRadius: 'none', shadow: 'none' },
+  };
+}
+
+function imageField(id: string, label: string, src: string, alt: string): FieldSchema {
+  return {
+    id,
+    type: 'image',
+    label,
+    src,
+    alt,
+    aspectRatio: '16:9',
+    borderRadius: 'xl',
+    shadow: 'md',
+    style: { borderRadius: 'xl', shadow: 'md' },
+  };
+}
+
+function buttonField(id: string, label: string, variant: string): FieldSchema {
+  return {
+    id,
+    type: 'button',
+    label,
+    variant: variant as 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger',
+    action: 'submit',
+    actionType: 'submit',
+    size: 'md',
+    borderRadius: '2xl',
+    style: { borderRadius: '2xl', size: 'md' },
+  };
+}
+
+function colorField(id: string, label: string, defaultColor: string): FieldSchema {
+  return {
+    id,
+    type: 'color',
+    label,
+    defaultValue: defaultColor,
+    color: defaultColor,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function ratingField(id: string, label: string): FieldSchema {
+  return {
+    id,
+    type: 'rating',
+    label,
+    defaultValue: 3,
+    min: 1,
+    max: 5,
+    step: 1,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function textField(id: string, label: string, placeholder: string): FieldSchema {
+  return {
+    id,
+    type: 'text',
+    label,
+    placeholder,
+    required: true,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function selectField(id: string, label: string, options: string[]): FieldSchema {
+  return {
+    id,
+    type: 'select',
+    label,
+    options,
+    placeholder: `Select ${label.toLowerCase()}...`,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function numberField(id: string, label: string, min: number, max: number): FieldSchema {
+  return {
+    id,
+    type: 'number',
+    label,
+    min,
+    max,
+    step: 1,
+    defaultValue: min,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function toggleField(id: string, label: string): FieldSchema {
+  return {
+    id,
+    type: 'toggle',
+    label,
+    defaultValue: false,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+// ─── App generators ───
+
+function createFeedbackApp(): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Customer Feedback Form',
+    description: 'A clay-styled feedback form with rating, color picker, and submit button.',
+    prompt: 'Create a feedback form with rating, color picker, and submit button.',
+    fields: [
+      headingField('fb-heading', 'Heading', 'h2', 'We value your feedback 💬'),
+      paragraphField('fb-intro', 'Intro', 'Help us improve by sharing your thoughts below.'),
+      textField('fb-name', 'Your Name', 'e.g. Alex'),
+      ratingField('fb-rating', 'How would you rate us?'),
+      colorField('fb-color', 'Favorite color theme', '#FFD5E5'),
+      selectField('fb-category', 'Category', ['Bug Report', 'Feature Request', 'General Feedback', 'Praise']),
+      buttonField('fb-submit', 'Submit Feedback', 'primary'),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 86400000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createPizzaOrderApp(): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Pizza Order Builder',
+    description: 'Custom pizza order with toppings, size, and quantity selectors.',
+    prompt: 'Create a pizza order form with toppings selection, size picker, and order button.',
+    fields: [
+      headingField('pz-heading', 'Heading', 'h2', 'Build your pizza 🍕'),
+      imageField('pz-image', 'Pizza preview', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop', 'Delicious pizza'),
+      selectField('pz-size', 'Size', ['Small', 'Medium', 'Large', 'Extra Large']),
+      selectField('pz-crust', 'Crust', ['Thin', 'Regular', 'Thick', 'Stuffed']),
+      numberField('pz-quantity', 'Quantity', 1, 10),
+      toggleField('pz-cheese', 'Extra Cheese'),
+      toggleField('pz-pepperoni', 'Pepperoni'),
+      toggleField('pz-mushroom', 'Mushrooms'),
+      colorField('pz-color', 'Box color', '#FFF2C5'),
+      buttonField('pz-order', 'Order Now', 'primary'),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 172800000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createMoodTrackerApp(): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Daily Mood Tracker',
+    description: 'Track your mood daily with emoji ratings, journal entry, and color themes.',
+    prompt: 'Create a mood tracker with emoji rating, journal text, and date picker.',
+    fields: [
+      headingField('mt-heading', 'Heading', 'h3', 'How are you feeling today? 😊'),
+      ratingField('mt-mood', 'Mood Rating'),
+      colorField('mt-color', 'Mood Color', '#C5E8F7'),
+      textField('mt-journal', 'Journal Entry', 'Write a few words about your day...'),
+      selectField('mt-energy', 'Energy Level', ['Low', 'Medium', 'High', 'Very High']),
+      numberField('mt-hours', 'Hours slept', 0, 24),
+      toggleField('mt-exercise', 'Exercised today?'),
+      toggleField('mt-social', 'Socialized today?'),
+      paragraphField('mt-tip', 'Tip', 'Consistency is key! Tracking daily helps spot patterns.'),
+      buttonField('mt-save', 'Save Entry', 'primary'),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 259200000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createColorPaletteApp(): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Color Palette Explorer',
+    description: 'Explore and save custom color palettes with claymorphism preview.',
+    prompt: 'Create a color palette explorer with color pickers, hex input, and save functionality.',
+    fields: [
+      headingField('cp-heading', 'Heading', 'h2', '🎨 Palette Explorer'),
+      paragraphField('cp-intro', 'Intro', 'Mix and match colors to create your perfect palette.'),
+      colorField('cp-primary', 'Primary Color', '#D5B8F5'),
+      colorField('cp-secondary', 'Secondary Color', '#FFD5E5'),
+      colorField('cp-accent', 'Accent Color', '#C5E8F7'),
+      colorField('cp-background', 'Background Color', '#FFF5ED'),
+      textField('cp-name', 'Palette Name', 'e.g. Sunset Dreams'),
+      numberField('cp-votes', 'Votes', 0, 999),
+      ratingField('cp-rating', 'Your Rating'),
+      buttonField('cp-save', 'Save Palette', 'primary'),
+      buttonField('cp-reset', 'Reset', 'ghost'),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 345600000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'grid', theme: 'clay' },
+  };
+}
+
+function createQuizApp(): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Trivia Quiz Master',
+    description: 'A fun trivia quiz with multiple choice, score tracking, and timer.',
+    prompt: 'Create a trivia quiz app with multiple choice questions, score, and timer.',
+    fields: [
+      headingField('qz-heading', 'Heading', 'h2', 'Trivia Time! 🧠'),
+      imageField('qz-image', 'Quiz image', 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=400&h=300&fit=crop', 'Quiz illustration'),
+      paragraphField('qz-q1', 'Question 1', 'What is the capital of Indonesia?'),
+      selectField('qz-a1', 'Answer 1', ['Jakarta', 'Bandung', 'Surabaya', 'Bali']),
+      paragraphField('qz-q2', 'Question 2', 'Which planet is known as the Red Planet?'),
+      selectField('qz-a2', 'Answer 2', ['Mars', 'Venus', 'Jupiter', 'Saturn']),
+      numberField('qz-score', 'Your Score', 0, 100),
+      ratingField('qz-rating', 'Rate this quiz'),
+      colorField('qz-color', 'Theme Color', '#C5F0D5'),
+      buttonField('qz-submit', 'Submit Answers', 'primary'),
+      buttonField('qz-restart', 'Restart', 'outline'),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 432000000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+// ─── Sample app list ───
+
+const sampleApps: AppSchema[] = [
+  createFeedbackApp(),
+  createPizzaOrderApp(),
+  createMoodTrackerApp(),
+  createColorPaletteApp(),
+  createQuizApp(),
+];
+
+// ─── Content seed data (migrated from hardcoded component data) ───
+
+const seedContent: SiteContent[] = [
+  {
+    id: 'nav-links',
+    type: 'nav-links',
+    data: [
+      { label: 'Features', href: '#features' },
+      { label: 'How It Works', href: '#how-it-works' },
+      { label: 'Login', href: '/login' },
+    ],
+  },
+  {
+    id: 'footer-columns',
+    type: 'footer-columns',
+    data: [
+      {
+        title: 'Product',
+        links: [
+          { label: 'Features', href: '#features' },
+          { label: 'Pricing', href: '#' },
+          { label: 'Changelog', href: '#' },
+          { label: 'Documentation', href: '#' },
+        ],
+      },
+      {
+        title: 'Features',
+        links: [
+          { label: 'AI Prompt Builder', href: '#features' },
+          { label: 'Drag & Drop Editor', href: '#features' },
+          { label: 'Custom JS Nodes', href: '#features' },
+          { label: 'App Runner', href: '#features' },
+        ],
+      },
+      {
+        title: 'Resources',
+        links: [
+          { label: 'GitHub', href: '#' },
+          { label: 'API Reference', href: '#' },
+          { label: 'Templates', href: '#' },
+          { label: 'Community', href: '#' },
+        ],
+      },
+      {
+        title: 'Company',
+        links: [
+          { label: 'About', href: '#' },
+          { label: 'Blog', href: '#' },
+          { label: 'Privacy', href: '#' },
+          { label: 'Terms', href: '#' },
+        ],
+      },
+    ],
+  },
+];
+
+/**
+ * seedContentData — seeds nav links and footer columns into IndexedDB.
+ * These were previously hardcoded in Navbar.tsx and Footer.tsx.
+ */
+async function seedContentData(): Promise<void> {
+  for (const item of seedContent) {
+    const exists = await contentRepo.exists(item.type);
+    if (!exists) {
+      await contentRepo.save(item);
+      console.log(`[Seed] Content seeded: ${item.type}`);
+    }
+  }
+}
+
+/**
+ * seedDatabase — Seeds the IndexedDB with sample micro-apps and site content.
+ * Features varied claymorphism field types using the pastel palette (#4A3F35 text).
+ * Safe to call multiple times — only seeds if DB is empty.
+ */
+export async function seedDatabase(): Promise<{ count: number; apps: AppSchema[] }> {
+  try {
+    // Also seed content data (nav, footer — migrated from hardcoded components)
+    await seedContentData();
+
+    // Check if app data already exists
+    const existingCount = await microAppRepo.count();
+    if (existingCount > 0) {
+      console.log(`[Seed] DB already has ${existingCount} apps — skipping app seed.`);
+      const existingApps = await microAppRepo.getAll();
+      return { count: existingApps.length, apps: existingApps };
+    }
+
+    // Bulk save all sample apps
+    await microAppRepo.bulkSave(sampleApps);
+    console.log(`[Seed] Seeded ${sampleApps.length} sample apps successfully.`);
+    return { count: sampleApps.length, apps: sampleApps };
+  } catch (error) {
+    console.error('[Seed] Failed to seed database:', error);
+    return { count: 0, apps: [] };
+  }
+}
