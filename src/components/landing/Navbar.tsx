@@ -118,27 +118,35 @@ export default function Navbar() {
           </button>
         </div>
         <div className="flex flex-col gap-1 p-4">
-          <a
-            href="#features"
-            onClick={() => setMobileOpen(false)}
-            className="rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-          >
-            Features
-          </a>
-          <a
-            href="#how-it-works"
-            onClick={() => setMobileOpen(false)}
-            className="rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-          >
-            How It Works
-          </a>
-          <Link
-            href="/login"
-            onClick={() => setMobileOpen(false)}
-            className="rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-          >
-            Login
-          </Link>
+          {navLinks.map((link) => {
+            const isGetStarted = link.label === 'Get Started';
+            if (isGetStarted) return null;
+
+            const isLogin = link.label === 'Login';
+            if (isLogin) {
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
+                >
+                  {link.label}
+                </Link>
+              );
+            }
+
+            return (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
+              >
+                {link.label}
+              </a>
+            );
+          })}
           <hr className="my-2 border-[#E8E0D8]/40" />
           <Link href="/register" onClick={() => setMobileOpen(false)}>
             <Button variant="primary" className="w-full gap-1.5">

@@ -48,8 +48,8 @@ export default function RunPage() {
     return (
       <div className="min-h-screen bg-clay-cream flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 clay-sm p-6">
-          <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#D5B8F5' }} />
-          <p className="text-sm" style={{ color: '#B8A898' }}>Loading app...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
+          <p className="text-sm text-clay-muted">Loading app...</p>
         </div>
       </div>
     );
@@ -60,15 +60,15 @@ export default function RunPage() {
       <div className="min-h-screen bg-clay-cream flex items-center justify-center">
         <div className="text-center max-w-sm clay p-8">
           <div className="w-16 h-16 rounded-2xl bg-clay-rose flex items-center justify-center mx-auto mb-4 shadow-inner">
-            <AlertTriangle className="h-8 w-8" style={{ color: '#5D4E37' }} />
+            <AlertTriangle className="h-8 w-8 text-foreground" />
           </div>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: '#5D4E37' }}>App not found</h2>
-          <p className="text-sm mb-6" style={{ color: '#B8A898' }}>{error || 'Something went wrong.'}</p>
+          <h2 className="text-lg font-semibold mb-2 text-foreground">App not found</h2>
+          <p className="text-sm mb-6 text-clay-muted">{error || 'Something went wrong.'}</p>
           <div className="flex items-center justify-center gap-2">
-            <button onClick={() => router.push('/')} className="clay-sm px-4 py-2 text-xs font-medium bg-clay-peach/50 hover:bg-clay-peach/70 transition-all" style={{ color: '#5D4E37' }}>
+            <button onClick={() => router.push('/')} className="clay-sm px-4 py-2 text-xs font-medium bg-clay-peach/50 hover:bg-clay-peach/70 transition-all text-foreground">
               Back to Dashboard
             </button>
-            <button onClick={loadApp} className="clay-button bg-clay-purple px-4 py-2 text-xs font-medium" style={{ color: '#5D4E37' }}>
+            <button onClick={loadApp} className="clay-button bg-clay-purple px-4 py-2 text-xs font-medium text-foreground">
               Try Again
             </button>
           </div>
@@ -84,8 +84,7 @@ export default function RunPage() {
         <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
           <button
             onClick={() => router.push('/')}
-            className="flex items-center gap-1.5 text-xs font-medium h-9 px-3 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all"
-            style={{ color: '#5D4E37' }}
+            className="flex items-center gap-1.5 text-xs font-medium h-9 px-3 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Dashboard
@@ -93,8 +92,7 @@ export default function RunPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push(`/builder?id=${app.id}`)}
-              className="h-9 px-4 rounded-xl text-xs font-medium clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
-              style={{ color: '#5D4E37' }}
+              className="h-9 px-4 rounded-xl text-xs font-medium clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all text-foreground"
             >
               Open in Builder
             </button>

@@ -163,14 +163,14 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#5D4E37]">Your Micro Apps</h1>
-            <p className="mt-1 text-sm text-[#B8A898]">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Your Micro Apps</h1>
+            <p className="mt-1 text-sm text-clay-muted">
               {totalApps} {totalApps === 1 ? 'app' : 'apps'} created
               {totalPages > 1 && ` — Page ${page} of ${totalPages}`}
             </p>
           </div>
           <button onClick={() => setShowNewDialog(true)}
-            className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5]">
+            className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-foreground bg-[#D5B8F5]">
             <Plus className="h-4 w-4" />
             New App
           </button>
@@ -185,12 +185,12 @@ export default function DashboardPage() {
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
             <input
               placeholder="Search your apps..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="clay-input h-10 w-full pl-10 pr-4 text-sm text-[#5D4E37]"
+              className="clay-input h-10 w-full pl-10 pr-4 text-sm text-foreground"
             />
           </div>
 
@@ -199,7 +199,7 @@ export default function DashboardPage() {
             <div className="relative" ref={sortMenuRef}>
               <button
                 onClick={() => setShowSortMenu(!showSortMenu)}
-                className="clay-sm flex h-9 items-center gap-1.5 px-3 text-xs font-medium text-[#5D4E37] bg-[#F5EDE5]"
+                className="clay-sm flex h-9 items-center gap-1.5 px-3 text-xs font-medium text-foreground bg-[#F5EDE5]"
               >
                 <ArrowUpDown className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{getSortLabel(sort)}</span>
@@ -214,8 +214,8 @@ export default function DashboardPage() {
                         onClick={() => handleSortChange(opt.value)}
                         className={`w-full text-left px-3 py-2 text-xs rounded-xl transition-all ${
                           sort.field === opt.value.field && sort.direction === opt.value.direction
-                            ? 'bg-[#D5B8F5] text-[#5D4E37] font-medium'
-                            : 'text-[#5D4E37] hover:bg-[#F5EDE5]'
+                            ? 'bg-[#D5B8F5] text-foreground font-medium'
+                            : 'text-foreground hover:bg-[#F5EDE5]'
                         }`}
                       >
                         {opt.label}
@@ -228,15 +228,15 @@ export default function DashboardPage() {
 
             {/* Page Size Selector */}
             <div className="flex items-center gap-1">
-              <Columns3 className="h-3.5 w-3.5 text-[#B8A898]" />
+              <Columns3 className="h-3.5 w-3.5 text-clay-muted" />
               {PAGE_SIZES.map((size) => (
                 <button
                   key={size}
                   onClick={() => handlePageSizeChange(size)}
                   className={`clay-sm h-7 min-w-[2rem] px-2 text-xs font-medium transition-all ${
                     pageSize === size
-                      ? 'bg-[#D5B8F5] text-[#5D4E37] scale-105'
-                      : 'bg-[#F5EDE5] text-[#5D4E37] hover:scale-105'
+                      ? 'bg-[#D5B8F5] text-foreground scale-105'
+                      : 'bg-[#F5EDE5] text-foreground hover:scale-105'
                   }`}
                 >
                   {size}
@@ -256,19 +256,19 @@ export default function DashboardPage() {
         ) : apps.length === 0 ? (
           <div className="flex flex-col items-center justify-center clay-card px-6 py-16 text-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[50%] clay-sm bg-[#FFF2C5]">
-              <Sparkles className="h-8 w-8 text-[#5D4E37]" />
+              <Sparkles className="h-8 w-8 text-foreground" />
             </div>
-            <h3 className="text-lg font-semibold text-[#5D4E37]">
+            <h3 className="text-lg font-semibold text-foreground">
               {searchQuery.trim() ? 'No matching apps' : 'No apps yet'}
             </h3>
-            <p className="mt-1 max-w-sm text-sm text-[#B8A898]">
+            <p className="mt-1 max-w-sm text-sm text-clay-muted">
               {searchQuery.trim()
                 ? 'Try a different search term or clear the filter.'
                 : 'Create your first micro-app with AI — describe what you want to build and we\'ll generate it for you.'}
             </p>
             {!searchQuery.trim() && (
               <button onClick={() => setShowNewDialog(true)}
-                className="clay-button mt-6 flex items-center gap-2 px-4 h-10 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5]">
+                className="clay-button mt-6 flex items-center gap-2 px-4 h-10 text-sm font-medium text-foreground bg-[#D5B8F5]">
                 <Plus className="h-4 w-4" />
                 Create Your First App
               </button>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => goToPage(page - 1)}
                   disabled={page === 1}
-                  className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-[#5D4E37] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -301,7 +301,7 @@ export default function DashboardPage() {
 
                 {getPageRange().map((item, idx) =>
                   item === 'ellipsis' ? (
-                    <span key={`ellipsis-${idx}`} className="flex h-9 w-9 items-center justify-center text-sm text-[#B8A898]">
+                    <span key={`ellipsis-${idx}`} className="flex h-9 w-9 items-center justify-center text-sm text-clay-muted">
                       &hellip;
                     </span>
                   ) : (
@@ -310,8 +310,8 @@ export default function DashboardPage() {
                       onClick={() => goToPage(item)}
                       className={`clay-sm flex h-9 w-9 items-center justify-center text-sm font-medium transition-all duration-200 ${
                         item === page
-                          ? 'bg-[#D5B8F5] text-[#5D4E37] scale-105'
-                          : 'bg-[#F5EDE5] text-[#5D4E37] hover:scale-105'
+                          ? 'bg-[#D5B8F5] text-foreground scale-105'
+                          : 'bg-[#F5EDE5] text-foreground hover:scale-105'
                       }`}
                       aria-label={`Page ${item}`}
                       aria-current={item === page ? 'page' : undefined}
@@ -324,7 +324,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => goToPage(page + 1)}
                   disabled={page === totalPages}
-                  className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-[#5D4E37] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Next page"
                 >
                   <ChevronRight className="h-4 w-4" />
