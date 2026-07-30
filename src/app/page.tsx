@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import type { LucideIcon } from 'lucide-react';
 import {
   Sparkles,
   Zap,
@@ -23,68 +24,38 @@ import Navbar from '@/components/landing/Navbar';
 import Footer from '@/components/landing/Footer';
 import FeatureCard from '@/components/landing/FeatureCard';
 import StepCard from '@/components/landing/StepCard';
+import { contentRepo, type FeatureItem, type StepItem, type StatItem } from '@/db/contentRepo';
 
-const features = [
-  {
-    icon: Brain,
-    title: 'AI Prompt Builder',
-    description:
-      'Describe your app in plain English and watch the AI generate a complete form or interface automatically.',
-  },
-  {
-    icon: Layout,
-    title: 'Drag & Drop Editor',
-    description:
-      'Visually arrange fields, reorder inputs, and customize layouts with an intuitive drag-and-drop canvas.',
-  },
-  {
-    icon: Code2,
-    title: 'Custom JS Nodes',
-    description:
-      'Add custom JavaScript logic nodes for calculations, validations, and complex app behavior.',
-  },
-  {
-    icon: Shield,
-    title: 'Local-First Storage',
-    description:
-      'Your data stays on your device with IndexedDB-backed persistence. Full privacy, zero cloud dependency.',
-  },
-  {
-    icon: Play,
-    title: 'App Runner',
-    description:
-      'Run your micro-apps instantly in a clean, interactive preview. Test inputs, see outputs, iterate fast.',
-  },
-  {
-    icon: Zap,
-    title: 'Dev Playground',
-    description:
-      'Live preview with Monaco editor, real-time schema validation, and instant feedback as you build.',
-  },
+// Icon registry — maps stored icon names to Lucide components
+const iconRegistry: Record<string, LucideIcon> = {
+  Brain, Layout, Code2, Shield, Play, Zap, Copy, Star, Eye,
+};
+
+interface FeatureData { icon: LucideIcon; title: string; description: string; }
+interface StepData { icon: LucideIcon; title: string; description: string; }
+interface StatData { icon: LucideIcon; value: string; label: string; }
+
+function resolveIcon(name: string, fallback: LucideIcon): LucideIcon {
+  return iconRegistry[name] || fallback;
+}
+
+// Fallback data used when DB is empty
+const fallbackFeatures: FeatureData[] = [
+  { icon: Brain, title: 'AI Prompt Builder', description: 'Describe your app in plain English and watch the AI generate a complete form or interface automatically.' },
+  { icon: Layout, title: 'Drag & Drop Editor', description: 'Visually arrange fields, reorder inputs, and customize layouts with an intuitive drag-and-drop canvas.' },
+  { icon: Code2, title: 'Custom JS Nodes', description: 'Add custom JavaScript logic nodes for calculations, validations, and complex app behavior.' },
+  { icon: Shield, title: 'Local-First Storage', description: 'Your data stays on your device with IndexedDB-backed persistence. Full privacy, zero cloud dependency.' },
+  { icon: Play, title: 'App Runner', description: 'Run your micro-apps instantly in a clean, interactive preview. Test inputs, see outputs, iterate fast.' },
+  { icon: Zap, title: 'Dev Playground', description: 'Live preview with Monaco editor, real-time schema validation, and instant feedback as you build.' },
 ];
 
-const steps = [
-  {
-    icon: Brain,
-    title: 'Describe your app',
-    description:
-      'Tell us what you want to build in plain language — "A BMI calculator" or "A todo list with categories".',
-  },
-  {
-    icon: Layout,
-    title: 'Customize with drag & drop',
-    description:
-      'Fine-tune the generated fields, add logic nodes, and arrange the layout visually.',
-  },
-  {
-    icon: Eye,
-    title: 'Run & share',
-    description:
-      'Launch your micro-app instantly, test it out, and share it with anyone via a unique link.',
-  },
+const fallbackSteps: StepData[] = [
+  { icon: Brain, title: 'Describe your app', description: 'Tell us what you want to build in plain language — "A BMI calculator" or "A todo list with categories".' },
+  { icon: Layout, title: 'Customize with drag & drop', description: 'Fine-tune the generated fields, add logic nodes, and arrange the layout visually.' },
+  { icon: Eye, title: 'Run & share', description: 'Launch your micro-app instantly, test it out, and share it with anyone via a unique link.' },
 ];
 
-const stats = [
+const fallbackStats: StatData[] = [
   { icon: Copy, value: '50+', label: 'Templates' },
   { icon: Shield, value: '100%', label: 'Local-First' },
   { icon: Code2, value: 'Open', label: 'Source' },
@@ -92,6 +63,30 @@ const stats = [
 ];
 
 export default function LandingPage() {
+  const [features, setFeatures] = useState<FeatureData[]>(fallbackFeatures);
+  const [steps, setSteps] = useState<StepData[]>(fallbackSteps);
+  const [stats, setStats] = useState<StatData[]>(fallbackStats);
+
+  useEffect(() => {
+    // Load dynamic content from IndexedDB — falls back to hardcoded data if DB is empty
+    contentRepo.getByType('landing-features').then((content) => {
+      if (content && Array.isArray(content.data)) {
+        setFeatures((content.data as FeatureItem[]).map(f => ({ ...f, icon: resolveIcon(f.icon, Brain) })));
+      }
+    }).catch(() => {});
+
+    contentRepo.getByType('landing-steps').then((content) => {
+      if (content && Array.isArray(content.data)) {
+        setSteps((content.data as StepItem[]).map(s => ({ ...s, icon: resolveIcon(s.icon, Brain) })));
+      }
+    }).catch(() => {});
+
+    contentRepo.getByType('landing-stats').then((content) => {
+      if (content && Array.isArray(content.data)) {
+        setStats((content.data as StatItem[]).map(s => ({ ...s, icon: resolveIcon(s.icon, Copy) })));
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Smooth scroll for anchor links

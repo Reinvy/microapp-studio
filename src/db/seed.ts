@@ -346,6 +346,37 @@ const seedContent: SiteContent[] = [
       },
     ],
   },
+  {
+    id: 'landing-features',
+    type: 'landing-features',
+    data: [
+      { icon: 'Brain', title: 'AI Prompt Builder', description: 'Describe your app in plain English and watch the AI generate a complete form or interface automatically.' },
+      { icon: 'Layout', title: 'Drag & Drop Editor', description: 'Visually arrange fields, reorder inputs, and customize layouts with an intuitive drag-and-drop canvas.' },
+      { icon: 'Code2', title: 'Custom JS Nodes', description: 'Add custom JavaScript logic nodes for calculations, validations, and complex app behavior.' },
+      { icon: 'Shield', title: 'Local-First Storage', description: 'Your data stays on your device with IndexedDB-backed persistence. Full privacy, zero cloud dependency.' },
+      { icon: 'Play', title: 'App Runner', description: 'Run your micro-apps instantly in a clean, interactive preview. Test inputs, see outputs, iterate fast.' },
+      { icon: 'Zap', title: 'Dev Playground', description: 'Live preview with Monaco editor, real-time schema validation, and instant feedback as you build.' },
+    ],
+  },
+  {
+    id: 'landing-steps',
+    type: 'landing-steps',
+    data: [
+      { icon: 'Brain', title: 'Describe your app', description: 'Tell us what you want to build in plain language — "A BMI calculator" or "A todo list with categories".' },
+      { icon: 'Layout', title: 'Customize with drag & drop', description: 'Fine-tune the generated fields, add logic nodes, and arrange the layout visually.' },
+      { icon: 'Eye', title: 'Run & share', description: 'Launch your micro-app instantly, test it out, and share it with anyone via a unique link.' },
+    ],
+  },
+  {
+    id: 'landing-stats',
+    type: 'landing-stats',
+    data: [
+      { icon: 'Copy', value: '50+', label: 'Templates' },
+      { icon: 'Shield', value: '100%', label: 'Local-First' },
+      { icon: 'Code2', value: 'Open', label: 'Source' },
+      { icon: 'Star', value: 'MIT', label: 'License' },
+    ],
+  },
 ];
 
 /**

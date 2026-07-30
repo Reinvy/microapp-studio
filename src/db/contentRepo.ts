@@ -17,11 +17,31 @@ export interface NavLink {
   href: string;
 }
 
+export interface FeatureItem {
+  icon: string; // lucide icon name
+  title: string;
+  description: string;
+}
+
+export interface StepItem {
+  icon: string;
+  title: string;
+  description: string;
+}
+
+export interface StatItem {
+  icon: string;
+  value: string;
+  label: string;
+}
+
+export type SiteContentData = NavLink[] | FooterColumn[] | FeatureItem[] | StepItem[] | StatItem[];
+
 export interface SiteContent {
   id: string;
-  /** 'nav-links' | 'footer-columns' */
+  /** 'nav-links' | 'footer-columns' | 'landing-features' | 'landing-steps' | 'landing-stats' */
   type: string;
-  data: NavLink[] | FooterColumn[];
+  data: SiteContentData;
 }
 
 /**
