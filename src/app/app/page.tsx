@@ -6,7 +6,10 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/context/AuthContext';
 import { appService } from '@/services/appService';
 import type { AppSchema } from '@/types/schema';
+import type { SortConfig, PageSize } from '@/services/dashboardSortService';
+import { DEFAULT_SORT, SORT_OPTIONS, PAGE_SIZES, DEFAULT_PAGE_SIZE, getSortLabel } from '@/services/dashboardSortService';
 import AppCard from '@/components/dashboard/AppCard';
+import DashboardStats from '@/components/dashboard/DashboardStats';
 import {
   AppWindow,
   Plus,
@@ -15,9 +18,9 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  ArrowUpDown,
+  Columns3,
 } from 'lucide-react';
-
-const PAGE_SIZE = 12;
 
 // Lazy-load heavy dialog (parsePrompt engine import is heavy)
 const NewAppDialog = dynamic(
@@ -34,21 +37,25 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalApps, setTotalApps] = useState(0);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortConfig>(DEFAULT_SORT);
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newAppName, setNewAppName] = useState('');
   const [newAppPrompt, setNewAppPrompt] = useState('');
+  const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadApps = useCallback(async (q: string, p: number) => {
+  const loadApps = useCallback(async (q: string, p: number, ps: PageSize, s: SortConfig) => {
     setLoading(true);
     try {
       if (q.trim()) {
-        const result = await appService.searchApps(q, p, PAGE_SIZE);
+        const result = await appService.searchApps(q, p, ps, s);
         setApps(result.items);
         setTotalPages(result.totalPages);
         setTotalApps(result.total);
       } else {
-        const result = await appService.getApps(p, PAGE_SIZE);
+        const result = await appService.getApps(p, ps, s);
         setApps(result.items);
         setTotalPages(result.totalPages);
         setTotalApps(result.total);
@@ -61,8 +68,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    loadApps(searchQuery, page);
-  }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+    loadApps(searchQuery, page, pageSize, sort);
+  }, [page, pageSize, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced search — resets to page 1 on query change
   const handleSearchChange = (value: string) => {
@@ -70,13 +77,13 @@ export default function DashboardPage() {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       setPage(1);
-      loadApps(value, 1);
+      loadApps(value, 1, pageSize, sort);
     }, 300);
   };
 
   const handleDeleteApp = async (id: string) => {
     await appService.removeApp(id);
-    loadApps(searchQuery, page);
+    loadApps(searchQuery, page, pageSize, sort);
   };
 
   const handleLogout = () => {
@@ -88,6 +95,17 @@ export default function DashboardPage() {
     if (p < 1 || p > totalPages) return;
     setPage(p);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePageSizeChange = (newSize: PageSize) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
+
+  const handleSortChange = (newSort: SortConfig) => {
+    setSort(newSort);
+    setPage(1);
+    setShowSortMenu(false);
   };
 
   // Generate pagination range
@@ -143,30 +161,89 @@ export default function DashboardPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 relative z-10">
         {/* Header */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Your Micro Apps</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="text-2xl font-bold tracking-tight text-[#5D4E37]">Your Micro Apps</h1>
+            <p className="mt-1 text-sm text-[#B8A898]">
               {totalApps} {totalApps === 1 ? 'app' : 'apps'} created
               {totalPages > 1 && ` — Page ${page} of ${totalPages}`}
             </p>
           </div>
           <button onClick={() => setShowNewDialog(true)}
-            className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-foreground bg-[#D5B8F5]">
+            className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-[#5D4E37] bg-[#D5B8F5]">
             <Plus className="h-4 w-4" />
             New App
           </button>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
-          <input
-            placeholder="Search your apps..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="clay-input h-10 w-full pl-10 text-sm text-[#5D4E37]"
-          />
+        {/* Stats Banner */}
+        <div className="mb-5">
+          <DashboardStats />
+        </div>
+
+        {/* Controls Row: Search + Sort + Page Size */}
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+            <input
+              placeholder="Search your apps..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="clay-input h-10 w-full pl-10 pr-4 text-sm text-[#5D4E37]"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Sort Dropdown */}
+            <div className="relative" ref={sortMenuRef}>
+              <button
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="clay-sm flex h-9 items-center gap-1.5 px-3 text-xs font-medium text-[#5D4E37] bg-[#F5EDE5]"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{getSortLabel(sort)}</span>
+              </button>
+              {showSortMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] clay-card p-1.5 origin-top-right">
+                    {SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.label}
+                        onClick={() => handleSortChange(opt.value)}
+                        className={`w-full text-left px-3 py-2 text-xs rounded-xl transition-all ${
+                          sort.field === opt.value.field && sort.direction === opt.value.direction
+                            ? 'bg-[#D5B8F5] text-[#5D4E37] font-medium'
+                            : 'text-[#5D4E37] hover:bg-[#F5EDE5]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-1">
+              <Columns3 className="h-3.5 w-3.5 text-[#B8A898]" />
+              {PAGE_SIZES.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => handlePageSizeChange(size)}
+                  className={`clay-sm h-7 min-w-[2rem] px-2 text-xs font-medium transition-all ${
+                    pageSize === size
+                      ? 'bg-[#D5B8F5] text-[#5D4E37] scale-105'
+                      : 'bg-[#F5EDE5] text-[#5D4E37] hover:scale-105'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* App Grid */}
@@ -266,7 +343,7 @@ export default function DashboardPage() {
             setNewAppPrompt('');
             // Reset to first page and reload
             setPage(1);
-            loadApps(searchQuery, 1);
+            loadApps(searchQuery, 1, pageSize, sort);
           }}
         />
       </main>
