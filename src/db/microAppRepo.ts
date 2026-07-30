@@ -2,6 +2,8 @@
 
 import { db } from './db';
 import type { AppSchema } from '@/types/schema';
+import type { SortConfig } from '@/services/dashboardSortService';
+import { sortApps } from '@/services/dashboardSortService';
 
 export interface PaginatedResult<T> {
   items: T[];
@@ -24,7 +26,8 @@ export const microAppRepo = {
   /** Load apps with pagination — scalable for large datasets */
   async getPaginated(
     page: number = 1,
-    pageSize: number = 12
+    pageSize: number = 12,
+    sort?: SortConfig
   ): Promise<PaginatedResult<AppSchema>> {
     try {
       const total = await db.apps.count();
@@ -32,12 +35,22 @@ export const microAppRepo = {
       const safePage = Math.min(Math.max(1, page), totalPages);
       const offset = (safePage - 1) * pageSize;
 
-      const items = await db.apps
-        .orderBy('updatedAt')
-        .reverse()
-        .offset(offset)
-        .limit(pageSize)
-        .toArray();
+      let items: AppSchema[];
+
+      if (sort && (sort.field !== 'updatedAt' || sort.direction !== 'desc')) {
+        // For non-default sorts, load all and sort in-memory
+        const all = await db.apps.orderBy('updatedAt').reverse().toArray();
+        const sorted = sortApps(all, sort);
+        items = sorted.slice(offset, offset + pageSize);
+      } else {
+        // Default: sort by updatedAt desc (uses IndexedDB index efficiently)
+        items = await db.apps
+          .orderBy('updatedAt')
+          .reverse()
+          .offset(offset)
+          .limit(pageSize)
+          .toArray();
+      }
 
       return { items, total, page: safePage, pageSize, totalPages };
     } catch {
@@ -49,7 +62,8 @@ export const microAppRepo = {
   async search(
     query: string,
     page: number = 1,
-    pageSize: number = 12
+    pageSize: number = 12,
+    sort?: SortConfig
   ): Promise<PaginatedResult<AppSchema>> {
     try {
       const q = query.toLowerCase().trim();
@@ -68,13 +82,14 @@ export const microAppRepo = {
             app.description.toLowerCase().includes(q)
         );
 
-        const total = matched.length;
+        const sorted = sort ? sortApps(matched, sort) : matched;
+        const total = sorted.length;
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
         const safePage = Math.min(Math.max(1, page), totalPages);
         const offset = (safePage - 1) * pageSize;
 
         return {
-          items: matched.slice(offset, offset + pageSize),
+          items: sorted.slice(offset, offset + pageSize),
           total,
           page: safePage,
           pageSize,
@@ -82,7 +97,7 @@ export const microAppRepo = {
         };
       }
 
-      // For generic queries, use Dexie collection filter (more memory-efficient than toArray)
+      // For generic queries, use Dexie collection filter
       const all = await db.apps
         .orderBy('updatedAt')
         .reverse()
@@ -92,13 +107,14 @@ export const microAppRepo = {
         )
         .toArray();
 
-      const total = all.length;
+      const sorted = sort ? sortApps(all, sort) : all;
+      const total = sorted.length;
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
       const safePage = Math.min(Math.max(1, page), totalPages);
       const offset = (safePage - 1) * pageSize;
 
       return {
-        items: all.slice(offset, offset + pageSize),
+        items: sorted.slice(offset, offset + pageSize),
         total,
         page: safePage,
         pageSize,

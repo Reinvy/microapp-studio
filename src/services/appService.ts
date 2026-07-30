@@ -2,6 +2,7 @@
 
 import { microAppRepo, type PaginatedResult } from '@/db/microAppRepo';
 import type { AppSchema } from '@/types/schema';
+import type { SortConfig } from './dashboardSortService';
 
 /**
  * AppService — Scalable service layer wrapping microAppRepo with:
@@ -58,13 +59,14 @@ class AppService {
   /** Get paginated apps with caching */
   async getApps(
     page: number = 1,
-    pageSize: number = 12
+    pageSize: number = 12,
+    sort?: SortConfig
   ): Promise<PaginatedResult<AppSchema>> {
-    const cacheKey = `apps:${page}:${pageSize}`;
+    const cacheKey = `apps:${page}:${pageSize}:${sort?.field || 'updatedAt'}:${sort?.direction || 'desc'}`;
     const cached = this.getCached<PaginatedResult<AppSchema>>(cacheKey);
     if (cached) return cached;
 
-    const result = await microAppRepo.getPaginated(page, pageSize);
+    const result = await microAppRepo.getPaginated(page, pageSize, sort);
     this.setCache(cacheKey, result);
     return result;
   }
@@ -73,13 +75,14 @@ class AppService {
   async searchApps(
     query: string,
     page: number = 1,
-    pageSize: number = 12
+    pageSize: number = 12,
+    sort?: SortConfig
   ): Promise<PaginatedResult<AppSchema>> {
-    const cacheKey = `search:${query}:${page}:${pageSize}`;
+    const cacheKey = `search:${query}:${page}:${pageSize}:${sort?.field || 'updatedAt'}:${sort?.direction || 'desc'}`;
     const cached = this.getCached<PaginatedResult<AppSchema>>(cacheKey);
     if (cached) return cached;
 
-    const result = await microAppRepo.search(query, page, pageSize);
+    const result = await microAppRepo.search(query, page, pageSize, sort);
     this.setCache(cacheKey, result);
     return result;
   }
