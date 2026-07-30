@@ -160,10 +160,10 @@ function BuilderContent() {
       <div className="min-h-screen bg-clay-cream flex items-center justify-center">
         <div className="text-center max-w-sm clay p-8">
           <div className="w-16 h-16 rounded-2xl bg-clay-rose flex items-center justify-center mx-auto mb-4 shadow-inner">
-            <AlertTriangle className="h-8 w-8" style={{ color: '#5D4E37' }} />
+            <AlertTriangle className="h-8 w-8 text-foreground" />
           </div>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: '#5D4E37' }}>Something went wrong</h2>
-          <p className="text-sm mb-6" style={{ color: '#B8A898' }}>{error}</p>
+          <h2 className="text-lg font-semibold mb-2 text-foreground">Something went wrong</h2>
+          <p className="text-sm mb-6 text-clay-muted">{error}</p>
           <div className="flex items-center justify-center gap-2">
             <Button variant="outline" onClick={() => router.push('/')}>
               Back to Dashboard
@@ -179,8 +179,8 @@ function BuilderContent() {
     return (
       <div className="min-h-screen bg-clay-cream flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 clay-sm p-6">
-          <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#D5B8F5' }} />
-          <p className="text-sm" style={{ color: '#B8A898' }}>
+          <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
+          <p className="text-sm text-clay-muted">
             {appId ? 'Loading app...' : 'Creating new app...'}
           </p>
         </div>
@@ -263,8 +263,8 @@ function BuilderContent() {
             className={cn(
               'flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors relative',
               activePanel === tab.key
-                ? 'text-[#5D4E37]'
-                : 'text-[#B8A898] hover:text-[#5D4E37]'
+                ? 'text-foreground'
+                : 'text-clay-muted hover:text-foreground'
             )}
           >
             {activePanel === tab.key && (
@@ -288,8 +288,8 @@ export default function BuilderPage() {
       fallback={
         <div className="min-h-screen bg-clay-cream flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin" style={{ color: '#D5B8F5' }} />
-            <p className="text-sm" style={{ color: '#B8A898' }}>Loading builder...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
+            <p className="text-sm text-clay-muted">Loading builder...</p>
           </div>
         </div>
       }
