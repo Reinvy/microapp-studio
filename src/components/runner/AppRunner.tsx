@@ -22,8 +22,6 @@ import {
 import type { AppSchema, EngineResult } from '@/types/schema';
 import { executeSchema } from '@/engine/schemaEngine';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import RenderField from './RenderField';
 
@@ -721,14 +719,4 @@ function getFieldBorderRadius(style?: { borderRadius?: string }): string {
   return map[style.borderRadius] || style.borderRadius;
 }
 
-function getFieldShadow(style?: { shadow?: string }): string {
-  if (!style?.shadow) return '';
-  const map: Record<string, string> = {
-    sm: 'shadow-sm',
-    md: 'shadow-md',
-    lg: 'shadow-lg',
-    xl: 'shadow-xl',
-    '2xl': 'shadow-2xl',
-  };
-  return map[style.shadow] || style.shadow;
-}
+

@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-07-30] — Maintenance
+
+### Changed
+- Security audit: reviewed 12 high severity vulnerabilities (brace-expansion in eslint, postcss/sharp in next require breaking changes — skipped per policy)
+- Dependency updates: `jose` 6.2.4 → 6.2.5 (patch), `lucide-react` 1.27.0 → 1.28.0 (minor)
+- Code cleanup: removed unused `Button` import in `src/components/builder/Toolbar.tsx`, removed unused `Badge`/`Card`/`CardContent` imports and unused `getFieldShadow` function in `src/components/runner/AppRunner.tsx`
+- CHANGELOG.md updated with today's maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-07-29] — Maintenance
 
 ### Changed
