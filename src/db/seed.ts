@@ -16,6 +16,56 @@ const pastelColors = [
 
 const buttonVariants = ['primary', 'secondary', 'outline', 'ghost', 'danger'] as const;
 
+const imagePool = [
+  'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
+];
+
+const appTemplatePool = [
+  {
+    name: 'Customer Feedback Form',
+    description: 'A clay-styled feedback form with rating, color picker, and submit button.',
+    prompt: 'Create a feedback form with rating, color picker, and submit button.',
+  },
+  {
+    name: 'Pizza Order Builder',
+    description: 'Custom pizza order with toppings, size, and quantity selectors.',
+    prompt: 'Create a pizza order form with toppings selection, size picker, and order button.',
+  },
+  {
+    name: 'Daily Mood Tracker',
+    description: 'Track your mood daily with emoji ratings, journal entry, and color themes.',
+    prompt: 'Create a mood tracker with emoji rating, journal text, and date picker.',
+  },
+  {
+    name: 'Color Palette Explorer',
+    description: 'Explore and save custom color palettes with claymorphism preview.',
+    prompt: 'Create a color palette explorer with color pickers, hex input, and save functionality.',
+  },
+  {
+    name: 'Trivia Quiz Master',
+    description: 'A fun trivia quiz with multiple choice, score tracking, and timer.',
+    prompt: 'Create a trivia quiz app with multiple choice questions, score, and timer.',
+  },
+  {
+    name: 'Event RSVP Guestbook',
+    description: 'Collect RSVPs and guest notes for your next clay-themed event.',
+    prompt: 'Create an event RSVP form with guest name, email, attendance select, and note field.',
+  },
+  {
+    name: 'Pet Adoption Survey',
+    description: 'Match families with pets using preference selects and a cute rating widget.',
+    prompt: 'Create a pet adoption survey with pet type select, lifestyle toggles, and rating.',
+  },
+];
+
+/** Deterministic pick from a pool based on the app index (stable across re-seeds). */
+function pickFrom<T>(pool: readonly T[], index: number, salt = 0): T {
+  return pool[(index * 7 + salt * 3) % pool.length];
+}
+
 // ─── Field generators ───
 
 function headingField(id: string, label: string, level: string, content: string): FieldSchema {
@@ -143,21 +193,22 @@ function toggleField(id: string, label: string): FieldSchema {
 
 // ─── App generators ───
 
-function createFeedbackApp(): AppSchema {
+function createFeedbackApp(index: number): AppSchema {
   const now = Date.now();
+  const tpl = pickFrom(appTemplatePool, index, 0);
   return {
     id: generateId(),
-    name: 'Customer Feedback Form',
-    description: 'A clay-styled feedback form with rating, color picker, and submit button.',
-    prompt: 'Create a feedback form with rating, color picker, and submit button.',
+    name: tpl.name,
+    description: tpl.description,
+    prompt: tpl.prompt,
     fields: [
       headingField('fb-heading', 'Heading', 'h2', 'We value your feedback 💬'),
       paragraphField('fb-intro', 'Intro', 'Help us improve by sharing your thoughts below.'),
       textField('fb-name', 'Your Name', 'e.g. Alex'),
       ratingField('fb-rating', 'How would you rate us?'),
-      colorField('fb-color', 'Favorite color theme', '#FFD5E5'),
+      colorField('fb-color', 'Favorite color theme', pickFrom(pastelColors, index, 1)),
       selectField('fb-category', 'Category', ['Bug Report', 'Feature Request', 'General Feedback', 'Praise']),
-      buttonField('fb-submit', 'Submit Feedback', 'primary'),
+      buttonField('fb-submit', 'Submit Feedback', pickFrom(buttonVariants, index, 2)),
     ],
     logicNodes: [],
     layout: [],
@@ -168,24 +219,25 @@ function createFeedbackApp(): AppSchema {
   };
 }
 
-function createPizzaOrderApp(): AppSchema {
+function createPizzaOrderApp(index: number): AppSchema {
   const now = Date.now();
+  const tpl = pickFrom(appTemplatePool, index, 1);
   return {
     id: generateId(),
-    name: 'Pizza Order Builder',
-    description: 'Custom pizza order with toppings, size, and quantity selectors.',
-    prompt: 'Create a pizza order form with toppings selection, size picker, and order button.',
+    name: tpl.name,
+    description: tpl.description,
+    prompt: tpl.prompt,
     fields: [
       headingField('pz-heading', 'Heading', 'h2', 'Build your pizza 🍕'),
-      imageField('pz-image', 'Pizza preview', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop', 'Delicious pizza'),
+      imageField('pz-image', 'Pizza preview', pickFrom(imagePool, index, 1), 'Delicious pizza'),
       selectField('pz-size', 'Size', ['Small', 'Medium', 'Large', 'Extra Large']),
       selectField('pz-crust', 'Crust', ['Thin', 'Regular', 'Thick', 'Stuffed']),
       numberField('pz-quantity', 'Quantity', 1, 10),
       toggleField('pz-cheese', 'Extra Cheese'),
       toggleField('pz-pepperoni', 'Pepperoni'),
       toggleField('pz-mushroom', 'Mushrooms'),
-      colorField('pz-color', 'Box color', '#FFF2C5'),
-      buttonField('pz-order', 'Order Now', 'primary'),
+      colorField('pz-color', 'Box color', pickFrom(pastelColors, index, 3)),
+      buttonField('pz-order', 'Order Now', pickFrom(buttonVariants, index, 4)),
     ],
     logicNodes: [],
     layout: [],
@@ -196,24 +248,25 @@ function createPizzaOrderApp(): AppSchema {
   };
 }
 
-function createMoodTrackerApp(): AppSchema {
+function createMoodTrackerApp(index: number): AppSchema {
   const now = Date.now();
+  const tpl = pickFrom(appTemplatePool, index, 2);
   return {
     id: generateId(),
-    name: 'Daily Mood Tracker',
-    description: 'Track your mood daily with emoji ratings, journal entry, and color themes.',
-    prompt: 'Create a mood tracker with emoji rating, journal text, and date picker.',
+    name: tpl.name,
+    description: tpl.description,
+    prompt: tpl.prompt,
     fields: [
       headingField('mt-heading', 'Heading', 'h3', 'How are you feeling today? 😊'),
       ratingField('mt-mood', 'Mood Rating'),
-      colorField('mt-color', 'Mood Color', '#C5E8F7'),
+      colorField('mt-color', 'Mood Color', pickFrom(pastelColors, index, 5)),
       textField('mt-journal', 'Journal Entry', 'Write a few words about your day...'),
       selectField('mt-energy', 'Energy Level', ['Low', 'Medium', 'High', 'Very High']),
       numberField('mt-hours', 'Hours slept', 0, 24),
       toggleField('mt-exercise', 'Exercised today?'),
       toggleField('mt-social', 'Socialized today?'),
       paragraphField('mt-tip', 'Tip', 'Consistency is key! Tracking daily helps spot patterns.'),
-      buttonField('mt-save', 'Save Entry', 'primary'),
+      buttonField('mt-save', 'Save Entry', pickFrom(buttonVariants, index, 6)),
     ],
     logicNodes: [],
     layout: [],
@@ -224,24 +277,25 @@ function createMoodTrackerApp(): AppSchema {
   };
 }
 
-function createColorPaletteApp(): AppSchema {
+function createColorPaletteApp(index: number): AppSchema {
   const now = Date.now();
+  const tpl = pickFrom(appTemplatePool, index, 3);
   return {
     id: generateId(),
-    name: 'Color Palette Explorer',
-    description: 'Explore and save custom color palettes with claymorphism preview.',
-    prompt: 'Create a color palette explorer with color pickers, hex input, and save functionality.',
+    name: tpl.name,
+    description: tpl.description,
+    prompt: tpl.prompt,
     fields: [
       headingField('cp-heading', 'Heading', 'h2', '🎨 Palette Explorer'),
       paragraphField('cp-intro', 'Intro', 'Mix and match colors to create your perfect palette.'),
-      colorField('cp-primary', 'Primary Color', '#D5B8F5'),
-      colorField('cp-secondary', 'Secondary Color', '#FFD5E5'),
-      colorField('cp-accent', 'Accent Color', '#C5E8F7'),
-      colorField('cp-background', 'Background Color', '#FFF5ED'),
+      colorField('cp-primary', 'Primary Color', pickFrom(pastelColors, index, 7)),
+      colorField('cp-secondary', 'Secondary Color', pickFrom(pastelColors, index, 8)),
+      colorField('cp-accent', 'Accent Color', pickFrom(pastelColors, index, 9)),
+      colorField('cp-background', 'Background Color', pickFrom(pastelColors, index, 10)),
       textField('cp-name', 'Palette Name', 'e.g. Sunset Dreams'),
       numberField('cp-votes', 'Votes', 0, 999),
       ratingField('cp-rating', 'Your Rating'),
-      buttonField('cp-save', 'Save Palette', 'primary'),
+      buttonField('cp-save', 'Save Palette', pickFrom(buttonVariants, index, 11)),
       buttonField('cp-reset', 'Reset', 'ghost'),
     ],
     logicNodes: [],
@@ -253,24 +307,25 @@ function createColorPaletteApp(): AppSchema {
   };
 }
 
-function createQuizApp(): AppSchema {
+function createQuizApp(index: number): AppSchema {
   const now = Date.now();
+  const tpl = pickFrom(appTemplatePool, index, 4);
   return {
     id: generateId(),
-    name: 'Trivia Quiz Master',
-    description: 'A fun trivia quiz with multiple choice, score tracking, and timer.',
-    prompt: 'Create a trivia quiz app with multiple choice questions, score, and timer.',
+    name: tpl.name,
+    description: tpl.description,
+    prompt: tpl.prompt,
     fields: [
       headingField('qz-heading', 'Heading', 'h2', 'Trivia Time! 🧠'),
-      imageField('qz-image', 'Quiz image', 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=400&h=300&fit=crop', 'Quiz illustration'),
+      imageField('qz-image', 'Quiz image', pickFrom(imagePool, index, 2), 'Quiz illustration'),
       paragraphField('qz-q1', 'Question 1', 'What is the capital of Indonesia?'),
       selectField('qz-a1', 'Answer 1', ['Jakarta', 'Bandung', 'Surabaya', 'Bali']),
       paragraphField('qz-q2', 'Question 2', 'Which planet is known as the Red Planet?'),
       selectField('qz-a2', 'Answer 2', ['Mars', 'Venus', 'Jupiter', 'Saturn']),
       numberField('qz-score', 'Your Score', 0, 100),
       ratingField('qz-rating', 'Rate this quiz'),
-      colorField('qz-color', 'Theme Color', '#C5F0D5'),
-      buttonField('qz-submit', 'Submit Answers', 'primary'),
+      colorField('qz-color', 'Theme Color', pickFrom(pastelColors, index, 12)),
+      buttonField('qz-submit', 'Submit Answers', pickFrom(buttonVariants, index, 13)),
       buttonField('qz-restart', 'Restart', 'outline'),
     ],
     logicNodes: [],
@@ -285,11 +340,11 @@ function createQuizApp(): AppSchema {
 // ─── Sample app list ───
 
 const sampleApps: AppSchema[] = [
-  createFeedbackApp(),
-  createPizzaOrderApp(),
-  createMoodTrackerApp(),
-  createColorPaletteApp(),
-  createQuizApp(),
+  createFeedbackApp(0),
+  createPizzaOrderApp(1),
+  createMoodTrackerApp(2),
+  createColorPaletteApp(3),
+  createQuizApp(4),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -376,6 +431,20 @@ const seedContent: SiteContent[] = [
       { icon: 'Code2', value: 'Open', label: 'Source' },
       { icon: 'Star', value: 'MIT', label: 'License' },
     ],
+  },
+  {
+    id: 'hero-content',
+    type: 'hero-content',
+    data: {
+      badge: 'AI-Powered Micro-App Builder',
+      titleLine1: 'Create',
+      titleHighlight: 'Mini Apps',
+      titleLine2: 'with AI Prompts',
+      subtitle:
+        'Build fully functional micro-apps by describing them in plain English. Drag, drop, and customize — no coding required.',
+      primaryCta: { label: 'Get Started Free', href: '/register' },
+      secondaryCta: { label: 'View Demo', href: '/login' },
+    },
   },
 ];
 

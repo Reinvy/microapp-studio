@@ -24,7 +24,7 @@ import Navbar from '@/components/landing/Navbar';
 import Footer from '@/components/landing/Footer';
 import FeatureCard from '@/components/landing/FeatureCard';
 import StepCard from '@/components/landing/StepCard';
-import { contentRepo, type FeatureItem, type StepItem, type StatItem } from '@/db/contentRepo';
+import { contentRepo, type FeatureItem, type StepItem, type StatItem, type HeroContent } from '@/db/contentRepo';
 
 // Icon registry — maps stored icon names to Lucide components
 const iconRegistry: Record<string, LucideIcon> = {
@@ -62,13 +62,32 @@ const fallbackStats: StatData[] = [
   { icon: Star, value: 'MIT', label: 'License' },
 ];
 
+// Hero copy is seeded via contentRepo ('hero-content') — fallback keeps SSR/first paint intact
+const fallbackHero: HeroContent = {
+  badge: 'AI-Powered Micro-App Builder',
+  titleLine1: 'Create',
+  titleHighlight: 'Mini Apps',
+  titleLine2: 'with AI Prompts',
+  subtitle:
+    'Build fully functional micro-apps by describing them in plain English. Drag, drop, and customize — no coding required.',
+  primaryCta: { label: 'Get Started Free', href: '/register' },
+  secondaryCta: { label: 'View Demo', href: '/login' },
+};
+
 export default function LandingPage() {
   const [features, setFeatures] = useState<FeatureData[]>(fallbackFeatures);
   const [steps, setSteps] = useState<StepData[]>(fallbackSteps);
   const [stats, setStats] = useState<StatData[]>(fallbackStats);
+  const [hero, setHero] = useState<HeroContent>(fallbackHero);
 
   useEffect(() => {
     // Load dynamic content from IndexedDB — falls back to hardcoded data if DB is empty
+    contentRepo.getByType('hero-content').then((content) => {
+      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
+        setHero(content.data as HeroContent);
+      }
+    }).catch(() => {});
+
     contentRepo.getByType('landing-features').then((content) => {
       if (content && Array.isArray(content.data)) {
         setFeatures((content.data as FeatureItem[]).map(f => ({ ...f, icon: resolveIcon(f.icon, Brain) })));
@@ -146,36 +165,35 @@ export default function LandingPage() {
               {/* Badge — clay pill */}
               <div className="mb-6 inline-flex items-center gap-1.5 rounded-full bg-[#D5B8F5]/30 px-5 py-2 text-xs font-medium text-foreground shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)]">
                 <Sparkles className="h-3.5 w-3.5" />
-                AI-Powered Micro-App Builder
+                {hero.badge}
               </div>
 
               <h1 className="mb-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-foreground">
-                Create{' '}
-                <span className="gradient-text">Mini Apps</span>
+                {hero.titleLine1}{' '}
+                <span className="gradient-text">{hero.titleHighlight}</span>
                 <br />
-                with AI Prompts
+                {hero.titleLine2}
               </h1>
 
               <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-                Build fully functional micro-apps by describing them in plain English. Drag, drop,
-                and customize — no coding required.
+                {hero.subtitle}
               </p>
 
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <Link href="/register">
+                <Link href={hero.primaryCta.href}>
                   <Button variant="primary" size="lg" className="h-12 gap-2 px-8 text-base">
-                    Get Started Free
+                    {hero.primaryCta.label}
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Link href="/login">
+                <Link href={hero.secondaryCta.href}>
                   <Button
                     variant="outline"
                     size="lg"
                     className="h-12 gap-2 px-8 text-base"
                   >
                     <Eye className="h-5 w-5" />
-                    View Demo
+                    {hero.secondaryCta.label}
                   </Button>
                 </Link>
               </div>

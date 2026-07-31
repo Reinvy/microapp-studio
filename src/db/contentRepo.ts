@@ -35,7 +35,17 @@ export interface StatItem {
   label: string;
 }
 
-export type SiteContentData = NavLink[] | FooterColumn[] | FeatureItem[] | StepItem[] | StatItem[];
+export interface HeroContent {
+  badge: string;
+  titleLine1: string;
+  titleHighlight: string;
+  titleLine2: string;
+  subtitle: string;
+  primaryCta: { label: string; href: string };
+  secondaryCta: { label: string; href: string };
+}
+
+export type SiteContentData = NavLink[] | FooterColumn[] | FeatureItem[] | StepItem[] | StatItem[] | HeroContent;
 
 export interface SiteContent {
   id: string;
