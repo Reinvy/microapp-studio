@@ -115,7 +115,7 @@ function DraggableField({ item }: DraggableFieldProps) {
 }
 
 export default function ComponentPalette() {
-  const { activeApp, addField } = useAppStore();
+  const { addField } = useAppStore();
 
   const handleQuickAdd = (type: FieldType, label: string) => {
     const baseField: Record<string, unknown> = { type, label: `New ${label}` };

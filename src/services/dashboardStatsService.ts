@@ -1,7 +1,7 @@
 'use client';
 
 import { microAppRepo } from '@/db/microAppRepo';
-import type { AppSchema, FieldType } from '@/types/schema';
+import type { FieldType } from '@/types/schema';
 
 /**
  * DashboardStatsService — Aggregates app statistics for scalable dashboard insight.

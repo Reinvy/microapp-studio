@@ -12,7 +12,9 @@
   "overrides": {
     "monaco-editor": {
       "dompurify": "3.4.12"
-    }
+    },
+    "postcss": "8.5.25",
+    "sharp": "0.35.3"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

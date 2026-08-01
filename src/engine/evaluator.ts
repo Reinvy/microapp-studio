@@ -207,7 +207,7 @@ export async function runPipeline(
   finalOutput: unknown;
 }> {
   const steps: PipelineStepResult[] = [];
-  let context: Record<string, unknown> = { ...initialInputs };
+  const context: Record<string, unknown> = { ...initialInputs };
 
   for (const node of nodes) {
     // Prepare inputs for this node from the accumulated context

@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-08-01] — Maintenance
+
+### Changed
+- Security audit: fixed all 3 high severity vulnerabilities (postcss XSS/path-traversal + sharp libvips CVEs) via npm overrides — `postcss` 8.4.31 → 8.5.25, `sharp` 0.34.5 → 0.35.3. `npm audit` now reports **0 vulnerabilities** (no breaking upgrade needed — avoided `npm audit fix --force` which would downgrade next to 9.x)
+- Dependency updates (safe patches): `jose` 6.2.5 → 6.2.6, `@playwright/test` 1.62.0 → 1.62.1, `@types/react` 19.2.17 → 19.2.18, `@types/react-dom` 19.2.3 → 19.2.4, `@types/lodash` 4.17.24 → 4.17.25
+- Code cleanup: removed unused imports (`AppSchema` in `dashboardStatsService.ts` & `Toolbar.tsx`, `FieldType`/`Badge` in `Canvas.tsx`, `Button`/`Input`/`Select*` in `PropertiesPanel.tsx`, `Button` in `AppRunner.tsx`), removed unused `words` var in `promptToSchema.ts`, unused `activeApp` in `ComponentPalette.tsx`, dead `app` prop in `LivePreview` (`AppRunner.tsx`), `let`→`const` in `evaluator.ts`, elided unused key in `AppRunner.tsx`
+- CHANGELOG.md updated with today's maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-07-30] — Maintenance
 
 ### Changed
