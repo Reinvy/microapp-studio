@@ -6,8 +6,6 @@ import {
   Braces,
   Layers,
   BarChart3,
-  TrendingUp,
-  Box,
 } from 'lucide-react';
 import { dashboardStatsService, type DashboardStats } from '@/services/dashboardStatsService';
 

@@ -4,7 +4,6 @@ import { useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Play, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { executeCode } from '@/engine/evaluator';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const MonacoEditorInner = dynamic(

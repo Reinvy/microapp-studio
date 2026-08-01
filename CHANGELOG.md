@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-08-01] — Maintenance (evening cycle)
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (already clean after morning cycle overrides)
+- Dependency check: `npm outdated` — only major updates available (`typescript` 5→7, `eslint` 9→10, `@types/node` 20→26) — skipped per no-major policy
+- Code cleanup: removed unused imports `TrendingUp`/`Box` in `src/components/dashboard/DashboardStats.tsx`, unused `Button` in `src/components/dev/MonacoEditor.tsx`
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-01] — Maintenance
 
 ### Changed
