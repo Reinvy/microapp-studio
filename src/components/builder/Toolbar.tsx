@@ -58,7 +58,7 @@ export default function Toolbar() {
   if (!activeApp) return null;
 
   return (
-    <header className="sticky top-0 z-50 clay-card rounded-none border-b border-clay-border/30 bg-clay-card backdrop-blur-xl">
+    <header className="sticky top-0 z-50 clay-card rounded-none border-b border-clay-border/30 bg-clay-card">
       <div className="flex items-center justify-between h-14 px-4 gap-2">
         {/* Left: Back + Name */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -67,12 +67,12 @@ export default function Toolbar() {
             className="flex items-center justify-center h-9 w-9 rounded-full clay-sm bg-clay-peach shrink-0 hover:scale-105 active:scale-95 transition-transform"
             aria-label="Back to dashboard"
           >
-            <ArrowLeft className="h-4 w-4" style={{ color: '#5D4E37' }} />
+            <ArrowLeft className="h-4 w-4" style={{ color: 'var(--clay-foreground)' }} />
           </button>
 
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-clay-purple/40 shrink-0">
-              <Settings2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+              <Settings2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
             </div>
             {editingName ? (
               <Input
@@ -96,7 +96,7 @@ export default function Toolbar() {
                   setEditingName(true);
                 }}
                 className="text-sm font-medium truncate hover:opacity-70 transition-opacity cursor-pointer clay-sm px-3 py-1"
-                style={{ color: '#5D4E37' }}
+                style={{ color: 'var(--clay-foreground)' }}
               >
                 {activeApp.name}
               </button>
@@ -111,14 +111,14 @@ export default function Toolbar() {
             className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
             aria-label="Undo (not available yet)"
           >
-            <Undo2 className="h-4 w-4" style={{ color: '#B8A898' }} />
+            <Undo2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
           </button>
           <button
             disabled
             className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
             aria-label="Redo (not available yet)"
           >
-            <Redo2 className="h-4 w-4" style={{ color: '#B8A898' }} />
+            <Redo2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
           </button>
 
           <div className="w-px h-6 bg-clay-border mx-1" />
@@ -131,7 +131,7 @@ export default function Toolbar() {
               'bg-clay-green clay-button-style',
               saving && 'opacity-70 cursor-not-allowed'
             )}
-            style={{ color: '#5D4E37' }}
+            style={{ color: 'var(--clay-foreground)' }}
           >
             {saving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -144,7 +144,7 @@ export default function Toolbar() {
           <button
             onClick={handleRun}
             className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-medium clay-button bg-clay-purple transition-all hover:scale-105 active:scale-95"
-            style={{ color: '#5D4E37' }}
+            style={{ color: 'var(--clay-foreground)' }}
           >
             <Play className="h-3.5 w-3.5 fill-current" />
             Run

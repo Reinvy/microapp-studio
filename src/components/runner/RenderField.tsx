@@ -572,7 +572,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
                 [&::-webkit-slider-thumb]:transition-all [&::-webkit-slider-thumb]:duration-150
                 [&::-webkit-slider-thumb]:hover:scale-110"
             />
-            <div className="flex items-center justify-between text-xs" style={{ color: '#B8A898' }}>
+            <div className="flex items-center justify-between text-xs" style={{ color: 'var(--clay-muted)' }}>
               <span>{field.min ?? 0}</span>
               <span className="font-semibold text-clay clay-sm px-3 py-0.5 rounded-lg bg-white text-sm">
                 {String(value ?? field.min ?? 0)}
@@ -647,14 +647,14 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               <span className="text-clay ml-1" style={{ color: '#FFD0D0' }}>*</span>
             )}
           </label>
-          <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: '#B8A898' }}>
+          <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--clay-muted)' }}>
             {field.type}
           </span>
         </div>
       )}
       {renderInput()}
       {field.helpText && !error && (
-        <p className="text-[11px] mt-1" style={{ color: '#B8A898' }}>{field.helpText}</p>
+        <p className="text-[11px] mt-1" style={{ color: 'var(--clay-muted)' }}>{field.helpText}</p>
       )}
       {error && (
         <p className="text-xs mt-1 flex items-center gap-1 animate-fade-in" style={{ color: '#FFD0D0' }}>

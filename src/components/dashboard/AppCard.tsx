@@ -90,19 +90,19 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
     <div className="clay-card group relative overflow-hidden p-5 transition-all duration-300 hover:-translate-y-1">
       {/* Top row: name + actions */}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h3 className="text-base font-semibold text-[#5D4E37] truncate flex-1">
+        <h3 className="text-base font-semibold text-clay-foreground truncate flex-1">
           {app.name}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
           <button
-            className="clay-sm flex h-7 w-7 items-center justify-center bg-[#F5EDE5] text-[#B8A898] hover:text-[#5D4E37]"
+            className="clay-sm flex h-7 w-7 items-center justify-center bg-[#F5EDE5] text-clay-muted hover:text-clay-foreground"
             onClick={() => router.push(`/builder?id=${app.id}`)}
             aria-label={`Edit ${app.name}`}
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
           <button
-            className="clay-sm flex h-7 w-7 items-center justify-center bg-[#FFD0D0] text-[#B8A898] hover:text-[#5D4E37]"
+            className="clay-sm flex h-7 w-7 items-center justify-center bg-[#FFD0D0] text-clay-muted hover:text-clay-foreground"
             onClick={() => onDelete(app.id)}
             aria-label={`Delete ${app.name}`}
           >
@@ -112,7 +112,7 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
       </div>
 
       {/* Description */}
-      <p className="text-xs text-[#B8A898] line-clamp-2 min-h-[2em] mb-3">
+      <p className="text-xs text-clay-muted line-clamp-2 min-h-[2em] mb-3">
         {app.description || 'No description'}
       </p>
 
@@ -121,15 +121,15 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
         {Array.from(fieldCounts.entries()).slice(0, 5).map(([type, count]) => (
           <span
             key={type}
-            className="clay-sm inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-normal text-[#5D4E37] bg-[#F5EDE5]"
+            className="clay-sm inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-normal text-clay-foreground bg-[#F5EDE5]"
           >
             {fieldTypeIcons[type]}
             {fieldTypeLabels[type]}
-            {count > 1 && <span className="text-[#B8A898]">×{count}</span>}
+            {count > 1 && <span className="text-clay-muted">×{count}</span>}
           </span>
         ))}
         {Array.from(fieldCounts.keys()).length > 5 && (
-          <span className="clay-sm inline-flex items-center px-2 py-0.5 text-[10px] font-normal text-[#B8A898] bg-[#F5EDE5]">
+          <span className="clay-sm inline-flex items-center px-2 py-0.5 text-[10px] font-normal text-clay-muted bg-[#F5EDE5]">
             +{Array.from(fieldCounts.keys()).length - 5} more
           </span>
         )}
@@ -137,13 +137,13 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
 
       {/* Footer: meta + run button */}
       <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-3 text-[10px] text-[#B8A898]">
+        <div className="flex items-center gap-3 text-[10px] text-clay-muted">
           <span>{totalFields} field{totalFields !== 1 ? 's' : ''}</span>
           {logicCount > 0 && <span>{logicCount} node{logicCount !== 1 ? 's' : ''}</span>}
           <span>{formatDate(app.updatedAt)}</span>
         </div>
         <button
-          className="clay-button flex h-7 items-center gap-1.5 px-3 text-xs font-medium text-[#5D4E37] bg-[#C5E8F7]"
+          className="clay-button flex h-7 items-center gap-1.5 px-3 text-xs font-medium text-clay-foreground bg-[#C5E8F7]"
           onClick={() => onRun(app.id)}
         >
           <Play className="h-3 w-3 fill-current" />

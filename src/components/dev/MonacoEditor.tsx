@@ -76,10 +76,10 @@ export default function MonacoEditor({
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-clay-border/30 bg-clay-cream/40">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
             {language === 'javascript' ? 'JavaScript' : language}
           </span>
-          <span className="text-[10px]" style={{ color: '#B8A898' }}>
+          <span className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>
             {code.split('\n').length} lines
           </span>
         </div>
@@ -88,7 +88,7 @@ export default function MonacoEditor({
             onClick={handleRunTest}
             disabled={testing}
             className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-[11px] font-medium clay-button bg-clay-purple/40 hover:bg-clay-purple/60 transition-all disabled:opacity-50"
-            style={{ color: '#5D4E37' }}
+            style={{ color: 'var(--clay-foreground)' }}
           >
             {testing ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -131,7 +131,7 @@ export default function MonacoEditor({
               ? 'border-clay-rose/30 bg-clay-rose/10'
               : 'border-clay-green/30 bg-clay-green/10'
           )}
-          style={{ color: '#5D4E37' }}
+          style={{ color: 'var(--clay-foreground)' }}
         >
           {testResult.error ? (
             <>
@@ -146,7 +146,7 @@ export default function MonacoEditor({
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: '#C5F0D5' }} />
               <div>
                 <span className="font-medium">Result: </span>
-                <code className="clay-sm bg-white/60 px-1.5 py-0.5 rounded-lg font-mono text-[11px]" style={{ color: '#5D4E37' }}>
+                <code className="clay-sm bg-white/60 px-1.5 py-0.5 rounded-lg font-mono text-[11px]" style={{ color: 'var(--clay-foreground)' }}>
                   {typeof testResult.result === 'object'
                     ? JSON.stringify(testResult.result, null, 2)
                     : String(testResult.result)}

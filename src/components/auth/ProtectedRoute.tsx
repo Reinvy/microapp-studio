@@ -10,9 +10,9 @@ function ClaySpinner() {
     <div className="flex min-h-screen items-center justify-center bg-[#FFF8F0]">
       <div className="flex flex-col items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-[50%] clay-sm bg-[#D5B8F5] animate-float">
-          <AppWindow className="h-7 w-7 text-[#5D4E37]" />
+          <AppWindow className="h-7 w-7 text-clay-foreground" />
         </div>
-        <div className="flex items-center gap-2 text-sm text-[#B8A898]">
+        <div className="flex items-center gap-2 text-sm text-clay-muted">
           <div className="h-2 w-2 rounded-full bg-[#D5B8F5] animate-pulse" />
           <span>Loading your workspace…</span>
         </div>

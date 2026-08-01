@@ -65,12 +65,12 @@ function LivePreview({
         <button
           onClick={onToggle}
           className="flex items-center gap-2 text-sm font-medium transition-colors"
-          style={{ color: '#5D4E37' }}
+          style={{ color: 'var(--clay-foreground)' }}
         >
           {isVisible ? (
             <Eye className="h-3.5 w-3.5" style={{ color: '#D5B8F5' }} />
           ) : (
-            <EyeOff className="h-3.5 w-3.5" style={{ color: '#B8A898' }} />
+            <EyeOff className="h-3.5 w-3.5" style={{ color: 'var(--clay-muted)' }} />
           )}
           Live Preview
         </button>
@@ -82,7 +82,7 @@ function LivePreview({
                 errorCount === 0 && 'bg-clay-green/40',
                 errorCount > 0 && 'bg-clay-rose/40'
               )}
-              style={{ color: '#5D4E37' }}
+              style={{ color: 'var(--clay-foreground)' }}
             >
               {errorCount > 0 ? (
                 <XCircle className="h-2.5 w-2.5" />
@@ -92,7 +92,7 @@ function LivePreview({
               {errorCount > 0 ? `${errorCount} err` : 'valid'}
             </span>
           )}
-          <span className="text-[9px] px-2 py-0.5 rounded-full clay-sm bg-clay-blue/20 font-mono" style={{ color: '#5D4E37' }}>
+          <span className="text-[9px] px-2 py-0.5 rounded-full clay-sm bg-clay-blue/20 font-mono" style={{ color: 'var(--clay-foreground)' }}>
             {Object.keys(values).length} vals
           </span>
         </div>
@@ -104,7 +104,7 @@ function LivePreview({
           {/* Live JSON */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#B8A898' }}>
+              <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--clay-muted)' }}>
                 Current Values
               </span>
               <button
@@ -112,13 +112,13 @@ function LivePreview({
                   navigator.clipboard.writeText(jsonPreview);
                 }}
                 className="text-[10px] transition-colors flex items-center gap-1 clay-sm px-2 py-0.5 bg-clay-peach/30 hover:bg-clay-peach/50"
-                style={{ color: '#5D4E37' }}
+                style={{ color: 'var(--clay-foreground)' }}
               >
                 <Copy className="h-3 w-3" />
                 Copy
               </button>
             </div>
-            <pre className="text-[11px] font-mono leading-relaxed clay-inset p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-48" style={{ color: '#5D4E37' }}>
+            <pre className="text-[11px] font-mono leading-relaxed clay-inset p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-48" style={{ color: 'var(--clay-foreground)' }}>
               {jsonPreview}
             </pre>
           </div>
@@ -126,7 +126,7 @@ function LivePreview({
           {/* Computed outputs */}
           {liveResult && Object.keys(liveResult.outputs).length > 0 && (
             <div>
-              <span className="text-[10px] font-medium uppercase tracking-wider block mb-1.5" style={{ color: '#B8A898' }}>
+              <span className="text-[10px] font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--clay-muted)' }}>
                 Computed Results
               </span>
               <div className="space-y-1">
@@ -135,9 +135,9 @@ function LivePreview({
                     key={key}
                     className="flex items-center justify-between p-2 rounded-xl clay-sm bg-clay-purple/10 group"
                   >
-                    <span className="text-xs font-medium truncate mr-2" style={{ color: '#5D4E37' }}>{key}</span>
+                    <span className="text-xs font-medium truncate mr-2" style={{ color: 'var(--clay-foreground)' }}>{key}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs font-mono bg-white/80 px-1.5 py-0.5 rounded-lg clay-sm max-w-[120px] truncate" style={{ color: '#5D4E37' }}>
+                      <span className="text-xs font-mono bg-white/80 px-1.5 py-0.5 rounded-lg clay-sm max-w-[120px] truncate" style={{ color: 'var(--clay-foreground)' }}>
                         {typeof val === 'object'
                           ? JSON.stringify(val)
                           : String(val ?? '-')}
@@ -149,7 +149,7 @@ function LivePreview({
                           );
                         }}
                         className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
-                        style={{ color: '#5D4E37' }}
+                        style={{ color: 'var(--clay-foreground)' }}
                       >
                         <Copy className="h-3 w-3" />
                       </button>
@@ -164,15 +164,15 @@ function LivePreview({
           {liveResult && errorCount > 0 && (
             <div className="rounded-xl clay-sm bg-clay-rose/20 p-3">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <AlertCircle className="h-3 w-3" style={{ color: '#5D4E37' }} />
-                <span className="text-xs font-medium" style={{ color: '#5D4E37' }}>Issues</span>
+                <AlertCircle className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
+                <span className="text-xs font-medium" style={{ color: 'var(--clay-foreground)' }}>Issues</span>
               </div>
               <ul className="space-y-0.5">
                 {liveResult.errors.slice(0, 3).map((err, i) => (
                   <li
                     key={i}
                     className="text-[11px] flex items-start gap-1.5"
-                    style={{ color: '#5D4E37' }}
+                    style={{ color: 'var(--clay-foreground)' }}
                   >
                     <span className="inline-block w-1 h-1 rounded-full bg-clay-rose/60 mt-1 shrink-0" />
                     {err}
@@ -358,12 +358,12 @@ export default function AppRunner({ app }: AppRunnerProps) {
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight gradient-text">
                   {app.name}
                 </h1>
-                <span className="shrink-0 text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-purple/20 font-mono" style={{ color: '#5D4E37' }}>
+                <span className="shrink-0 text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-purple/20 font-mono" style={{ color: 'var(--clay-foreground)' }}>
                   v{app.version}
                 </span>
               </div>
               {app.description && (
-                <p className="text-sm mt-1.5 max-w-2xl" style={{ color: '#B8A898' }}>
+                <p className="text-sm mt-1.5 max-w-2xl" style={{ color: 'var(--clay-muted)' }}>
                   {app.description}
                 </p>
               )}
@@ -375,9 +375,9 @@ export default function AppRunner({ app }: AppRunnerProps) {
                 title="Share this app"
               >
                 {copiedShare ? (
-                  <Check className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                  <Check className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
                 ) : (
-                  <Share2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                  <Share2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
                 )}
               </button>
               <button
@@ -386,26 +386,26 @@ export default function AppRunner({ app }: AppRunnerProps) {
                 title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
               >
                 {fullscreen ? (
-                  <Minimize2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                  <Minimize2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
                 ) : (
-                  <Maximize2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                  <Maximize2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
                 )}
               </button>
             </div>
           </div>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-yellow/30 flex items-center gap-1" style={{ color: '#5D4E37' }}>
+            <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-yellow/30 flex items-center gap-1" style={{ color: 'var(--clay-foreground)' }}>
               <Sparkles className="h-2.5 w-2.5" />
               {app.fields.length} field{app.fields.length !== 1 ? 's' : ''}
             </span>
             {hasLogicNodes && (
-              <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-blue/30 flex items-center gap-1" style={{ color: '#5D4E37' }}>
+              <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-blue/30 flex items-center gap-1" style={{ color: 'var(--clay-foreground)' }}>
                 <Activity className="h-2.5 w-2.5" />
                 {app.logicNodes.length} logic node{app.logicNodes.length !== 1 ? 's' : ''}
               </span>
             )}
             {liveResult && liveResult.errors.length > 0 && (
-              <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-rose/40 flex items-center gap-1" style={{ color: '#5D4E37' }}>
+              <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-rose/40 flex items-center gap-1" style={{ color: 'var(--clay-foreground)' }}>
                 <AlertCircle className="h-2.5 w-2.5" />
                 {liveResult.errors.length} issue{liveResult.errors.length !== 1 ? 's' : ''}
               </span>
@@ -421,8 +421,8 @@ export default function AppRunner({ app }: AppRunnerProps) {
               {/* Empty state */}
               {!hasFields && (
                 <div className="flex flex-col items-center justify-center py-16 clay-lg bg-clay-cream/60">
-                  <AlertCircle className="h-10 w-10 mb-4" style={{ color: '#B8A898' }} />
-                  <p className="text-sm text-center max-w-xs" style={{ color: '#B8A898' }}>
+                  <AlertCircle className="h-10 w-10 mb-4" style={{ color: 'var(--clay-muted)' }} />
+                  <p className="text-sm text-center max-w-xs" style={{ color: 'var(--clay-muted)' }}>
                     This app has no fields yet. Go to the builder to add some.
                   </p>
                 </div>
@@ -464,7 +464,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     onClick={handleSubmit}
                     disabled={running}
                     className="flex items-center gap-2 min-w-[130px] h-11 px-6 rounded-xl text-sm font-medium clay-button bg-clay-purple transition-all hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                    style={{ color: '#5D4E37' }}
+                    style={{ color: 'var(--clay-foreground)' }}
                   >
                     {running ? (
                       <>
@@ -482,7 +482,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     onClick={handleReset}
                     disabled={running}
                     className="flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium clay-sm bg-clay-peach/50 hover:bg-clay-peach/70 transition-all disabled:opacity-60"
-                    style={{ color: '#5D4E37' }}
+                    style={{ color: 'var(--clay-foreground)' }}
                   >
                     <RotateCcw className="h-4 w-4" />
                     Reset
@@ -516,26 +516,26 @@ export default function AppRunner({ app }: AppRunnerProps) {
                   <div className="flex items-center gap-2.5">
                     {result && result.errors.length > 0 ? (
                       <div className="w-8 h-8 rounded-xl clay-sm bg-clay-rose/30 flex items-center justify-center">
-                        <XCircle className="h-4 w-4" style={{ color: '#5D4E37' }} />
+                        <XCircle className="h-4 w-4" style={{ color: 'var(--clay-foreground)' }} />
                       </div>
                     ) : result ? (
                       <div className="w-8 h-8 rounded-xl clay-sm bg-clay-green/30 flex items-center justify-center">
-                        <CheckCircle2 className="h-4 w-4" style={{ color: '#5D4E37' }} />
+                        <CheckCircle2 className="h-4 w-4" style={{ color: 'var(--clay-foreground)' }} />
                       </div>
                     ) : (
                       <div className="w-8 h-8 rounded-xl clay-sm bg-clay-peach/30 flex items-center justify-center">
-                        <Loader2 className="h-4 w-4 animate-spin" style={{ color: '#5D4E37' }} />
+                        <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--clay-foreground)' }} />
                       </div>
                     )}
                     <div>
-                      <span className="text-sm font-semibold" style={{ color: '#5D4E37' }}>
+                      <span className="text-sm font-semibold" style={{ color: 'var(--clay-foreground)' }}>
                         {running ? 'Processing...' : result?.errors.length === 0 ? 'Success' : 'Validation Errors'}
                       </span>
                       {result && (
                         <span className={cn(
                           'text-[11px] ml-2',
                           result.errors.length === 0 ? 'text-clay' : ''
-                        )} style={{ color: result.errors.length === 0 ? '#5D4E37' : '#5D4E37' }}>
+                        )} style={{ color: result.errors.length === 0 ? 'var(--clay-foreground)' : 'var(--clay-foreground)' }}>
                           {result.errors.length === 0
                             ? 'All fields valid'
                             : `${result.errors.length} error${result.errors.length !== 1 ? 's' : ''} found`}
@@ -554,7 +554,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                         navigator.clipboard.writeText(text);
                       }}
                       className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
-                      style={{ color: '#5D4E37' }}
+                      style={{ color: 'var(--clay-foreground)' }}
                     >
                       <Download className="h-3 w-3" />
                       Export
@@ -573,7 +573,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                             <li
                               key={i}
                               className="text-xs flex items-start gap-2"
-                              style={{ color: '#5D4E37' }}
+                              style={{ color: 'var(--clay-foreground)' }}
                             >
                               <span className="inline-block w-1.5 h-1.5 rounded-full bg-clay-rose/60 mt-1 shrink-0" />
                               {err}
@@ -587,13 +587,13 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     {result.inputs && Object.keys(result.inputs).length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#B8A898' }}>
+                          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-muted)' }}>
                             Input Values
                           </span>
                           <button
                             onClick={() => setShowRaw(!showRaw)}
                             className="text-[10px] font-medium transition-colors clay-sm px-2 py-0.5 bg-clay-peach/30 hover:bg-clay-peach/50"
-                            style={{ color: '#5D4E37' }}
+                            style={{ color: 'var(--clay-foreground)' }}
                           >
                             {showRaw ? 'Show formatted' : 'Show raw'}
                           </button>
@@ -609,11 +609,11 @@ export default function AppRunner({ app }: AppRunnerProps) {
                                   'hover:bg-clay-cream/80 transition-all'
                                 )}
                               >
-                                <span className="text-xs truncate mr-3 font-medium" style={{ color: '#B8A898' }}>
+                                <span className="text-xs truncate mr-3 font-medium" style={{ color: 'var(--clay-muted)' }}>
                                   {field.label}
                                 </span>
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                  <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm truncate max-w-[140px]" style={{ color: '#5D4E37' }}>
+                                  <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm truncate max-w-[140px]" style={{ color: 'var(--clay-foreground)' }}>
                                     {showRaw
                                       ? JSON.stringify(val)
                                       : String(val ?? '-')}
@@ -624,9 +624,9 @@ export default function AppRunner({ app }: AppRunnerProps) {
                                     title="Copy value"
                                   >
                                     {copiedId === field.id ? (
-                                      <Check className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                                      <Check className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
                                     ) : (
-                                      <Copy className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                                      <Copy className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
                                     )}
                                   </button>
                                 </div>
@@ -641,10 +641,10 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     {outputEntries.length > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#B8A898' }}>
+                          <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-muted)' }}>
                             Computed Results
                           </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full clay-sm bg-clay-purple/20" style={{ color: '#5D4E37' }}>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full clay-sm bg-clay-purple/20" style={{ color: 'var(--clay-foreground)' }}>
                             {outputEntries.length}
                           </span>
                         </div>
@@ -657,9 +657,9 @@ export default function AppRunner({ app }: AppRunnerProps) {
                                 'hover:bg-clay-purple/10 transition-all'
                               )}
                             >
-                              <span className="text-sm font-medium truncate mr-2" style={{ color: '#5D4E37' }}>{key}</span>
+                              <span className="text-sm font-medium truncate mr-2" style={{ color: 'var(--clay-foreground)' }}>{key}</span>
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm max-w-[140px] truncate" style={{ color: '#5D4E37' }}>
+                                <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm max-w-[140px] truncate" style={{ color: 'var(--clay-foreground)' }}>
                                   {typeof val === 'object'
                                     ? JSON.stringify(val)
                                     : String(val ?? '-')}
@@ -670,9 +670,9 @@ export default function AppRunner({ app }: AppRunnerProps) {
                                   title="Copy value"
                                 >
                                   {copiedId === key ? (
-                                    <Check className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                                    <Check className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
                                   ) : (
-                                    <Copy className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                                    <Copy className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
                                   )}
                                 </button>
                               </div>
@@ -686,10 +686,10 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     {result.errors.length === 0 && outputEntries.length === 0 && (
                       <div className="flex flex-col items-center py-8 text-center">
                         <div className="w-14 h-14 rounded-full clay-sm bg-clay-green/30 flex items-center justify-center mb-3">
-                          <CheckCircle2 className="h-7 w-7" style={{ color: '#5D4E37' }} />
+                          <CheckCircle2 className="h-7 w-7" style={{ color: 'var(--clay-foreground)' }} />
                         </div>
-                        <p className="text-sm font-medium" style={{ color: '#5D4E37' }}>Form submitted successfully!</p>
-                        <p className="text-xs mt-1" style={{ color: '#B8A898' }}>All inputs are valid.</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--clay-foreground)' }}>Form submitted successfully!</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--clay-muted)' }}>All inputs are valid.</p>
                       </div>
                     )}
                   </div>

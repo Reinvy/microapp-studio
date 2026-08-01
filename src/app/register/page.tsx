@@ -85,35 +85,35 @@ function RegisterForm() {
       <div className="w-full max-w-md relative z-10">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl clay-sm bg-[#C5E8F7] text-[#5D4E37] transition-transform duration-300 group-hover:scale-105">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl clay-sm bg-[#C5E8F7] text-clay-foreground transition-transform duration-300 group-hover:scale-105">
               <AppWindow className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-[#5D4E37]">MicroApp Studio</span>
+            <span className="text-xl font-bold tracking-tight text-clay-foreground">MicroApp Studio</span>
           </Link>
         </div>
 
         <div className="clay-card overflow-hidden">
           <div className="bg-gradient-to-r from-[#C5E8F7] to-[#D5B8F5] px-6 py-5">
-            <h1 className="text-xl font-bold text-[#5D4E37]">Create an account</h1>
-            <p className="mt-1 text-sm text-[#5D4E37]/70">Start building micro-apps in minutes.</p>
+            <h1 className="text-xl font-bold text-clay-foreground">Create an account</h1>
+            <p className="mt-1 text-sm text-clay-foreground/70">Start building micro-apps in minutes.</p>
           </div>
 
           <div className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               {apiError && (
-                <div className="clay-sm bg-[#FFD0D0] px-4 py-3 text-sm text-[#5D4E37]">
+                <div className="clay-sm bg-[#FFD0D0] px-4 py-3 text-sm text-clay-foreground">
                   {apiError}
                 </div>
               )}
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-[#5D4E37]">Name</label>
+                <label className="text-sm font-medium text-clay-foreground">Name</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
                     placeholder="Your full name" value={name}
                     onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: '' })); }}
-                    className={`clay-input h-11 w-full pl-10 text-sm text-[#5D4E37] ${errors.name ? 'clay-input-error' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 text-sm text-clay-foreground ${errors.name ? 'clay-input-error' : ''}`}
                     autoFocus
                   />
                 </div>
@@ -121,13 +121,13 @@ function RegisterForm() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-[#5D4E37]">Email</label>
+                <label className="text-sm font-medium text-clay-foreground">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
                     type="email" placeholder="you@example.com" value={email}
                     onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: '' })); }}
-                    className={`clay-input h-11 w-full pl-10 text-sm text-[#5D4E37] ${errors.email ? 'clay-input-error' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 text-sm text-clay-foreground ${errors.email ? 'clay-input-error' : ''}`}
                     autoComplete="email"
                   />
                 </div>
@@ -135,17 +135,17 @@ function RegisterForm() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-[#5D4E37]">Password</label>
+                <label className="text-sm font-medium text-clay-foreground">Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
                     type={showPassword ? 'text' : 'password'} placeholder="At least 6 characters" value={password}
                     onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: '' })); }}
-                    className={`clay-input h-11 w-full pl-10 pr-10 text-sm text-[#5D4E37] ${errors.password ? 'clay-input-error' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 pr-10 text-sm text-clay-foreground ${errors.password ? 'clay-input-error' : ''}`}
                     autoComplete="new-password"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8A898] hover:text-[#5D4E37]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-clay-muted hover:text-clay-foreground"
                     aria-label={showPassword ? 'Hide' : 'Show'}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -154,13 +154,13 @@ function RegisterForm() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-[#5D4E37]">Confirm Password</label>
+                <label className="text-sm font-medium text-clay-foreground">Confirm Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B8A898]" />
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
                     type={showPassword ? 'text' : 'password'} placeholder="Repeat your password" value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); if (errors.confirmPassword) setErrors((p) => ({ ...p, confirmPassword: '' })); }}
-                    className={`clay-input h-11 w-full pl-10 text-sm text-[#5D4E37] ${errors.confirmPassword ? 'clay-input-error' : ''}`}
+                    className={`clay-input h-11 w-full pl-10 text-sm text-clay-foreground ${errors.confirmPassword ? 'clay-input-error' : ''}`}
                     autoComplete="new-password"
                   />
                 </div>
@@ -174,17 +174,17 @@ function RegisterForm() {
                   onChange={(e) => { setAgreeTerms(e.target.checked); if (errors.terms) setErrors((p) => ({ ...p, terms: '' })); }}
                   className="mt-1 h-4 w-4 rounded accent-[#D5B8F5]"
                 />
-                <label htmlFor="terms" className="text-xs leading-relaxed text-[#B8A898]">
+                <label htmlFor="terms" className="text-xs leading-relaxed text-clay-muted">
                   I agree to the{' '}
-                  <button type="button" className="text-[#5D4E37] underline underline-offset-2 hover:text-[#5D4E37]/80">Terms of Service</button>
+                  <button type="button" className="text-clay-foreground underline underline-offset-2 hover:text-clay-foreground/80">Terms of Service</button>
                   {' '}and{' '}
-                  <button type="button" className="text-[#5D4E37] underline underline-offset-2 hover:text-[#5D4E37]/80">Privacy Policy</button>
+                  <button type="button" className="text-clay-foreground underline underline-offset-2 hover:text-clay-foreground/80">Privacy Policy</button>
                 </label>
               </div>
               {errors.terms && <p className="text-xs text-[#E87A7A]">{errors.terms}</p>}
 
               <button type="submit" disabled={loading}
-                className="clay-button h-11 w-full flex items-center justify-center gap-2 text-sm font-medium text-[#5D4E37] bg-[#C5E8F7] disabled:opacity-60">
+                className="clay-button h-11 w-full flex items-center justify-center gap-2 text-sm font-medium text-clay-foreground bg-[#C5E8F7] disabled:opacity-60">
                 {loading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Creating account...</>
                 ) : (
@@ -196,22 +196,22 @@ function RegisterForm() {
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#E8E0D8]" /></div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#FFFFFFF0] px-2 text-[#B8A898]">Or sign up with</span>
+                <span className="bg-[#FFFFFFF0] px-2 text-clay-muted">Or sign up with</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFD5E5] text-sm font-medium text-[#5D4E37]">
+              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFD5E5] text-sm font-medium text-clay-foreground">
                 <Globe className="h-4 w-4" /> Google
               </button>
-              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFF2C5] text-sm font-medium text-[#5D4E37]">
+              <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFF2C5] text-sm font-medium text-clay-foreground">
                 <Globe className="h-4 w-4" /> GitHub
               </button>
             </div>
 
-            <p className="mt-6 text-center text-sm text-[#B8A898]">
+            <p className="mt-6 text-center text-sm text-clay-muted">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-[#5D4E37] underline-offset-4 hover:underline">Sign in</Link>
+              <Link href="/login" className="font-medium text-clay-foreground underline-offset-4 hover:underline">Sign in</Link>
             </p>
           </div>
         </div>

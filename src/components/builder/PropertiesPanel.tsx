@@ -147,9 +147,9 @@ function Section({
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider hover:bg-clay-cream/80 transition-colors"
-        style={{ color: '#5D4E37' }}
+        style={{ color: 'var(--clay-foreground)' }}
       >
-        {icon && <span style={{ color: '#B8A898' }}>{icon}</span>}
+        {icon && <span style={{ color: 'var(--clay-muted)' }}>{icon}</span>}
         <span className="flex-1">{title}</span>
         {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
       </button>
@@ -187,7 +187,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                   ? 'bg-clay-purple/30 shadow-inner'
                   : 'bg-white/60 hover:bg-white hover:scale-105'
               )}
-              style={{ color: field.type === opt.value ? '#5D4E37' : '#B8A898' }}
+              style={{ color: field.type === opt.value ? 'var(--clay-foreground)' : 'var(--clay-muted)' }}
               title={opt.label}
             >
               {opt.icon}
@@ -201,7 +201,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       <Section title="Basic" icon={<Type className="h-3 w-3" />}>
         {/* Label */}
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Label</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Label</label>
           <input
             value={field.label}
             onChange={(e) => onChange({ label: e.target.value })}
@@ -213,7 +213,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Placeholder - for input types */}
         {isInputType && field.type !== 'checkbox' && field.type !== 'toggle' && field.type !== 'color' && field.type !== 'rating' && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Placeholder</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Placeholder</label>
             <input
               value={field.placeholder || ''}
               onChange={(e) => onChange({ placeholder: e.target.value })}
@@ -226,7 +226,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Required toggle */}
         {isInputType && (
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Required</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Required</label>
             <button
               onClick={() => onChange({ required: !field.required })}
               className={cn(
@@ -247,7 +247,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Content text - for heading/paragraph */}
         {(field.type === 'heading' || field.type === 'paragraph') && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Content Text</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Content Text</label>
             <input
               value={field.content || ''}
               onChange={(e) => onChange({ content: e.target.value })}
@@ -260,7 +260,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Heading level */}
         {field.type === 'heading' && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Level</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Level</label>
             <select
               value={field.level || 'h2'}
               onChange={(e) => onChange({ level: e.target.value as HeadingLevel })}
@@ -276,7 +276,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Alignment - heading/paragraph */}
         {(field.type === 'heading' || field.type === 'paragraph') && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Alignment</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Alignment</label>
             <div className="flex gap-1">
               {ALIGNMENTS.map((a) => (
                 <button
@@ -288,7 +288,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                       ? 'bg-clay-blue/40 shadow-inner'
                       : 'bg-white/60 hover:bg-white'
                   )}
-                  style={{ color: '#5D4E37' }}
+                  style={{ color: 'var(--clay-foreground)' }}
                 >
                   {a.label}
                 </button>
@@ -301,7 +301,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {field.type === 'button' && (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Variant</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Variant</label>
               <div className="flex gap-1 flex-wrap">
                 {BUTTON_VARIANTS.map((v) => (
                   <button
@@ -313,7 +313,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                         ? 'bg-clay-purple/40 shadow-inner'
                         : 'bg-white/60 hover:bg-white'
                     )}
-                    style={{ color: '#5D4E37' }}
+                    style={{ color: 'var(--clay-foreground)' }}
                   >
                     {v.label}
                   </button>
@@ -321,7 +321,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Action Type</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Action Type</label>
               <select
                 value={field.actionType || 'submit'}
                 onChange={(e) => onChange({ actionType: e.target.value as 'submit' | 'reset' | 'link' })}
@@ -334,7 +334,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             </div>
             {field.actionType === 'link' && (
               <div className="space-y-1">
-                <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>URL</label>
+                <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>URL</label>
                 <input
                   value={field.href || ''}
                   onChange={(e) => onChange({ href: e.target.value })}
@@ -350,7 +350,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {field.type === 'image' && (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Image URL</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Image URL</label>
               <input
                 value={field.src || ''}
                 onChange={(e) => onChange({ src: e.target.value })}
@@ -359,7 +359,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Alt Text</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Alt Text</label>
               <input
                 value={field.alt || ''}
                 onChange={(e) => onChange({ alt: e.target.value })}
@@ -368,7 +368,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Aspect Ratio</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Aspect Ratio</label>
               <select
                 value={field.aspectRatio || 'auto'}
                 onChange={(e) => onChange({ aspectRatio: e.target.value as AspectRatio })}
@@ -385,7 +385,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Select options */}
         {field.type === 'select' && (
           <div className="space-y-1.5">
-            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Options</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Options</label>
             <div className="space-y-1 max-h-[120px] overflow-y-auto">
               {(field.options || []).map((opt, i) => (
                 <div key={i} className="flex items-center gap-1">
@@ -398,7 +398,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                     }}
                     className="flex items-center justify-center h-6 w-6 rounded-xl clay-sm bg-clay-rose/30 hover:bg-clay-rose/60 transition-all shrink-0"
                   >
-                    <X className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                    <X className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
                   </button>
                 </div>
               ))}
@@ -425,7 +425,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 }}
                 className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-blue/40 hover:bg-clay-blue/60 transition-all shrink-0"
               >
-                <Plus className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                <Plus className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
             </div>
           </div>
@@ -434,7 +434,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Default value - checkbox/toggle */}
         {(field.type === 'checkbox' || field.type === 'toggle') && (
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Default Value</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Default Value</label>
             <button
               onClick={() => onChange({ defaultValue: !field.defaultValue })}
               className={cn(
@@ -460,7 +460,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Min Length</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Min Length</label>
                   <input
                     type="number"
                     value={field.validation?.minLength ?? ''}
@@ -476,7 +476,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Max Length</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Max Length</label>
                   <input
                     type="number"
                     value={field.validation?.maxLength ?? ''}
@@ -493,7 +493,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px]" style={{ color: '#B8A898' }}>Regex Pattern</label>
+                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Regex Pattern</label>
                 <input
                   value={field.validation?.pattern || ''}
                   onChange={(e) =>
@@ -509,7 +509,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px]" style={{ color: '#B8A898' }}>Error Message</label>
+                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Error Message</label>
                 <input
                   value={field.validation?.message || ''}
                   onChange={(e) =>
@@ -530,7 +530,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Min</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Min</label>
                   <input
                     type="number"
                     value={field.min ?? ''}
@@ -541,7 +541,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: '#B8A898' }}>Max</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Max</label>
                   <input
                     type="number"
                     value={field.max ?? ''}
@@ -553,7 +553,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px]" style={{ color: '#B8A898' }}>Step</label>
+                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Step</label>
                 <input
                   type="number"
                   step="any"
@@ -572,7 +572,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       {/* ── Styling Section ── */}
       <Section title="Styling" icon={<Palette className="h-3 w-3" />}>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Width</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Width</label>
           <div className="flex gap-1">
             {WIDTH_OPTIONS.map((w) => (
               <button
@@ -584,7 +584,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                     ? 'bg-clay-blue/40 shadow-inner'
                     : 'bg-white/60 hover:bg-white'
                 )}
-                style={{ color: '#5D4E37' }}
+                style={{ color: 'var(--clay-foreground)' }}
               >
                 {w.label}
               </button>
@@ -594,7 +594,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
 
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className="text-[10px]" style={{ color: '#B8A898' }}>BG Color</label>
+            <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>BG Color</label>
             <div className="flex items-center gap-1">
               <input
                 value={field.bgColor || ''}
@@ -613,7 +613,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px]" style={{ color: '#B8A898' }}>Text Color</label>
+            <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Text Color</label>
             <input
               value={field.textColor || ''}
               onChange={(e) => onChange({ textColor: e.target.value })}
@@ -624,7 +624,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Show Border</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Show Border</label>
           <button
             onClick={() => onChange({ border: !field.border })}
             className={cn(
@@ -642,7 +642,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px]" style={{ color: '#B8A898' }}>Border Radius</label>
+          <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Border Radius</label>
           <select
             value={field.borderRadius || 'md'}
             onChange={(e) => onChange({ borderRadius: e.target.value as BorderRadius })}
@@ -655,7 +655,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px]" style={{ color: '#B8A898' }}>Shadow</label>
+          <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Shadow</label>
           <div className="flex gap-1 flex-wrap">
             {SHADOW_OPTIONS.map((s) => (
               <button
@@ -667,7 +667,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                     ? 'bg-clay-purple/40 shadow-inner'
                     : 'bg-white/60 hover:bg-white'
                 )}
-                style={{ color: '#5D4E37' }}
+                style={{ color: 'var(--clay-foreground)' }}
               >
                 {s.label}
               </button>
@@ -689,7 +689,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                   ? 'bg-clay-yellow/40 shadow-inner'
                   : 'bg-white/60 hover:bg-white'
               )}
-              style={{ color: '#5D4E37' }}
+              style={{ color: 'var(--clay-foreground)' }}
             >
               {a.label}
             </button>
@@ -700,7 +700,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       {/* ── Advanced Section ── */}
       <Section title="Advanced" icon={<Settings2 className="h-3 w-3" />} defaultOpen={false}>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Default Value</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Default Value</label>
           <input
             value={typeof field.defaultValue === 'string' || typeof field.defaultValue === 'number' ? String(field.defaultValue) : ''}
             onChange={(e) => onChange({ defaultValue: e.target.value })}
@@ -709,7 +709,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Custom CSS Class</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Custom CSS Class</label>
           <input
             value={field.cssClass || ''}
             onChange={(e) => onChange({ cssClass: e.target.value })}
@@ -718,7 +718,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: '#B8A898' }}>Help Text</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Help Text</label>
           <textarea
             value={field.helpText || ''}
             onChange={(e) => onChange({ helpText: e.target.value })}
@@ -733,7 +733,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         <button
           onClick={onRemove}
           className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium clay-sm bg-clay-rose/40 hover:bg-clay-rose/60 transition-all"
-          style={{ color: '#5D4E37' }}
+          style={{ color: 'var(--clay-foreground)' }}
         >
           <Trash2 className="h-3.5 w-3.5" />
           Remove Field
@@ -771,8 +771,8 @@ export default function PropertiesPanel() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-clay-border/40 shrink-0">
         <div className="flex items-center gap-2">
-          <Settings2 className="h-4 w-4" style={{ color: '#B8A898' }} />
-          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+          <Settings2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
             Properties
           </h3>
         </div>
@@ -781,7 +781,7 @@ export default function PropertiesPanel() {
             onClick={() => selectField(null)}
             className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all"
           >
-            <X className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+            <X className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
           </button>
         )}
       </div>
@@ -800,11 +800,11 @@ export default function PropertiesPanel() {
             <div className="w-16 h-16 rounded-full clay-lg bg-clay-yellow/30 flex items-center justify-center mb-4 animate-pulse-soft">
               <Settings2 className="h-7 w-7" style={{ color: '#D5B8F5' }} />
             </div>
-            <h4 className="text-sm font-medium mb-1" style={{ color: '#5D4E37' }}>No field selected</h4>
-            <p className="text-xs max-w-[180px] leading-relaxed" style={{ color: '#B8A898' }}>
+            <h4 className="text-sm font-medium mb-1" style={{ color: 'var(--clay-foreground)' }}>No field selected</h4>
+            <p className="text-xs max-w-[180px] leading-relaxed" style={{ color: 'var(--clay-muted)' }}>
               Click on a field in the canvas to edit its properties here.
             </p>
-            <div className="mt-4 flex gap-2 text-[10px]" style={{ color: '#B8A898' }}>
+            <div className="mt-4 flex gap-2 text-[10px]" style={{ color: 'var(--clay-muted)' }}>
               <span className="px-2 py-1 rounded-xl clay-sm bg-clay-peach/30">Label</span>
               <span className="px-2 py-1 rounded-xl clay-sm bg-clay-blue/30">Validation</span>
               <span className="px-2 py-1 rounded-xl clay-sm bg-clay-purple/30">Style</span>

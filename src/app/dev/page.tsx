@@ -133,24 +133,24 @@ export default function DevPage() {
               className="flex items-center justify-center h-9 w-9 rounded-full clay-sm bg-clay-peach/50 hover:bg-clay-peach/70 transition-all"
               aria-label="Back to dashboard"
             >
-              <ArrowLeft className="h-4 w-4" style={{ color: '#5D4E37' }} />
+              <ArrowLeft className="h-4 w-4" style={{ color: 'var(--clay-foreground)' }} />
             </button>
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-clay-purple/30">
-                <Code2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                <Code2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </div>
-              <span className="text-sm font-medium" style={{ color: '#5D4E37' }}>Dev Playground</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--clay-foreground)' }}>Dev Playground</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-yellow/30" style={{ color: '#5D4E37' }}>
+            <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-yellow/30" style={{ color: 'var(--clay-foreground)' }}>
               {logicNodes.length} saved node{logicNodes.length !== 1 ? 's' : ''}
             </span>
             {activeApp && (
               <button
                 onClick={() => router.push(`/builder?id=${activeApp.id}`)}
                 className="h-8 px-3 rounded-xl text-xs font-medium clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
-                style={{ color: '#5D4E37' }}
+                style={{ color: 'var(--clay-foreground)' }}
               >
                 Back to Builder
               </button>
@@ -176,12 +176,12 @@ export default function DevPage() {
               onClick={handleSaveNode}
               disabled={!activeApp || saving}
               className="h-10 px-4 rounded-xl text-xs font-medium clay-button bg-clay-green/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-              style={{ color: '#5D4E37' }}
+              style={{ color: 'var(--clay-foreground)' }}
             >
               {saving ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : saved ? (
-                <CheckCircle2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                <CheckCircle2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               ) : (
                 <Save className="h-3.5 w-3.5" />
               )}
@@ -208,22 +208,22 @@ export default function DevPage() {
           {/* Quick reference */}
           <div className="clay-sm bg-clay-yellow/20 p-3">
             <div className="flex items-start gap-3">
-              <Book className="h-4 w-4 mt-0.5" style={{ color: '#B8A898' }} />
-              <div className="text-xs space-y-1" style={{ color: '#5D4E37' }}>
+              <Book className="h-4 w-4 mt-0.5" style={{ color: 'var(--clay-muted)' }} />
+              <div className="text-xs space-y-1" style={{ color: 'var(--clay-foreground)' }}>
                 <p>
                   <strong>Inputs</strong> are available as variables:{' '}
                   {inputNames.map((name) => (
                     <code
                       key={name}
                       className="clay-sm px-1.5 py-0.5 text-[11px] font-mono bg-clay-cream"
-                      style={{ color: '#5D4E37' }}
+                      style={{ color: 'var(--clay-foreground)' }}
                     >
                       {name}
                     </code>
                   ))}
                 </p>
-                <p>Use <code className="clay-sm px-1.5 py-0.5 text-[11px] font-mono bg-clay-cream" style={{ color: '#5D4E37' }}>return</code> to output a value.</p>
-                <p>Press <kbd className="clay-sm px-1.5 py-0.5 text-[11px] font-mono bg-clay-cream" style={{ color: '#5D4E37' }}>⌘+Enter</kbd> or <kbd className="clay-sm px-1.5 py-0.5 text-[11px] font-mono bg-clay-cream" style={{ color: '#5D4E37' }}>Ctrl+Enter</kbd> to run test.</p>
+                <p>Use <code className="clay-sm px-1.5 py-0.5 text-[11px] font-mono bg-clay-cream" style={{ color: 'var(--clay-foreground)' }}>return</code> to output a value.</p>
+                <p>Press <kbd className="clay-sm px-1.5 py-0.5 text-[11px] font-mono bg-clay-cream" style={{ color: 'var(--clay-foreground)' }}>⌘+Enter</kbd> or <kbd className="clay-sm px-1.5 py-0.5 text-[11px] font-mono bg-clay-cream" style={{ color: 'var(--clay-foreground)' }}>Ctrl+Enter</kbd> to run test.</p>
               </div>
             </div>
           </div>
@@ -235,8 +235,8 @@ export default function DevPage() {
           <div className="border-b border-clay-border/30">
             <div className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-2">
-                <Terminal className="h-4 w-4" style={{ color: '#B8A898' }} />
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+                <Terminal className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
+                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
                   Test Input
                 </span>
               </div>
@@ -244,7 +244,7 @@ export default function DevPage() {
                 onClick={handleRunTest}
                 disabled={testing}
                 className="h-8 px-3 rounded-xl text-[11px] font-medium clay-button bg-clay-purple/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-                style={{ color: '#5D4E37' }}
+                style={{ color: 'var(--clay-foreground)' }}
               >
                 {testing ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -268,8 +268,8 @@ export default function DevPage() {
           <div className="border-b border-clay-border/30">
             <div className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-2">
-                <Variable className="h-4 w-4" style={{ color: '#B8A898' }} />
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+                <Variable className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
+                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
                   Output
                 </span>
               </div>
@@ -279,7 +279,7 @@ export default function DevPage() {
                     'text-[9px] px-2 py-0.5 rounded-full clay-sm',
                     testResult.error ? 'bg-clay-rose/40' : 'bg-clay-green/40'
                   )}
-                  style={{ color: '#5D4E37' }}
+                  style={{ color: 'var(--clay-foreground)' }}
                 >
                   {testResult.error ? 'Error' : 'Success'}
                 </span>
@@ -294,7 +294,7 @@ export default function DevPage() {
                       ? 'bg-clay-rose/15'
                       : 'bg-clay-green/15'
                   )}
-                  style={{ color: '#5D4E37' }}
+                  style={{ color: 'var(--clay-foreground)' }}
                 >
                   {testResult.error
                     ? testResult.error
@@ -304,7 +304,7 @@ export default function DevPage() {
                 </div>
               ) : (
                 <div className="w-full min-h-[60px] clay-inset bg-clay-cream/50 flex items-center justify-center">
-                  <span className="text-[11px]" style={{ color: '#B8A898' }}>
+                  <span className="text-[11px]" style={{ color: 'var(--clay-muted)' }}>
                     Run a test to see output
                   </span>
                 </div>
@@ -315,7 +315,7 @@ export default function DevPage() {
           {/* IO Configuration */}
           <div className="px-4 py-3 border-b border-clay-border/30">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
                 Output Names
               </span>
             </div>
@@ -332,7 +332,7 @@ export default function DevPage() {
               placeholder="result, total"
               className="clay-input h-8 text-xs font-mono w-full px-3"
             />
-            <p className="text-[10px] mt-1" style={{ color: '#B8A898' }}>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--clay-muted)' }}>
               Comma-separated output variable names
             </p>
           </div>
@@ -341,21 +341,21 @@ export default function DevPage() {
           <div className="flex-1 overflow-y-auto">
             <div className="px-4 py-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
                   Saved Nodes
                 </span>
-                <span className="text-[10px]" style={{ color: '#B8A898' }}>
+                <span className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>
                   {logicNodes.length}
                 </span>
               </div>
 
               {logicNodes.length === 0 && (
                 <div className="text-center py-8">
-                  <Code2 className="h-6 w-6 mx-auto mb-2" style={{ color: '#B8A898' }} />
-                  <p className="text-xs" style={{ color: '#B8A898' }}>
+                  <Code2 className="h-6 w-6 mx-auto mb-2" style={{ color: 'var(--clay-muted)' }} />
+                  <p className="text-xs" style={{ color: 'var(--clay-muted)' }}>
                     No saved nodes yet
                   </p>
-                  <p className="text-[10px] mt-1" style={{ color: '#B8A898' }}>
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--clay-muted)' }}>
                     Write code and click Save Node
                   </p>
                 </div>
@@ -367,18 +367,18 @@ export default function DevPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium truncate" style={{ color: '#5D4E37' }}>
+                          <span className="text-xs font-medium truncate" style={{ color: 'var(--clay-foreground)' }}>
                             {node.name}
                           </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full clay-sm bg-clay-purple/20" style={{ color: '#5D4E37' }}>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full clay-sm bg-clay-purple/20" style={{ color: 'var(--clay-foreground)' }}>
                             v{node.version}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px]" style={{ color: '#B8A898' }}>
+                          <span className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>
                             In: {node.inputs.join(', ') || 'none'}
                           </span>
-                          <span className="text-[10px]" style={{ color: '#B8A898' }}>
+                          <span className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>
                             Out: {node.outputs.join(', ') || 'none'}
                           </span>
                         </div>
@@ -394,14 +394,14 @@ export default function DevPage() {
                           }}
                           aria-label={`Load ${node.name} into editor`}
                         >
-                          <Code2 className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                          <Code2 className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
                         </button>
                         <button
                           className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-rose/30 hover:bg-clay-rose/50 transition-all"
                           onClick={() => handleDeleteNode(node.id)}
                           aria-label={`Delete ${node.name}`}
                         >
-                          <Trash2 className="h-3 w-3" style={{ color: '#5D4E37' }} />
+                          <Trash2 className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
                         </button>
                       </div>
                     </div>
