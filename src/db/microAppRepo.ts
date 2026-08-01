@@ -1,7 +1,7 @@
 'use client';
 
 import { db } from './db';
-import type { AppSchema } from '@/types/schema';
+import type { AppSchema, FieldType } from '@/types/schema';
 import type { SortConfig } from '@/services/dashboardSortService';
 import { sortApps } from '@/services/dashboardSortService';
 import { buildSearchName, withSearchIndex } from '@/lib/searchIndex';
@@ -13,6 +13,30 @@ export interface PaginatedResult<T> {
   pageSize: number;
   totalPages: number;
 }
+
+export interface StatsOverview {
+  /** Total apps — exact, via indexed count() (no table scan). */
+  totalApps: number;
+  /** Apps updated within the last 7 days — exact, via indexed range count. */
+  recentlyUpdated: number;
+  /** Monthly creation trend — derived from `createdAt` index keys only (no record materialization). */
+  appsByMonth: Array<{ month: string; count: number }>;
+  /** Total fields across the bounded sample of most-recent apps. */
+  totalFields: number;
+  /** Total logic nodes across the bounded sample of most-recent apps. */
+  totalLogicNodes: number;
+  /** Average fields per app over the bounded sample. */
+  avgFieldsPerApp: number;
+  /** Field-type counts — bounded-memory aggregation (exact when dataset <= FIELD_STATS_SAMPLE_CAP). */
+  fieldTypeCounts: Array<{ type: FieldType; count: number }>;
+  /** How many apps were scanned for field-level stats (<= FIELD_STATS_SAMPLE_CAP). */
+  fieldStatsSampleSize: number;
+}
+
+/** Max apps scanned for field-level stats — keeps dashboard aggregation bounded-memory at scale. */
+const FIELD_STATS_SAMPLE_CAP = 500;
+/** "Recently updated" window used by getStatsOverview(). */
+const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export const microAppRepo = {
   /** Load all apps from IndexedDB */
@@ -219,6 +243,98 @@ export const microAppRepo = {
       return await db.apps.count();
     } catch {
       return 0;
+    }
+  },
+
+  /**
+   * Lightweight dashboard stats — optimized for large datasets.
+   *
+   * Strategy vs. the old full-table `getAll()` load:
+   * - `totalApps` / `recentlyUpdated` → indexed `count()` / range count (O(1)-ish, no scan).
+   * - `appsByMonth` → reads ONLY `createdAt` index keys (`orderBy().keys()`), never
+   *   materializing full records — memory cost drops from O(n × recordSize) to O(n × 8 bytes).
+   * - Field-level stats (fields, logic nodes, type distribution) → bounded-memory scan of the
+   *   FIELD_STATS_SAMPLE_CAP most recently updated apps. Exact for datasets up to the cap,
+   *   and guarantees a constant upper bound on memory/CPU for arbitrarily large datasets.
+   */
+  async getStatsOverview(): Promise<StatsOverview> {
+    try {
+      // Exact indexed count — no table scan.
+      const totalApps = await db.apps.count();
+      if (totalApps === 0) {
+        return {
+          totalApps: 0,
+          recentlyUpdated: 0,
+          appsByMonth: [],
+          totalFields: 0,
+          totalLogicNodes: 0,
+          avgFieldsPerApp: 0,
+          fieldTypeCounts: [],
+          fieldStatsSampleSize: 0,
+        };
+      }
+
+      // Indexed range count for the 7-day activity window.
+      const recentlyUpdated = await db.apps
+        .where('updatedAt')
+        .above(Date.now() - RECENT_WINDOW_MS)
+        .count();
+
+      // Monthly creation trend from `createdAt` index keys only — no record materialization.
+      const createdAtKeys = (await db.apps.orderBy('createdAt').keys()) as number[];
+      const monthCounts = new Map<string, number>();
+      for (const ts of createdAtKeys) {
+        const d = new Date(ts);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthCounts.set(key, (monthCounts.get(key) || 0) + 1);
+      }
+      const appsByMonth = Array.from(monthCounts.entries())
+        .map(([month, count]) => ({ month, count }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+      // Bounded-memory field aggregation over the most recently updated apps.
+      const sample = await db.apps
+        .orderBy('updatedAt')
+        .reverse()
+        .limit(FIELD_STATS_SAMPLE_CAP)
+        .toArray();
+      const sampleSize = sample.length;
+      let totalFields = 0;
+      let totalLogicNodes = 0;
+      const typeCounts = new Map<FieldType, number>();
+      for (const app of sample) {
+        totalFields += app.fields.length;
+        totalLogicNodes += app.logicNodes?.length || 0;
+        for (const field of app.fields) {
+          typeCounts.set(field.type, (typeCounts.get(field.type) || 0) + 1);
+        }
+      }
+      const fieldTypeCounts = Array.from(typeCounts.entries())
+        .map(([type, count]) => ({ type, count }))
+        .sort((a, b) => b.count - a.count);
+
+      return {
+        totalApps,
+        recentlyUpdated,
+        appsByMonth,
+        totalFields,
+        totalLogicNodes,
+        avgFieldsPerApp:
+          sampleSize > 0 ? Math.round((totalFields / sampleSize) * 10) / 10 : 0,
+        fieldTypeCounts,
+        fieldStatsSampleSize: sampleSize,
+      };
+    } catch {
+      return {
+        totalApps: 0,
+        recentlyUpdated: 0,
+        appsByMonth: [],
+        totalFields: 0,
+        totalLogicNodes: 0,
+        avgFieldsPerApp: 0,
+        fieldTypeCounts: [],
+        fieldStatsSampleSize: 0,
+      };
     }
   },
 

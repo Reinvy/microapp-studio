@@ -17,6 +17,7 @@ const defaultStats: DashboardStats = {
   fieldTypeDistribution: [],
   appsByMonth: [],
   topFieldType: null,
+  recentlyUpdated: 0,
 };
 
 export default function DashboardStats() {
@@ -39,6 +40,9 @@ export default function DashboardStats() {
           <span className="text-[10px] font-medium text-clay-muted uppercase tracking-wider">Apps</span>
         </div>
         <p className="text-xl font-bold text-clay-foreground">{stats.totalApps}</p>
+        {stats.recentlyUpdated > 0 && (
+          <p className="text-[10px] text-clay-muted">+{stats.recentlyUpdated} this week</p>
+        )}
       </div>
 
       {/* Total Fields */}

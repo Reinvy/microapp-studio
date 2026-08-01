@@ -23,6 +23,8 @@ export interface DashboardStats {
   fieldTypeDistribution: Array<{ type: FieldType; label: string; count: number }>;
   appsByMonth: Array<{ month: string; count: number }>;
   topFieldType: { type: FieldType; label: string; count: number } | null;
+  /** Apps updated within the last 7 days (indexed range count). */
+  recentlyUpdated: number;
 }
 
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
@@ -60,9 +62,11 @@ class DashboardStatsService {
     }
 
     try {
-      const apps = await microAppRepo.getAll();
+      // Optimized: indexed counts + index-key reads + bounded-memory aggregation,
+      // instead of materializing the entire apps table via getAll().
+      const overview = await microAppRepo.getStatsOverview();
 
-      if (apps.length === 0) {
+      if (overview.totalApps === 0) {
         const empty: DashboardStats = {
           totalApps: 0,
           totalFields: 0,
@@ -71,47 +75,27 @@ class DashboardStatsService {
           fieldTypeDistribution: [],
           appsByMonth: [],
           topFieldType: null,
+          recentlyUpdated: 0,
         };
         this.cache = { data: empty, timestamp: now };
         return empty;
       }
 
-      const totalFields = apps.reduce((sum, app) => sum + app.fields.length, 0);
-      const totalLogicNodes = apps.reduce((sum, app) => sum + (app.logicNodes?.length || 0), 0);
-      const avgFieldsPerApp = Math.round((totalFields / apps.length) * 10) / 10;
-
-      // Field type distribution
-      const typeCounts = new Map<FieldType, number>();
-      for (const app of apps) {
-        for (const field of app.fields) {
-          typeCounts.set(field.type, (typeCounts.get(field.type) || 0) + 1);
-        }
-      }
-
-      const fieldTypeDistribution = Array.from(typeCounts.entries())
-        .map(([type, count]) => ({ type, label: FIELD_TYPE_LABELS[type] || type, count }))
-        .sort((a, b) => b.count - a.count);
-
-      // Apps by month
-      const monthCounts = new Map<string, number>();
-      for (const app of apps) {
-        const date = new Date(app.createdAt);
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        monthCounts.set(key, (monthCounts.get(key) || 0) + 1);
-      }
-
-      const appsByMonth = Array.from(monthCounts.entries())
-        .map(([month, count]) => ({ month, count }))
-        .sort((a, b) => a.month.localeCompare(b.month));
+      const fieldTypeDistribution = overview.fieldTypeCounts.map(({ type, count }) => ({
+        type,
+        label: FIELD_TYPE_LABELS[type] || type,
+        count,
+      }));
 
       const stats: DashboardStats = {
-        totalApps: apps.length,
-        totalFields,
-        totalLogicNodes,
-        avgFieldsPerApp,
+        totalApps: overview.totalApps,
+        totalFields: overview.totalFields,
+        totalLogicNodes: overview.totalLogicNodes,
+        avgFieldsPerApp: overview.avgFieldsPerApp,
         fieldTypeDistribution: fieldTypeDistribution.slice(0, 8), // top 8 types
-        appsByMonth,
+        appsByMonth: overview.appsByMonth,
         topFieldType: fieldTypeDistribution[0] || null,
+        recentlyUpdated: overview.recentlyUpdated,
       };
 
       this.cache = { data: stats, timestamp: now };
@@ -125,6 +109,7 @@ class DashboardStatsService {
         fieldTypeDistribution: [],
         appsByMonth: [],
         topFieldType: null,
+        recentlyUpdated: 0,
       };
     }
   }
