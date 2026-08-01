@@ -169,6 +169,26 @@ class AppService {
     return await microAppRepo.getByNamePrefix(prefix, limit);
   }
 
+  /** Batch fetch apps by IDs (single bulkGet round trip) */
+  async getAppsByIds(ids: string[]): Promise<AppSchema[]> {
+    if (ids.length === 0) return [];
+    const cacheKey = `apps:ids:${[...ids].sort().join(',')}`;
+    const cached = this.getCached<AppSchema[]>(cacheKey);
+    if (cached) return cached;
+
+    const apps = await microAppRepo.getByIds(ids);
+    this.setCache(cacheKey, apps);
+    return apps;
+  }
+
+  /**
+   * Backfill the `nameLower` search index for legacy records.
+   * Self-healing maintenance — safe to call on app boot.
+   */
+  async reindexSearchNames(): Promise<number> {
+    return await microAppRepo.reindexSearchNames();
+  }
+
   /** Batch delete multiple apps */
   async batchRemoveApps(ids: string[]): Promise<void> {
     if (ids.length === 0) return;

@@ -4,6 +4,7 @@ import { db } from './db';
 import type { AppSchema } from '@/types/schema';
 import type { SortConfig } from '@/services/dashboardSortService';
 import { sortApps } from '@/services/dashboardSortService';
+import { buildSearchName, withSearchIndex } from '@/lib/searchIndex';
 
 export interface PaginatedResult<T> {
   items: T[];
@@ -37,11 +38,20 @@ export const microAppRepo = {
 
       let items: AppSchema[];
 
-      if (sort && (sort.field !== 'updatedAt' || sort.direction !== 'desc')) {
-        // For non-default sorts, load all and sort in-memory
-        const all = await db.apps.orderBy('updatedAt').reverse().toArray();
-        const sorted = sortApps(all, sort);
-        items = sorted.slice(offset, offset + pageSize);
+      if (sort?.field === 'name') {
+        // Indexed name ordering via `nameLower` — reads only the page slice,
+        // no full-table load. Case-insensitive, matches sortApps semantics closely.
+        let coll = db.apps.orderBy('nameLower');
+        if (sort.direction === 'desc') coll = coll.reverse();
+        items = await coll.offset(offset).limit(pageSize).toArray();
+      } else if (
+        sort &&
+        (sort.field === 'createdAt' || sort.field === 'updatedAt')
+      ) {
+        // Indexed timestamp ordering — both fields are indexed in the schema.
+        let coll = db.apps.orderBy(sort.field);
+        if (sort.direction === 'desc') coll = coll.reverse();
+        items = await coll.offset(offset).limit(pageSize).toArray();
       } else {
         // Default: sort by updatedAt desc (uses IndexedDB index efficiently)
         items = await db.apps
@@ -68,36 +78,42 @@ export const microAppRepo = {
     try {
       const q = query.toLowerCase().trim();
 
-      // If query looks like a name prefix (no spaces or short), use indexed prefix search
+      // Fast path: single-word query → indexed case-insensitive prefix scan on `nameLower`.
+      // Falls through to the generic scan when no name matches (e.g. description-only hits).
       if (q.length > 0 && !q.includes(' ')) {
         const prefixResults = await db.apps
-          .where('name')
-          .startsWithIgnoreCase(q)
-          .reverse()
-          .sortBy('updatedAt');
+          .where('nameLower')
+          .startsWith(q)
+          .toArray();
 
         const matched = prefixResults.filter(
           (app) =>
-            app.name.toLowerCase().includes(q) ||
+            (app.nameLower || buildSearchName(app.name)).includes(q) ||
             app.description.toLowerCase().includes(q)
         );
 
-        const sorted = sort ? sortApps(matched, sort) : matched;
-        const total = sorted.length;
-        const totalPages = Math.max(1, Math.ceil(total / pageSize));
-        const safePage = Math.min(Math.max(1, page), totalPages);
-        const offset = (safePage - 1) * pageSize;
+        if (matched.length > 0) {
+          const effectiveSort: SortConfig = sort ?? {
+            field: 'updatedAt',
+            direction: 'desc',
+          };
+          const sorted = sortApps(matched, effectiveSort);
+          const total = sorted.length;
+          const totalPages = Math.max(1, Math.ceil(total / pageSize));
+          const safePage = Math.min(Math.max(1, page), totalPages);
+          const offset = (safePage - 1) * pageSize;
 
-        return {
-          items: sorted.slice(offset, offset + pageSize),
-          total,
-          page: safePage,
-          pageSize,
-          totalPages,
-        };
+          return {
+            items: sorted.slice(offset, offset + pageSize),
+            total,
+            page: safePage,
+            pageSize,
+            totalPages,
+          };
+        }
       }
 
-      // For generic queries, use Dexie collection filter
+      // Generic path: substring match over name + description.
       const all = await db.apps
         .orderBy('updatedAt')
         .reverse()
@@ -107,7 +123,11 @@ export const microAppRepo = {
         )
         .toArray();
 
-      const sorted = sort ? sortApps(all, sort) : all;
+      const effectiveSort: SortConfig = sort ?? {
+        field: 'updatedAt',
+        direction: 'desc',
+      };
+      const sorted = sortApps(all, effectiveSort);
       const total = sorted.length;
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
       const safePage = Math.min(Math.max(1, page), totalPages);
@@ -145,13 +165,42 @@ export const microAppRepo = {
   ): Promise<AppSchema[]> {
     try {
       if (!prefix.trim()) return [];
+      // Indexed case-insensitive prefix scan on `nameLower`
       return await db.apps
-        .where('name')
-        .startsWithIgnoreCase(prefix.trim())
+        .where('nameLower')
+        .startsWith(prefix.trim().toLowerCase())
         .limit(limit)
         .toArray();
     } catch {
       return [];
+    }
+  },
+
+  /** Batch fetch multiple apps by ID (single bulkGet round trip) */
+  async getByIds(ids: string[]): Promise<AppSchema[]> {
+    try {
+      if (ids.length === 0) return [];
+      const found = await db.apps.bulkGet(ids);
+      return found.filter((app): app is AppSchema => app !== undefined);
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Backfill the `nameLower` search index for any legacy records that lack it.
+   * Self-healing maintenance helper — safe to call on boot.
+   */
+  async reindexSearchNames(): Promise<number> {
+    try {
+      const missing = await db.apps
+        .filter((app) => !app.nameLower)
+        .toArray();
+      if (missing.length === 0) return 0;
+      await db.apps.bulkPut(missing.map(withSearchIndex));
+      return missing.length;
+    } catch {
+      return 0;
     }
   },
 
@@ -184,12 +233,17 @@ export const microAppRepo = {
 
   /** Save a new app */
   async create(app: AppSchema): Promise<void> {
-    await db.apps.add(app);
+    await db.apps.add(withSearchIndex(app));
   },
 
   /** Update an existing app */
   async update(id: string, updates: Partial<AppSchema>): Promise<void> {
-    await db.apps.update(id, { ...updates, updatedAt: Date.now() });
+    const patch: Partial<AppSchema> = { ...updates, updatedAt: Date.now() };
+    if (updates.name !== undefined) {
+      // Keep the search index in sync when the name changes
+      patch.nameLower = buildSearchName(updates.name);
+    }
+    await db.apps.update(id, patch);
   },
 
   /** Delete an app */
@@ -199,7 +253,7 @@ export const microAppRepo = {
 
   /** Bulk save (for initial load or sync) */
   async bulkSave(apps: AppSchema[]): Promise<void> {
-    await db.apps.bulkPut(apps);
+    await db.apps.bulkPut(apps.map(withSearchIndex));
   },
 
   /** Clear all data */
