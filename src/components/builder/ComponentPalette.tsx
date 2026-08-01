@@ -106,7 +106,7 @@ function DraggableField({ item }: DraggableFieldProps) {
         isDragging && 'opacity-50 ring-2 ring-clay-purple/30 scale-105 clay-inset'
       )}
     >
-      <span className={cn('flex items-center justify-center w-7 h-7 rounded-md shrink-0', item.color.replace('text-', 'bg-').replace(/(\d{3})/, (m) => String(Number(m) * 10 / 100)))}>
+      <span className={cn('flex items-center justify-center w-7 h-7 rounded-md shrink-0', item.color.replace('text-', 'bg-').replace(/-\d{3}$/, '-100'))}>
         {item.icon}
       </span>
       <span className="flex-1 truncate">{item.label}</span>

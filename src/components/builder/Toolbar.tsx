@@ -107,27 +107,27 @@ export default function Toolbar() {
         <div className="flex items-center gap-1">
           <button
             disabled
-            className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
+            className="hidden sm:flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
             aria-label="Undo (not available yet)"
           >
             <Undo2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
           </button>
           <button
             disabled
-            className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
+            className="hidden sm:flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
             aria-label="Redo (not available yet)"
           >
             <Redo2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
           </button>
 
-          <div className="w-px h-6 bg-clay-border mx-1" />
+          <div className="hidden sm:block w-px h-6 bg-clay-border mx-1" />
 
           <button
             onClick={handleSave}
             disabled={saving}
             className={cn(
               'flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-all',
-              'bg-clay-green clay-button-style',
+              'bg-clay-green clay-button',
               saving && 'opacity-70 cursor-not-allowed'
             )}
             style={{ color: 'var(--clay-foreground)' }}

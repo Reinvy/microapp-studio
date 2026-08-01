@@ -209,7 +209,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
       } else if (field.type === 'number' || field.type === 'slider') {
         initial[field.id] = field.min ?? 0;
       } else if (field.type === 'color') {
-        initial[field.id] = field.color || '#6366f1';
+        initial[field.id] = field.color || '#D5B8F5';
       } else if (field.type === 'rating') {
         initial[field.id] = 0;
       } else {
@@ -285,7 +285,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
       } else if (field.type === 'number' || field.type === 'slider') {
         initial[field.id] = field.min ?? 0;
       } else if (field.type === 'color') {
-        initial[field.id] = field.color || '#6366f1';
+        initial[field.id] = field.color || '#D5B8F5';
       } else if (field.type === 'rating') {
         initial[field.id] = 0;
       } else {
@@ -530,7 +530,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                       {result && (
                         <span className={cn(
                           'text-[11px] ml-2',
-                          result.errors.length === 0 ? 'text-clay' : ''
+                          result.errors.length === 0 ? 'text-clay-foreground' : ''
                         )} style={{ color: result.errors.length === 0 ? 'var(--clay-foreground)' : 'var(--clay-foreground)' }}>
                           {result.errors.length === 0
                             ? 'All fields valid'
