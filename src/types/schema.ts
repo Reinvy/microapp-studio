@@ -104,6 +104,8 @@ export interface FieldLayout {
 export interface AppSchema {
   id: string;
   name: string;
+  /** Denormalized lowercase name used as an indexed search key (see lib/searchIndex.ts) */
+  nameLower?: string;
   description: string;
   prompt: string; // original prompt that generated this
   fields: FieldSchema[];
