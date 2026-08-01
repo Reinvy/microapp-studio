@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import type { AppSchema, EngineResult } from '@/types/schema';
 import { executeSchema } from '@/engine/schemaEngine';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import RenderField from './RenderField';
 
@@ -33,13 +32,11 @@ interface AppRunnerProps {
 
 function LivePreview({
   values,
-  app,
   liveResult,
   isVisible,
   onToggle,
 }: {
   values: Record<string, unknown>;
-  app: AppSchema;
   liveResult: EngineResult | null;
   isVisible: boolean;
   onToggle: () => void;
@@ -341,7 +338,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
   const hasFields = app.fields.length > 0;
   const hasLogicNodes = (app.logicNodes?.length || 0) > 0;
   const outputEntries = result?.outputs
-    ? Object.entries(result.outputs).filter(([_, v]) => v !== undefined)
+    ? Object.entries(result.outputs).filter(([, v]) => v !== undefined)
     : [];
 
   return (
@@ -497,7 +494,6 @@ export default function AppRunner({ app }: AppRunnerProps) {
             <div className="lg:sticky lg:top-24">
               <LivePreview
                 values={values}
-                app={app}
                 liveResult={liveResult}
                 isVisible={showLivePreview}
                 onToggle={() => setShowLivePreview(!showLivePreview)}

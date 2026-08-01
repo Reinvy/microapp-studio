@@ -32,15 +32,6 @@ import {
 } from 'lucide-react';
 import type { FieldType, FieldSchema, ButtonVariant, HeadingLevel, TextAlignment, WidthStyle, AnimationType, AspectRatio, BorderRadius, ShadowSize } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 // ── Helpers ──

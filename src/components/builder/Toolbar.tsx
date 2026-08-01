@@ -11,7 +11,6 @@ import {
   Settings2,
   Loader2,
 } from 'lucide-react';
-import type { AppSchema } from '@/types/schema';
 import { microAppRepo } from '@/db/microAppRepo';
 import { useAppStore } from '@/store/appStore';
 import { Input } from '@/components/ui/input';

@@ -19,10 +19,9 @@ import {
   ZoomOut,
   RotateCcw,
 } from 'lucide-react';
-import type { FieldType, FieldSchema } from '@/types/schema';
+import type { FieldSchema } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { typeColors, FieldTypeIcon } from '@/lib/fieldMeta';
 
 // ── Visual Field Preview ──

@@ -278,8 +278,6 @@ function buildCalculatorFields(prompt: string): FieldSchema[] {
 }
 
 function buildFormFields(prompt: string): FieldSchema[] {
-  const words = lowerWords(prompt);
-
   const fields: FieldSchema[] = [];
 
   // Detect common form fields
