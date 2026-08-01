@@ -63,7 +63,7 @@ export default function Footer() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1 lg:col-span-1">
             <Link href="/" className="mb-4 flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#D5B8F5] text-[#5D4E37] shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#D5B8F5] text-clay-foreground shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)]">
                 <AppWindow className="h-4 w-4" />
               </div>
               <span className="text-base font-bold tracking-tight gradient-text">

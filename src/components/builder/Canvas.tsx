@@ -11,26 +11,10 @@ import {
   GripVertical,
   Trash2,
   Type,
-  Hash,
-  List,
-  CheckSquare,
-  AlignLeft,
-  Calendar,
-  Sliders,
-  ToggleLeft,
-  File,
-  Mail,
-  Phone,
-  Link,
-  Palette,
-  Star,
-  Heading,
-  Pilcrow,
-  SeparatorHorizontal,
-  Expand,
   Image,
+  Star,
+  File,
   Layout,
-  SquareMousePointer,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -39,56 +23,7 @@ import type { FieldType, FieldSchema } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-
-// ── Icon map ──
-
-export const fieldIcons: Record<string, React.ReactNode> = {
-  text: <Type className="h-3.5 w-3.5" />,
-  number: <Hash className="h-3.5 w-3.5" />,
-  select: <List className="h-3.5 w-3.5" />,
-  checkbox: <CheckSquare className="h-3.5 w-3.5" />,
-  textarea: <AlignLeft className="h-3.5 w-3.5" />,
-  date: <Calendar className="h-3.5 w-3.5" />,
-  file: <File className="h-3.5 w-3.5" />,
-  slider: <Sliders className="h-3.5 w-3.5" />,
-  toggle: <ToggleLeft className="h-3.5 w-3.5" />,
-  email: <Mail className="h-3.5 w-3.5" />,
-  phone: <Phone className="h-3.5 w-3.5" />,
-  url: <Link className="h-3.5 w-3.5" />,
-  color: <Palette className="h-3.5 w-3.5" />,
-  rating: <Star className="h-3.5 w-3.5" />,
-  heading: <Heading className="h-3.5 w-3.5" />,
-  paragraph: <Pilcrow className="h-3.5 w-3.5" />,
-  divider: <SeparatorHorizontal className="h-3.5 w-3.5" />,
-  spacer: <Expand className="h-3.5 w-3.5" />,
-  image: <Image className="h-3.5 w-3.5" />,
-  card: <Layout className="h-3.5 w-3.5" />,
-  button: <SquareMousePointer className="h-3.5 w-3.5" />,
-};
-
-const typeColors: Record<string, string> = {
-  text: 'bg-blue-100 text-blue-700',
-  number: 'bg-cyan-100 text-cyan-700',
-  select: 'bg-violet-100 text-violet-700',
-  checkbox: 'bg-emerald-100 text-emerald-700',
-  textarea: 'bg-amber-100 text-amber-700',
-  date: 'bg-rose-100 text-rose-700',
-  file: 'bg-orange-100 text-orange-700',
-  slider: 'bg-pink-100 text-pink-700',
-  toggle: 'bg-indigo-100 text-indigo-700',
-  email: 'bg-sky-100 text-sky-700',
-  phone: 'bg-teal-100 text-teal-700',
-  url: 'bg-purple-100 text-purple-700',
-  color: 'bg-fuchsia-100 text-fuchsia-700',
-  rating: 'bg-yellow-100 text-yellow-700',
-  heading: 'bg-blue-100 text-blue-700',
-  paragraph: 'bg-slate-100 text-slate-700',
-  divider: 'bg-gray-100 text-gray-700',
-  spacer: 'bg-stone-100 text-stone-700',
-  image: 'bg-green-100 text-green-700',
-  card: 'bg-teal-100 text-teal-700',
-  button: 'bg-purple-100 text-purple-700',
-};
+import { typeColors, FieldTypeIcon } from '@/lib/fieldMeta';
 
 // ── Visual Field Preview ──
 
@@ -286,21 +221,21 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
           onClick={(e) => e.stopPropagation()}
           aria-label={`Drag to reorder ${field.label}`}
         >
-          <GripVertical className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+          <GripVertical className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
         </button>
 
         {/* Type icon */}
         <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm shrink-0" style={{ backgroundColor: typeColors[field.type]?.split(' ')[0] || '#F5EDE5' }}>
-          {fieldIcons[field.type]}
+          <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />
         </div>
 
         {/* Label */}
-        <span className="flex-1 text-sm font-medium truncate min-w-0" style={{ color: '#5D4E37' }}>
+        <span className="flex-1 text-sm font-medium truncate min-w-0" style={{ color: 'var(--clay-foreground)' }}>
           {field.label}
         </span>
 
         {/* Type badge */}
-        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: '#5D4E37' }}>
+        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: 'var(--clay-foreground)' }}>
           {field.type}
         </span>
 
@@ -313,7 +248,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
           className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-rose/30 opacity-0 group-hover:opacity-100 hover:bg-clay-rose/60 transition-all shrink-0"
           aria-label={`Delete ${field.label}`}
         >
-          <Trash2 className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+          <Trash2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
         </button>
       </div>
 
@@ -332,10 +267,10 @@ export function CanvasFieldCard({ field }: { field: FieldSchema }) {
     <div className="w-72 clay-sm bg-card shadow-xl overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20">
         <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm" style={{ backgroundColor: typeColors[field.type]?.split(' ')[0] || '#F5EDE5' }}>
-          {fieldIcons[field.type]}
+          <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />
         </div>
-        <span className="flex-1 text-sm font-medium truncate" style={{ color: '#5D4E37' }}>{field.label}</span>
-        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: '#5D4E37' }}>
+        <span className="flex-1 text-sm font-medium truncate" style={{ color: 'var(--clay-foreground)' }}>{field.label}</span>
+        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: 'var(--clay-foreground)' }}>
           {field.type}
         </span>
       </div>
@@ -371,10 +306,10 @@ export default function Canvas() {
       <div className="flex-1 flex items-center justify-center bg-clay-cream">
         <div className="text-center clay-sm p-8 bg-white/60">
           <div className="w-16 h-16 rounded-2xl clay-sm bg-clay-peach/60 flex items-center justify-center mx-auto mb-4">
-            <Type className="h-8 w-8" style={{ color: '#B8A898' }} />
+            <Type className="h-8 w-8" style={{ color: 'var(--clay-muted)' }} />
           </div>
-          <h3 className="text-lg font-semibold mb-1" style={{ color: '#5D4E37' }}>No app selected</h3>
-          <p className="text-sm" style={{ color: '#B8A898' }}>
+          <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--clay-foreground)' }}>No app selected</h3>
+          <p className="text-sm" style={{ color: 'var(--clay-muted)' }}>
             Select or create an app to start building.
           </p>
         </div>
@@ -400,11 +335,11 @@ export default function Canvas() {
           {/* Canvas toolbar */}
           <div className="flex items-center justify-between mb-4 clay-sm bg-white/80 px-3 py-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium" style={{ color: '#5D4E37' }}>
+              <span className="text-xs font-medium" style={{ color: 'var(--clay-foreground)' }}>
                 {fields.length} field{fields.length !== 1 ? 's' : ''}
               </span>
               {!isEmpty && (
-                <span className="text-[10px]" style={{ color: '#B8A898' }}>
+                <span className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>
                   &middot; Drag to reorder
                 </span>
               )}
@@ -415,9 +350,9 @@ export default function Canvas() {
                 className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all"
                 aria-label="Zoom out"
               >
-                <ZoomOut className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                <ZoomOut className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
-              <span className="text-[11px] font-mono w-10 text-center" style={{ color: '#B8A898' }}>
+              <span className="text-[11px] font-mono w-10 text-center" style={{ color: 'var(--clay-muted)' }}>
                 {Math.round(zoom * 100)}%
               </span>
               <button
@@ -425,7 +360,7 @@ export default function Canvas() {
                 className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-blue/40 hover:bg-clay-blue/60 transition-all"
                 aria-label="Zoom in"
               >
-                <ZoomIn className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                <ZoomIn className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
               <div className="w-px h-5 bg-clay-border mx-1" />
               <button
@@ -433,7 +368,7 @@ export default function Canvas() {
                 className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-green/40 hover:bg-clay-green/60 transition-all"
                 aria-label="Reset zoom"
               >
-                <RotateCcw className="h-3.5 w-3.5" style={{ color: '#5D4E37' }} />
+                <RotateCcw className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
               {!isEmpty && (
                 <>
@@ -441,7 +376,7 @@ export default function Canvas() {
                   <button
                     onClick={handleClearAll}
                     className="flex items-center gap-1 h-8 px-3 rounded-xl text-[11px] clay-sm bg-clay-rose/40 hover:bg-clay-rose/60 transition-all"
-                    style={{ color: '#5D4E37' }}
+                    style={{ color: 'var(--clay-foreground)' }}
                   >
                     <Trash2 className="h-3 w-3" />
                     Clear all
@@ -465,15 +400,15 @@ export default function Canvas() {
                     <span className="absolute -top-1 -right-1 flex h-6 w-6">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-clay-purple/40 opacity-75" />
                       <span className="relative inline-flex rounded-full h-6 w-6 clay-sm bg-clay-purple items-center justify-center">
-                        <span className="text-[11px] font-bold" style={{ color: '#5D4E37' }}>+</span>
+                        <span className="text-[11px] font-bold" style={{ color: 'var(--clay-foreground)' }}>+</span>
                       </span>
                     </span>
                   </div>
-                  <h3 className="text-base font-semibold mb-1.5" style={{ color: '#5D4E37' }}>Drop components here</h3>
-                  <p className="text-sm text-center max-w-sm" style={{ color: '#B8A898' }}>
+                  <h3 className="text-base font-semibold mb-1.5" style={{ color: 'var(--clay-foreground)' }}>Drop components here</h3>
+                  <p className="text-sm text-center max-w-sm" style={{ color: 'var(--clay-muted)' }}>
                     Drag fields from the palette on the left, or click a field type to add it to your app.
                   </p>
-                  <div className="flex items-center gap-2 mt-4 text-[10px]" style={{ color: '#B8A898' }}>
+                  <div className="flex items-center gap-2 mt-4 text-[10px]" style={{ color: 'var(--clay-muted)' }}>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-clay-purple/60 animate-bounce" style={{ animationDelay: '0ms' }} />
                       Drag & drop

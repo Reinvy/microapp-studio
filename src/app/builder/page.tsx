@@ -200,18 +200,18 @@ function BuilderContent() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* Desktop: show all panels side by side */}
-        {/* Mobile: show only active panel */}
+        {/* Desktop (≥768px): show all panels side by side */}
+        {/* Mobile (<768px): show only active panel */}
         <div className="flex flex-1 overflow-hidden">
           {/* Component Palette — hidden on mobile unless active */}
           <div className={cn(
-            'hidden sm:flex',
-            'sm:w-64 sm:flex-shrink-0'
+            'hidden md:flex',
+            'md:w-64 md:flex-shrink-0'
           )}>
             <ComponentPalette />
           </div>
           <div className={cn(
-            'sm:hidden flex-1',
+            'md:hidden flex-1',
             activePanel !== 'components' && 'hidden'
           )}>
             <ComponentPalette />
@@ -220,13 +220,13 @@ function BuilderContent() {
           {/* Canvas — always flex-1 on desktop, hidden on mobile unless active */}
           <div className={cn(
             'flex-1 min-w-0',
-            'hidden sm:block',
-            activePanel === 'canvas' && 'sm:block'
+            'hidden md:block',
+            activePanel === 'canvas' && 'md:block'
           )}>
             <Canvas />
           </div>
           <div className={cn(
-            'sm:hidden flex-1',
+            'md:hidden flex-1',
             activePanel !== 'canvas' && 'hidden'
           )}>
             <Canvas />
@@ -234,13 +234,13 @@ function BuilderContent() {
 
           {/* Properties Panel — hidden on mobile unless active */}
           <div className={cn(
-            'hidden sm:flex',
-            'sm:w-72 sm:flex-shrink-0'
+            'hidden md:flex',
+            'md:w-72 md:flex-shrink-0'
           )}>
             <PropertiesPanel />
           </div>
           <div className={cn(
-            'sm:hidden flex-1',
+            'md:hidden flex-1',
             activePanel !== 'properties' && 'hidden'
           )}>
             <PropertiesPanel />
@@ -254,8 +254,8 @@ function BuilderContent() {
         </DragOverlay>
       </DndContext>
 
-      {/* Mobile tab bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 clay-card rounded-none rounded-t-2xl flex shadow-lg">
+      {/* Mobile tab bar (<768px) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 clay-card rounded-none rounded-t-2xl flex shadow-lg">
         {TAB_ITEMS.map((tab) => (
           <button
             key={tab.key}
@@ -277,7 +277,7 @@ function BuilderContent() {
       </nav>
 
       {/* Spacer for mobile tab bar — push content up so it's not hidden behind the bar */}
-      <div className="sm:hidden h-14" />
+      <div className="md:hidden h-14" />
     </div>
   );
 }

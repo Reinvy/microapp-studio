@@ -1,32 +1,10 @@
 'use client';
 
 import { useDraggable } from '@dnd-kit/core';
-import {
-  Type,
-  Hash,
-  List,
-  CheckSquare,
-  AlignLeft,
-  Calendar,
-  File,
-  Sliders,
-  ToggleLeft,
-  Mail,
-  Phone,
-  Link,
-  Palette,
-  Star,
-  Heading,
-  Pilcrow,
-  SeparatorHorizontal,
-  Expand,
-  Image,
-  Layout,
-  SquareMousePointer,
-} from 'lucide-react';
 import type { FieldType } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
+import { FieldTypeIcon } from '@/lib/fieldMeta';
 
 interface FieldTypeItem {
   type: FieldType;
@@ -39,33 +17,33 @@ interface FieldTypeItem {
 
 const FIELD_TYPES: FieldTypeItem[] = [
   // ── Input Fields ──
-  { type: 'text', label: 'Text', icon: <Type className="h-4 w-4" />, category: 'input', color: 'text-blue-600', gradient: 'from-blue-500/10 to-blue-600/5' },
-  { type: 'number', label: 'Number', icon: <Hash className="h-4 w-4" />, category: 'input', color: 'text-cyan-600', gradient: 'from-cyan-500/10 to-cyan-600/5' },
-  { type: 'select', label: 'Select', icon: <List className="h-4 w-4" />, category: 'input', color: 'text-violet-600', gradient: 'from-violet-500/10 to-violet-600/5' },
-  { type: 'checkbox', label: 'Checkbox', icon: <CheckSquare className="h-4 w-4" />, category: 'input', color: 'text-emerald-600', gradient: 'from-emerald-500/10 to-emerald-600/5' },
-  { type: 'textarea', label: 'Textarea', icon: <AlignLeft className="h-4 w-4" />, category: 'input', color: 'text-amber-600', gradient: 'from-amber-500/10 to-amber-600/5' },
-  { type: 'date', label: 'Date', icon: <Calendar className="h-4 w-4" />, category: 'input', color: 'text-rose-600', gradient: 'from-rose-500/10 to-rose-600/5' },
-  { type: 'file', label: 'File', icon: <File className="h-4 w-4" />, category: 'input', color: 'text-orange-600', gradient: 'from-orange-500/10 to-orange-600/5' },
-  { type: 'slider', label: 'Slider', icon: <Sliders className="h-4 w-4" />, category: 'input', color: 'text-pink-600', gradient: 'from-pink-500/10 to-pink-600/5' },
-  { type: 'toggle', label: 'Toggle', icon: <ToggleLeft className="h-4 w-4" />, category: 'input', color: 'text-indigo-600', gradient: 'from-indigo-500/10 to-indigo-600/5' },
-  { type: 'email', label: 'Email', icon: <Mail className="h-4 w-4" />, category: 'input', color: 'text-sky-600', gradient: 'from-sky-500/10 to-sky-600/5' },
-  { type: 'phone', label: 'Phone', icon: <Phone className="h-4 w-4" />, category: 'input', color: 'text-teal-600', gradient: 'from-teal-500/10 to-teal-600/5' },
-  { type: 'url', label: 'URL', icon: <Link className="h-4 w-4" />, category: 'input', color: 'text-purple-600', gradient: 'from-purple-500/10 to-purple-600/5' },
-  { type: 'color', label: 'Color', icon: <Palette className="h-4 w-4" />, category: 'input', color: 'text-fuchsia-600', gradient: 'from-fuchsia-500/10 to-fuchsia-600/5' },
-  { type: 'rating', label: 'Rating', icon: <Star className="h-4 w-4" />, category: 'input', color: 'text-yellow-600', gradient: 'from-yellow-500/10 to-yellow-600/5' },
+  { type: 'text', label: 'Text', icon: <FieldTypeIcon type="text" />, category: 'input', color: 'text-blue-600', gradient: 'from-blue-500/10 to-blue-600/5' },
+  { type: 'number', label: 'Number', icon: <FieldTypeIcon type="number" />, category: 'input', color: 'text-cyan-600', gradient: 'from-cyan-500/10 to-cyan-600/5' },
+  { type: 'select', label: 'Select', icon: <FieldTypeIcon type="select" />, category: 'input', color: 'text-violet-600', gradient: 'from-violet-500/10 to-violet-600/5' },
+  { type: 'checkbox', label: 'Checkbox', icon: <FieldTypeIcon type="checkbox" />, category: 'input', color: 'text-emerald-600', gradient: 'from-emerald-500/10 to-emerald-600/5' },
+  { type: 'textarea', label: 'Textarea', icon: <FieldTypeIcon type="textarea" />, category: 'input', color: 'text-amber-600', gradient: 'from-amber-500/10 to-amber-600/5' },
+  { type: 'date', label: 'Date', icon: <FieldTypeIcon type="date" />, category: 'input', color: 'text-rose-600', gradient: 'from-rose-500/10 to-rose-600/5' },
+  { type: 'file', label: 'File', icon: <FieldTypeIcon type="file" />, category: 'input', color: 'text-orange-600', gradient: 'from-orange-500/10 to-orange-600/5' },
+  { type: 'slider', label: 'Slider', icon: <FieldTypeIcon type="slider" />, category: 'input', color: 'text-pink-600', gradient: 'from-pink-500/10 to-pink-600/5' },
+  { type: 'toggle', label: 'Toggle', icon: <FieldTypeIcon type="toggle" />, category: 'input', color: 'text-indigo-600', gradient: 'from-indigo-500/10 to-indigo-600/5' },
+  { type: 'email', label: 'Email', icon: <FieldTypeIcon type="email" />, category: 'input', color: 'text-sky-600', gradient: 'from-sky-500/10 to-sky-600/5' },
+  { type: 'phone', label: 'Phone', icon: <FieldTypeIcon type="phone" />, category: 'input', color: 'text-teal-600', gradient: 'from-teal-500/10 to-teal-600/5' },
+  { type: 'url', label: 'URL', icon: <FieldTypeIcon type="url" />, category: 'input', color: 'text-purple-600', gradient: 'from-purple-500/10 to-purple-600/5' },
+  { type: 'color', label: 'Color', icon: <FieldTypeIcon type="color" />, category: 'input', color: 'text-fuchsia-600', gradient: 'from-fuchsia-500/10 to-fuchsia-600/5' },
+  { type: 'rating', label: 'Rating', icon: <FieldTypeIcon type="rating" />, category: 'input', color: 'text-yellow-600', gradient: 'from-yellow-500/10 to-yellow-600/5' },
 
   // ── Layout Elements ──
-  { type: 'heading', label: 'Heading', icon: <Heading className="h-4 w-4" />, category: 'layout', color: 'text-blue-700', gradient: 'from-blue-600/10 to-blue-700/5' },
-  { type: 'paragraph', label: 'Paragraph', icon: <Pilcrow className="h-4 w-4" />, category: 'layout', color: 'text-slate-700', gradient: 'from-slate-600/10 to-slate-700/5' },
-  { type: 'divider', label: 'Divider', icon: <SeparatorHorizontal className="h-4 w-4" />, category: 'layout', color: 'text-gray-600', gradient: 'from-gray-500/10 to-gray-600/5' },
-  { type: 'spacer', label: 'Spacer', icon: <Expand className="h-4 w-4" />, category: 'layout', color: 'text-stone-600', gradient: 'from-stone-500/10 to-stone-600/5' },
+  { type: 'heading', label: 'Heading', icon: <FieldTypeIcon type="heading" />, category: 'layout', color: 'text-blue-700', gradient: 'from-blue-600/10 to-blue-700/5' },
+  { type: 'paragraph', label: 'Paragraph', icon: <FieldTypeIcon type="paragraph" />, category: 'layout', color: 'text-slate-700', gradient: 'from-slate-600/10 to-slate-700/5' },
+  { type: 'divider', label: 'Divider', icon: <FieldTypeIcon type="divider" />, category: 'layout', color: 'text-gray-600', gradient: 'from-gray-500/10 to-gray-600/5' },
+  { type: 'spacer', label: 'Spacer', icon: <FieldTypeIcon type="spacer" />, category: 'layout', color: 'text-stone-600', gradient: 'from-stone-500/10 to-stone-600/5' },
 
   // ── Rich Content ──
-  { type: 'image', label: 'Image', icon: <Image className="h-4 w-4" />, category: 'content', color: 'text-green-700', gradient: 'from-green-600/10 to-green-700/5' },
-  { type: 'card', label: 'Card', icon: <Layout className="h-4 w-4" />, category: 'content', color: 'text-teal-700', gradient: 'from-teal-600/10 to-teal-700/5' },
+  { type: 'image', label: 'Image', icon: <FieldTypeIcon type="image" />, category: 'content', color: 'text-green-700', gradient: 'from-green-600/10 to-green-700/5' },
+  { type: 'card', label: 'Card', icon: <FieldTypeIcon type="card" />, category: 'content', color: 'text-teal-700', gradient: 'from-teal-600/10 to-teal-700/5' },
 
   // ── Actions ──
-  { type: 'button', label: 'Button', icon: <SquareMousePointer className="h-4 w-4" />, category: 'actions', color: 'text-white', gradient: 'from-purple-600/20 to-indigo-600/20' },
+  { type: 'button', label: 'Button', icon: <FieldTypeIcon type="button" />, category: 'actions', color: 'text-white', gradient: 'from-purple-600/20 to-indigo-600/20' },
 ];
 
 const CATEGORIES: { key: string; label: string; gradient: string; border: string }[] = [
@@ -159,7 +137,7 @@ export default function ComponentPalette() {
     <aside className="w-64 clay-card rounded-none rounded-r-2xl flex flex-col h-full overflow-hidden" style={{ backgroundColor: '#FFFFFFF0' }}>
       {/* Header */}
       <div className="px-4 py-4 border-b border-clay-border/40">
-        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
           Components
         </h3>
       </div>
@@ -177,10 +155,10 @@ export default function ComponentPalette() {
               )}
             >
               <div className="flex items-center gap-1.5 px-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#5D4E37' }}>
+                <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
                   {category.label}
                 </span>
-                <span className="text-[10px] ml-auto" style={{ color: '#B8A898' }}>
+                <span className="text-[10px] ml-auto" style={{ color: 'var(--clay-muted)' }}>
                   {items.length}
                 </span>
               </div>
