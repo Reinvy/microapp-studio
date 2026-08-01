@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { pastelPalette } from '@/lib/claymorphism';
 
 interface StepCardProps {
   number: number;
@@ -11,8 +12,6 @@ interface StepCardProps {
   isLast?: boolean;
 }
 
-const stepColors = ['#FFD5E5', '#C5E8F7', '#D5B8F5'];
-
 export default function StepCard({
   number,
   icon: Icon,
@@ -20,7 +19,7 @@ export default function StepCard({
   description,
   isLast = false,
 }: StepCardProps) {
-  const bgColor = stepColors[(number - 1) % stepColors.length];
+  const bgColor = pastelPalette[(number - 1) % pastelPalette.length];
 
   return (
     <div className="relative flex flex-col items-center text-center">
