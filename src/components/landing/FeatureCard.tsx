@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { pastelBgClasses } from '@/lib/claymorphism';
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -9,23 +10,14 @@ interface FeatureCardProps {
   description: string;
 }
 
-const pastelBgColors = [
-  'bg-[#FFD5E5]',
-  'bg-[#C5E8F7]',
-  'bg-[#D5B8F5]',
-  'bg-[#FFF2C5]',
-  'bg-[#C5F0D5]',
-  'bg-[#FFE5D0]',
-];
-
 export default function FeatureCard({
   icon: Icon,
   title,
   description,
 }: FeatureCardProps) {
   // Pick a pastel bg color based on title hash
-  const bgIndex = title.length % pastelBgColors.length;
-  const pastelBg = pastelBgColors[bgIndex];
+  const bgIndex = title.length % pastelBgClasses.length;
+  const pastelBg = pastelBgClasses[bgIndex];
 
   return (
     <div className="group relative rounded-3xl bg-[var(--clay-card)] p-6 shadow-[8px_8px_16px_var(--clay-shadow-dark),-6px_-6px_14px_var(--clay-shadow-light)] transition-all duration-300 hover:shadow-[6px_6px_12px_var(--clay-shadow-dark),-4px_-4px_10px_var(--clay-shadow-light)] hover:-translate-y-1">

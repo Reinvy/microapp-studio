@@ -3,6 +3,7 @@
 import { microAppRepo } from './microAppRepo';
 import { contentRepo, type SiteContent } from './contentRepo';
 import type { AppSchema, FieldSchema } from '@/types/schema';
+import { pastelPalette } from '@/lib/claymorphism';
 
 // ─── Generator helpers ───
 
@@ -10,9 +11,7 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 }
 
-const pastelColors = [
-  '#FFD5E5', '#C5E8F7', '#D5B8F5', '#FFF2C5', '#C5F0D5', '#FFE5D0',
-];
+const pastelColors = [...pastelPalette];
 
 const buttonVariants = ['primary', 'secondary', 'outline', 'ghost', 'danger'] as const;
 
@@ -191,6 +190,83 @@ function toggleField(id: string, label: string): FieldSchema {
   };
 }
 
+function emailField(id: string, label: string, placeholder: string): FieldSchema {
+  return {
+    id,
+    type: 'email',
+    label,
+    placeholder,
+    required: true,
+    validation: { pattern: '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$', message: 'Enter a valid email address' },
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function phoneField(id: string, label: string, placeholder: string): FieldSchema {
+  return {
+    id,
+    type: 'phone',
+    label,
+    placeholder,
+    required: true,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function urlField(id: string, label: string, placeholder: string): FieldSchema {
+  return {
+    id,
+    type: 'url',
+    label,
+    placeholder,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function dateField(id: string, label: string): FieldSchema {
+  return {
+    id,
+    type: 'date',
+    label,
+    required: true,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function textareaField(id: string, label: string, placeholder: string): FieldSchema {
+  return {
+    id,
+    type: 'textarea',
+    label,
+    placeholder,
+    required: false,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function checkboxField(id: string, label: string): FieldSchema {
+  return {
+    id,
+    type: 'checkbox',
+    label,
+    defaultValue: false,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function sliderField(id: string, label: string, min: number, max: number): FieldSchema {
+  return {
+    id,
+    type: 'slider',
+    label,
+    min,
+    max,
+    step: 1,
+    defaultValue: Math.round((min + max) / 2),
+    style: { borderRadius: 'lg' },
+  };
+}
+
 // ─── App generators ───
 
 function createFeedbackApp(index: number): AppSchema {
@@ -337,6 +413,68 @@ function createQuizApp(index: number): AppSchema {
   };
 }
 
+function createEventRsvpApp(index: number): AppSchema {
+  const now = Date.now();
+  const tpl = pickFrom(appTemplatePool, index, 5);
+  return {
+    id: generateId(),
+    name: tpl.name,
+    description: tpl.description,
+    prompt: tpl.prompt,
+    fields: [
+      headingField('ev-heading', 'Heading', 'h2', 'See you at the clay jam! 🎉'),
+      imageField('ev-image', 'Event flyer', pickFrom(imagePool, index, 3), 'Event flyer illustration'),
+      textField('ev-guest', 'Guest Name', 'e.g. Sam'),
+      emailField('ev-email', 'Email Address', 'you@example.com'),
+      phoneField('ev-phone', 'Phone Number', '+62 812 3456 7890'),
+      dateField('ev-date', 'Attendance Date'),
+      selectField('ev-attendance', 'Attendance', ['Yes, count me in!', 'Maybe', "Can't make it"]),
+      textareaField('ev-note', 'Guest Note', 'Anything the host should know...'),
+      checkboxField('ev-plusone', 'Bringing a plus-one'),
+      colorField('ev-color', 'Favorite pastel', pickFrom(pastelColors, index, 14)),
+      buttonField('ev-submit', 'Send RSVP', pickFrom(buttonVariants, index, 15)),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 518400000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createPetSurveyApp(index: number): AppSchema {
+  const now = Date.now();
+  const tpl = pickFrom(appTemplatePool, index, 6);
+  return {
+    id: generateId(),
+    name: tpl.name,
+    description: tpl.description,
+    prompt: tpl.prompt,
+    fields: [
+      headingField('pt-heading', 'Heading', 'h2', 'Find your furry friend 🐾'),
+      paragraphField('pt-intro', 'Intro', 'Tell us about your lifestyle so we can match you with the perfect pet.'),
+      selectField('pt-pet', 'Preferred Pet', ['Dog', 'Cat', 'Rabbit', 'Bird', 'Hamster']),
+      sliderField('pt-space', 'Living Space (1-10)', 1, 10),
+      sliderField('pt-time', 'Time at Home (1-10)', 1, 10),
+      checkboxField('pt-garden', 'Has a garden/yard'),
+      checkboxField('pt-kids', 'Has children'),
+      checkboxField('pt-pets', 'Has other pets'),
+      ratingField('pt-commitment', 'Commitment Level'),
+      textareaField('pt-notes', 'Anything else?', 'Share details about your home and routine...'),
+      urlField('pt-portfolio', 'Pet Portfolio URL', 'https://...'),
+      colorField('pt-collar', 'Collar Color', pickFrom(pastelColors, index, 16)),
+      buttonField('pt-submit', 'Submit Survey', pickFrom(buttonVariants, index, 17)),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 604800000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
 // ─── Sample app list ───
 
 const sampleApps: AppSchema[] = [
@@ -345,6 +483,8 @@ const sampleApps: AppSchema[] = [
   createMoodTrackerApp(2),
   createColorPaletteApp(3),
   createQuizApp(4),
+  createEventRsvpApp(5),
+  createPetSurveyApp(6),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
