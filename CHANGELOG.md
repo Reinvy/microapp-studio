@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-08-02] — UI/UX Enhancement & Design System
+
+### Fixed
+- **Toolbar Save button**: replaced dead `clay-button-style` class with `clay-button` — Save button now has proper clay hover (scale 1.03) / pressed (scale 0.96 + inset shadow) states
+- **Invalid `text-clay` class (9×)**: `--color-clay` is not defined in the theme, so runner labels/headings silently fell back to inherited color. Replaced with `text-clay-foreground` (#4A3F35 warm brown) in `RenderField.tsx` + `AppRunner.tsx`
+- **ComponentPalette icon chips**: class derivation produced invalid `bg-blue-60`-style Tailwind classes (non-existent shades) → icon chips had no background. Now derives valid `bg-*-100` classes matching `fieldMeta` typeColors
+- **Canvas field previews**: replaced flat `rounded-md border` previews (which contradicted the runner's carved-in clay inputs) with clay-consistent `clay-inset` / `clay-sm` previews — inputs, select, textarea, file, slider, checkbox, toggle, button, image, card now match the rendered runner style
+- **Color field default**: `#6366f1` (saturated indigo) → `#D5B8F5` (clay purple pastel) in AppRunner initial values + RenderField, keeping the pastel palette consistent
+- **Mobile toolbar overflow**: disabled Undo/Redo buttons + divider now hidden below `sm` breakpoint so the builder toolbar fits narrow screens
+
+### 🧪 Tests
+- Build: PASS (Next.js 16.2.12 Turbopack)
+- Unit tests: 219/219 passed (design-system, navigation, evaluator, promptToSchema, schemaEngine, search-index)
+
+### 🌐 Deploy
+- Cron 2: UI/UX & Design System deployment to Vercel
+
 ## [2026-08-01] — Maintenance (evening cycle)
 
 ### Changed

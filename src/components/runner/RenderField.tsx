@@ -141,7 +141,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
       h6: 'text-sm font-medium',
     };
     const renderHeading = () => {
-      const cls = cn(sizeMap[level] || sizeMap.h2, 'text-clay');
+      const cls = cn(sizeMap[level] || sizeMap.h2, 'text-clay-foreground');
       const style: React.CSSProperties = { ...buildContainerStyle(field) };
       const color = buildLabelColor(field);
       if (color) style.color = color;
@@ -171,7 +171,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
         <p
           className={cn(
             'text-sm leading-relaxed',
-            field.style?.textColor || field.textColor ? '' : 'text-clay'
+            field.style?.textColor || field.textColor ? '' : 'text-clay-foreground'
           )}
           style={{ color: buildLabelColor(field) }}
         >
@@ -293,7 +293,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
   }
 
   if (field.type === 'color') {
-    const hexValue = (value as string) || field.color || '#6366f1';
+    const hexValue = (value as string) || field.color || '#D5B8F5';
     return (
       <div
         className={cn('space-y-1.5', getFieldAnimation(field.style))}
@@ -510,7 +510,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               onChange={handleChange}
               className="h-5 w-5 rounded-xl clay-sm bg-white accent-clay-purple cursor-pointer transition-all duration-200"
             />
-            <label htmlFor={field.id} className="text-sm cursor-pointer select-none text-clay">
+            <label htmlFor={field.id} className="text-sm cursor-pointer select-none text-clay-foreground">
               {field.placeholder || field.label}
             </label>
           </div>
@@ -548,7 +548,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               onChange={handleChange}
               className={cn(
                 inputClasses,
-                'file:mr-3 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:bg-clay-purple/20 file:text-clay file:text-xs file:font-medium hover:file:bg-clay-purple/30 file:transition-all file:cursor-pointer cursor-pointer'
+                'file:mr-3 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:bg-clay-purple/20 file:text-clay-foreground file:text-xs file:font-medium hover:file:bg-clay-purple/30 file:transition-all file:cursor-pointer cursor-pointer'
               )}
             />
           </div>
@@ -574,7 +574,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             />
             <div className="flex items-center justify-between text-xs" style={{ color: 'var(--clay-muted)' }}>
               <span>{field.min ?? 0}</span>
-              <span className="font-semibold text-clay clay-sm px-3 py-0.5 rounded-lg bg-white text-sm">
+              <span className="font-semibold text-clay-foreground clay-sm px-3 py-0.5 rounded-lg bg-white text-sm">
                 {String(value ?? field.min ?? 0)}
               </span>
               <span>{field.max ?? 100}</span>
@@ -606,7 +606,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             </button>
             <label
               htmlFor={field.id}
-              className="text-sm cursor-pointer select-none text-clay"
+              className="text-sm cursor-pointer select-none text-clay-foreground"
               onClick={() => onChange(field.id, !value)}
             >
               {field.placeholder || field.label}
@@ -639,12 +639,12 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
         <div className="flex items-center justify-between">
           <label
             htmlFor={field.id}
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-clay"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-clay-foreground"
             style={{ color: buildLabelColor(field) }}
           >
             {field.label}
             {field.required && (
-              <span className="text-clay ml-1" style={{ color: '#FFD0D0' }}>*</span>
+              <span className="text-clay-foreground ml-1" style={{ color: '#FFD0D0' }}>*</span>
             )}
           </label>
           <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--clay-muted)' }}>

@@ -50,16 +50,16 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
 
     case 'image':
       return (
-        <div className={cn('bg-muted rounded-md flex items-center justify-center overflow-hidden', field.aspectRatio === 'square' ? 'aspect-square' : field.aspectRatio === '16:9' ? 'aspect-video' : 'h-32')}>
-          <Image className="h-8 w-8 text-muted-foreground/40" />
+        <div className={cn('bg-clay-cream/80 clay-inset flex items-center justify-center overflow-hidden', field.aspectRatio === 'square' ? 'aspect-square' : field.aspectRatio === '16:9' ? 'aspect-video' : 'h-32')}>
+          <Image className="h-8 w-8 text-clay-muted/40" />
         </div>
       );
 
     case 'card':
       return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm">
-          <div className="h-3 w-24 bg-muted rounded mb-2" />
-          <div className="h-2 w-full bg-muted/50 rounded" />
+        <div className="rounded-2xl clay-sm bg-white p-4">
+          <div className="h-3 w-24 bg-clay-cream rounded mb-2" />
+          <div className="h-2 w-full bg-clay-cream/60 rounded" />
         </div>
       );
 
@@ -68,12 +68,12 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
         <div className="flex">
           <span
             className={cn(
-              'inline-flex items-center justify-center rounded-md px-4 py-1.5 text-xs font-medium transition-colors',
-              field.variant === 'secondary' && 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-              field.variant === 'outline' && 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-              field.variant === 'ghost' && 'hover:bg-accent hover:text-accent-foreground',
-              field.variant === 'danger' && 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-              (!field.variant || field.variant === 'primary') && 'bg-primary text-primary-foreground hover:bg-primary/90',
+              'inline-flex items-center justify-center rounded-[18px] px-4 py-1.5 text-xs font-medium transition-colors shadow-[4px_4px_8px_var(--clay-shadow-dark),-4px_-4px_8px_var(--clay-shadow-light)]',
+              field.variant === 'secondary' && 'bg-clay-blue text-clay-foreground',
+              field.variant === 'outline' && 'bg-clay-cream text-clay-foreground',
+              field.variant === 'ghost' && 'bg-transparent text-clay-foreground',
+              field.variant === 'danger' && 'bg-clay-rose text-clay-foreground',
+              (!field.variant || field.variant === 'primary') && 'bg-clay-purple text-clay-foreground',
             )}
           >
             {field.label || 'Button'}
@@ -84,18 +84,18 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
     case 'checkbox':
       return (
         <div className="flex items-center gap-2">
-          <div className="h-4 w-4 rounded border-2 border-muted-foreground/30" />
-          <span className="text-sm text-muted-foreground">{field.label}</span>
+          <div className="h-4 w-4 rounded-[8px] clay-sm bg-white" />
+          <span className="text-sm text-clay-muted">{field.label}</span>
         </div>
       );
 
     case 'toggle':
       return (
         <div className="flex items-center gap-2">
-          <div className="h-5 w-9 rounded-full bg-muted relative">
-            <div className="h-3.5 w-3.5 rounded-full bg-muted-foreground/30 absolute left-0.5 top-0.5" />
+          <div className="h-5 w-9 rounded-full clay-sm bg-clay-cream relative">
+            <div className="h-3.5 w-3.5 rounded-full bg-clay-muted/30 absolute left-0.5 top-0.5" />
           </div>
-          <span className="text-sm text-muted-foreground">{field.label}</span>
+          <span className="text-sm text-clay-muted">{field.label}</span>
         </div>
       );
 
@@ -103,7 +103,7 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
       return (
         <div className="flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Star key={i} className="h-4 w-4 text-muted-foreground/30 fill-muted-foreground/20" />
+            <Star key={i} className="h-4 w-4 text-clay-muted/30 fill-clay-muted/20" />
           ))}
         </div>
       );
@@ -111,17 +111,17 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
     case 'color':
       return (
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-md border bg-gradient-to-br from-red-400 via-green-400 to-blue-400" />
-          <span className="text-sm text-muted-foreground">{field.label}</span>
+          <div className="h-6 w-6 rounded-xl clay-sm bg-gradient-to-br from-[#FFD5E5] via-[#C5F0D5] to-[#C5E8F7]" />
+          <span className="text-sm text-clay-muted">{field.label}</span>
         </div>
       );
 
     case 'slider':
       return (
         <div className="space-y-1">
-          <span className="text-sm text-muted-foreground">{field.label}</span>
-          <div className="h-2 rounded-full bg-muted relative overflow-hidden">
-            <div className="h-full w-1/2 rounded-full bg-primary/40" />
+          <span className="text-sm text-clay-muted">{field.label}</span>
+          <div className="h-2 rounded-full clay-inset bg-clay-cream relative overflow-hidden">
+            <div className="h-full w-1/2 rounded-full bg-clay-purple/40" />
           </div>
         </div>
       );
@@ -129,8 +129,8 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
     case 'select':
       return (
         <div className="space-y-1">
-          <span className="text-sm text-muted-foreground">{field.label}</span>
-          <div className="flex h-8 items-center justify-between rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
+          <span className="text-sm text-clay-muted">{field.label}</span>
+          <div className="flex h-8 items-center justify-between clay-inset bg-clay-emboss px-3 text-sm text-clay-muted">
             {field.placeholder || 'Select...'}
           </div>
         </div>
@@ -139,8 +139,8 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
     case 'textarea':
       return (
         <div className="space-y-1">
-          <span className="text-sm text-muted-foreground">{field.label}</span>
-          <div className="h-16 rounded-md border border-input bg-background p-2 text-sm text-muted-foreground">
+          <span className="text-sm text-clay-muted">{field.label}</span>
+          <div className="h-16 clay-inset bg-clay-emboss p-2 text-sm text-clay-muted">
             {field.placeholder || 'Enter text...'}
           </div>
         </div>
@@ -149,8 +149,8 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
     case 'file':
       return (
         <div className="space-y-1">
-          <span className="text-sm text-muted-foreground">{field.label}</span>
-          <div className="flex h-8 items-center gap-2 rounded-md border border-dashed border-input bg-background px-3 text-sm text-muted-foreground">
+          <span className="text-sm text-clay-muted">{field.label}</span>
+          <div className="flex h-8 items-center gap-2 clay-inset bg-clay-emboss px-3 text-sm text-clay-muted">
             <File className="h-3.5 w-3.5" />
             Choose file...
           </div>
@@ -161,9 +161,9 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
     default:
       return (
         <div className="space-y-1">
-          <span className="text-sm text-muted-foreground">{field.label}</span>
-          {field.required && <span className="text-[10px] text-destructive">*</span>}
-          <div className="flex h-8 items-center rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
+          <span className="text-sm text-clay-muted">{field.label}</span>
+          {field.required && <span className="text-[10px] text-clay-rose">*</span>}
+          <div className="flex h-8 items-center clay-inset bg-clay-emboss px-3 text-sm text-clay-muted">
             {field.placeholder || `Enter ${field.type}...`}
           </div>
         </div>
