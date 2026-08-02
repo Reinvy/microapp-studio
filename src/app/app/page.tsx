@@ -41,8 +41,6 @@ export default function DashboardPage() {
   const [sort, setSort] = useState<SortConfig>(DEFAULT_SORT);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [newAppName, setNewAppName] = useState('');
-  const [newAppPrompt, setNewAppPrompt] = useState('');
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -339,8 +337,6 @@ export default function DashboardPage() {
           open={showNewDialog}
           onClose={() => {
             setShowNewDialog(false);
-            setNewAppName('');
-            setNewAppPrompt('');
             // Reset to first page and reload
             setPage(1);
             loadApps(searchQuery, 1, pageSize, sort);

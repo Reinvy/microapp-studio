@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-08-02] — Maintenance (evening cycle)
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean — prior overrides for sharp/postcss/dompurify still effective)
+- Dependency check: `npm outdated` — updated `jose` 6.2.6 → 6.2.7 (safe patch); skipped major-only updates (`typescript` 5→7, `eslint` 9→10, `@types/node` 20→26) per no-major policy
+- Code cleanup: removed unused imports/vars (dead code):
+  - `src/app/dev/page.tsx`: removed unused `Plus`, `XCircle`, `Button`, `Input`, `Badge`, `Card`/`CardHeader`/`CardTitle`/`CardDescription`/`CardContent`/`CardFooter` imports + unused `updateLogicNode` destructure
+  - `src/app/run/[id]/page.tsx`: removed unused `Button` import
+  - `src/app/app/page.tsx`: removed unused `newAppName`/`newAppPrompt` state
+  - `src/__tests__/design-system.test.ts` + `navigation-integration.test.ts`: removed unused `existsSync` import
+  - `.cron/e2e_runner.js`: `catch (err)` → `catch` (optional catch binding, unused `err`)
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-02] — UI/UX Enhancement & Design System
 
 ### Fixed

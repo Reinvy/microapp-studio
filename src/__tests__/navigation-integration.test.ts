@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readdirSync, existsSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 
 import { validateEmail, validatePassword, validateName } from '@/lib/auth';

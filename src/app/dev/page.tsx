@@ -8,10 +8,8 @@ import {
   Save,
   Trash2,
   Play,
-  Plus,
   Loader2,
   CheckCircle2,
-  XCircle,
   Terminal,
   Book,
   Variable,
@@ -20,17 +18,6 @@ import type { LogicNode } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { executeCode } from '@/engine/evaluator';
 import { generateId } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
 import MonacoEditor from '@/components/dev/MonacoEditor';
 import { cn } from '@/lib/utils';
 
@@ -47,7 +34,7 @@ const DEFAULT_TEST_INPUT = JSON.stringify({ value1: 10, value2: 20 }, null, 2);
 
 export default function DevPage() {
   const router = useRouter();
-  const { activeApp, addLogicNode, updateLogicNode, removeLogicNode } = useAppStore();
+  const { activeApp, addLogicNode, removeLogicNode } = useAppStore();
 
   const [code, setCode] = useState(DEFAULT_CODE);
   const [nodeName, setNodeName] = useState('My Custom Node');
