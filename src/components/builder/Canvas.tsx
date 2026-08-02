@@ -224,7 +224,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
         </button>
 
         {/* Type icon */}
-        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm shrink-0" style={{ backgroundColor: typeColors[field.type]?.split(' ')[0] || '#F5EDE5' }}>
+        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm shrink-0" style={{ backgroundColor: typeColors[field.type] || '#F5EDE5' }}>
           <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />
         </div>
 
@@ -265,7 +265,7 @@ export function CanvasFieldCard({ field }: { field: FieldSchema }) {
   return (
     <div className="w-72 clay-sm bg-card shadow-xl overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20">
-        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm" style={{ backgroundColor: typeColors[field.type]?.split(' ')[0] || '#F5EDE5' }}>
+        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm" style={{ backgroundColor: typeColors[field.type] || '#F5EDE5' }}>
           <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />
         </div>
         <span className="flex-1 text-sm font-medium truncate" style={{ color: 'var(--clay-foreground)' }}>{field.label}</span>

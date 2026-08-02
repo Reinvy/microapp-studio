@@ -67,7 +67,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
   --color-clay-foreground: #4A3F35;
   --color-clay-muted: #A89888;

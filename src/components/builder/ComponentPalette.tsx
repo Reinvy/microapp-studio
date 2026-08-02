@@ -4,72 +4,70 @@ import { useDraggable } from '@dnd-kit/core';
 import type { FieldType } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
-import { FieldTypeIcon } from '@/lib/fieldMeta';
+import { FieldTypeIcon, typeColors } from '@/lib/fieldMeta';
 
 interface FieldTypeItem {
   type: FieldType;
   label: string;
   icon: React.ReactNode;
   category: 'input' | 'layout' | 'content' | 'actions';
-  color: string;
-  gradient: string;
 }
 
 const FIELD_TYPES: FieldTypeItem[] = [
   // ── Input Fields ──
-  { type: 'text', label: 'Text', icon: <FieldTypeIcon type="text" />, category: 'input', color: 'text-blue-600', gradient: 'from-blue-500/10 to-blue-600/5' },
-  { type: 'number', label: 'Number', icon: <FieldTypeIcon type="number" />, category: 'input', color: 'text-cyan-600', gradient: 'from-cyan-500/10 to-cyan-600/5' },
-  { type: 'select', label: 'Select', icon: <FieldTypeIcon type="select" />, category: 'input', color: 'text-violet-600', gradient: 'from-violet-500/10 to-violet-600/5' },
-  { type: 'checkbox', label: 'Checkbox', icon: <FieldTypeIcon type="checkbox" />, category: 'input', color: 'text-emerald-600', gradient: 'from-emerald-500/10 to-emerald-600/5' },
-  { type: 'textarea', label: 'Textarea', icon: <FieldTypeIcon type="textarea" />, category: 'input', color: 'text-amber-600', gradient: 'from-amber-500/10 to-amber-600/5' },
-  { type: 'date', label: 'Date', icon: <FieldTypeIcon type="date" />, category: 'input', color: 'text-rose-600', gradient: 'from-rose-500/10 to-rose-600/5' },
-  { type: 'file', label: 'File', icon: <FieldTypeIcon type="file" />, category: 'input', color: 'text-orange-600', gradient: 'from-orange-500/10 to-orange-600/5' },
-  { type: 'slider', label: 'Slider', icon: <FieldTypeIcon type="slider" />, category: 'input', color: 'text-pink-600', gradient: 'from-pink-500/10 to-pink-600/5' },
-  { type: 'toggle', label: 'Toggle', icon: <FieldTypeIcon type="toggle" />, category: 'input', color: 'text-indigo-600', gradient: 'from-indigo-500/10 to-indigo-600/5' },
-  { type: 'email', label: 'Email', icon: <FieldTypeIcon type="email" />, category: 'input', color: 'text-sky-600', gradient: 'from-sky-500/10 to-sky-600/5' },
-  { type: 'phone', label: 'Phone', icon: <FieldTypeIcon type="phone" />, category: 'input', color: 'text-teal-600', gradient: 'from-teal-500/10 to-teal-600/5' },
-  { type: 'url', label: 'URL', icon: <FieldTypeIcon type="url" />, category: 'input', color: 'text-purple-600', gradient: 'from-purple-500/10 to-purple-600/5' },
-  { type: 'color', label: 'Color', icon: <FieldTypeIcon type="color" />, category: 'input', color: 'text-fuchsia-600', gradient: 'from-fuchsia-500/10 to-fuchsia-600/5' },
-  { type: 'rating', label: 'Rating', icon: <FieldTypeIcon type="rating" />, category: 'input', color: 'text-yellow-600', gradient: 'from-yellow-500/10 to-yellow-600/5' },
+  { type: 'text', label: 'Text', icon: <FieldTypeIcon type="text" />, category: 'input' },
+  { type: 'number', label: 'Number', icon: <FieldTypeIcon type="number" />, category: 'input' },
+  { type: 'select', label: 'Select', icon: <FieldTypeIcon type="select" />, category: 'input' },
+  { type: 'checkbox', label: 'Checkbox', icon: <FieldTypeIcon type="checkbox" />, category: 'input' },
+  { type: 'textarea', label: 'Textarea', icon: <FieldTypeIcon type="textarea" />, category: 'input' },
+  { type: 'date', label: 'Date', icon: <FieldTypeIcon type="date" />, category: 'input' },
+  { type: 'file', label: 'File', icon: <FieldTypeIcon type="file" />, category: 'input' },
+  { type: 'slider', label: 'Slider', icon: <FieldTypeIcon type="slider" />, category: 'input' },
+  { type: 'toggle', label: 'Toggle', icon: <FieldTypeIcon type="toggle" />, category: 'input' },
+  { type: 'email', label: 'Email', icon: <FieldTypeIcon type="email" />, category: 'input' },
+  { type: 'phone', label: 'Phone', icon: <FieldTypeIcon type="phone" />, category: 'input' },
+  { type: 'url', label: 'URL', icon: <FieldTypeIcon type="url" />, category: 'input' },
+  { type: 'color', label: 'Color', icon: <FieldTypeIcon type="color" />, category: 'input' },
+  { type: 'rating', label: 'Rating', icon: <FieldTypeIcon type="rating" />, category: 'input' },
 
   // ── Layout Elements ──
-  { type: 'heading', label: 'Heading', icon: <FieldTypeIcon type="heading" />, category: 'layout', color: 'text-blue-700', gradient: 'from-blue-600/10 to-blue-700/5' },
-  { type: 'paragraph', label: 'Paragraph', icon: <FieldTypeIcon type="paragraph" />, category: 'layout', color: 'text-slate-700', gradient: 'from-slate-600/10 to-slate-700/5' },
-  { type: 'divider', label: 'Divider', icon: <FieldTypeIcon type="divider" />, category: 'layout', color: 'text-gray-600', gradient: 'from-gray-500/10 to-gray-600/5' },
-  { type: 'spacer', label: 'Spacer', icon: <FieldTypeIcon type="spacer" />, category: 'layout', color: 'text-stone-600', gradient: 'from-stone-500/10 to-stone-600/5' },
+  { type: 'heading', label: 'Heading', icon: <FieldTypeIcon type="heading" />, category: 'layout' },
+  { type: 'paragraph', label: 'Paragraph', icon: <FieldTypeIcon type="paragraph" />, category: 'layout' },
+  { type: 'divider', label: 'Divider', icon: <FieldTypeIcon type="divider" />, category: 'layout' },
+  { type: 'spacer', label: 'Spacer', icon: <FieldTypeIcon type="spacer" />, category: 'layout' },
 
   // ── Rich Content ──
-  { type: 'image', label: 'Image', icon: <FieldTypeIcon type="image" />, category: 'content', color: 'text-green-700', gradient: 'from-green-600/10 to-green-700/5' },
-  { type: 'card', label: 'Card', icon: <FieldTypeIcon type="card" />, category: 'content', color: 'text-teal-700', gradient: 'from-teal-600/10 to-teal-700/5' },
+  { type: 'image', label: 'Image', icon: <FieldTypeIcon type="image" />, category: 'content' },
+  { type: 'card', label: 'Card', icon: <FieldTypeIcon type="card" />, category: 'content' },
 
   // ── Actions ──
-  { type: 'button', label: 'Button', icon: <FieldTypeIcon type="button" />, category: 'actions', color: 'text-white', gradient: 'from-purple-600/20 to-indigo-600/20' },
+  { type: 'button', label: 'Button', icon: <FieldTypeIcon type="button" />, category: 'actions' },
 ];
 
 const CATEGORIES: { key: string; label: string; gradient: string; border: string }[] = [
   {
     key: 'input',
     label: 'Input Fields',
-    gradient: 'from-blue-50/50 via-cyan-50/30 to-transparent',
-    border: 'border-blue-200/40',
+    gradient: 'from-clay-blue/20 via-clay-blue/10 to-transparent',
+    border: 'border-clay-blue/40',
   },
   {
     key: 'layout',
     label: 'Layout Elements',
-    gradient: 'from-amber-50/50 via-orange-50/30 to-transparent',
-    border: 'border-amber-200/40',
+    gradient: 'from-clay-yellow/20 via-clay-yellow/10 to-transparent',
+    border: 'border-clay-yellow/40',
   },
   {
     key: 'content',
     label: 'Rich Content',
-    gradient: 'from-emerald-50/50 via-green-50/30 to-transparent',
-    border: 'border-emerald-200/40',
+    gradient: 'from-clay-green/20 via-clay-green/10 to-transparent',
+    border: 'border-clay-green/40',
   },
   {
     key: 'actions',
     label: 'Actions',
-    gradient: 'from-purple-50/50 via-violet-50/30 to-transparent',
-    border: 'border-purple-200/40',
+    gradient: 'from-clay-purple/20 via-clay-purple/10 to-transparent',
+    border: 'border-clay-purple/40',
   },
 ];
 
@@ -106,7 +104,10 @@ function DraggableField({ item }: DraggableFieldProps) {
         isDragging && 'opacity-50 ring-2 ring-clay-purple/30 scale-105 clay-inset'
       )}
     >
-      <span className={cn('flex items-center justify-center w-7 h-7 rounded-md shrink-0', item.color.replace('text-', 'bg-').replace(/-\d{3}$/, '-100'))}>
+      <span
+        className="flex items-center justify-center w-7 h-7 rounded-md shrink-0"
+        style={{ backgroundColor: typeColors[item.type] || '#F5EDE5' }}
+      >
         {item.icon}
       </span>
       <span className="flex-1 truncate">{item.label}</span>
@@ -134,7 +135,7 @@ export default function ComponentPalette() {
   };
 
   return (
-    <aside className="w-64 clay-card rounded-none rounded-r-2xl flex flex-col h-full overflow-hidden" style={{ backgroundColor: '#FFFFFFF0' }}>
+    <aside className="w-64 flex flex-col h-full overflow-hidden rounded-r-2xl border-r border-clay-border/30 bg-[#FFFFFFF0] shadow-[4px_0_12px_rgba(174,162,146,0.08)]">
       {/* Header */}
       <div className="px-4 py-4 border-b border-clay-border/40">
         <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
@@ -180,12 +181,16 @@ export default function ComponentPalette() {
                       'flex flex-col items-center gap-0.5 py-1.5 rounded-xl clay-sm',
                       'bg-white/80 hover:bg-white',
                       'hover:scale-105 active:scale-95 transition-all',
-                      'text-[9px]',
-                      item.color
+                      'text-[9px] text-clay-foreground'
                     )}
                     title={`Add ${item.label}`}
                   >
-                    {item.icon}
+                    <span
+                      className="flex items-center justify-center w-6 h-6 rounded-md"
+                      style={{ backgroundColor: typeColors[item.type] || '#F5EDE5' }}
+                    >
+                      {item.icon}
+                    </span>
                     <span className="truncate max-w-full">{item.label}</span>
                   </button>
                 ))}
