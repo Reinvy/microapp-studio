@@ -97,7 +97,7 @@ const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '';
         try {
             await page.goto(BASE_URL + p.path, { waitUntil: 'domcontentloaded', timeout: 15000 });
             await page.waitForTimeout(1000);
-        } catch (err) { /* skip */ }
+        } catch { /* skip */ }
     }
 
     if (consoleErrors.length === 0) {

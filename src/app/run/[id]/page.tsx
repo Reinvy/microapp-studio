@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import type { AppSchema } from '@/types/schema';
 import { microAppRepo } from '@/db/microAppRepo';
-import { Button } from '@/components/ui/button';
 import AppRunner from '@/components/runner/AppRunner';
 
 export default function RunPage() {
