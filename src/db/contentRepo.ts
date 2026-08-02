@@ -45,7 +45,34 @@ export interface HeroContent {
   secondaryCta: { label: string; href: string };
 }
 
-export type SiteContentData = NavLink[] | FooterColumn[] | FeatureItem[] | StepItem[] | StatItem[] | HeroContent;
+export interface CtaContent {
+  heading: string;
+  headingHighlight: string;
+  subtitle: string;
+  primaryCta: { label: string; href: string };
+  secondaryCta: { label: string; href: string };
+}
+
+export interface SectionHeading {
+  title: string;
+  highlight: string;
+  subtitle: string;
+}
+
+export interface LandingSections {
+  features: SectionHeading;
+  howItWorks: SectionHeading;
+}
+
+export type SiteContentData =
+  | NavLink[]
+  | FooterColumn[]
+  | FeatureItem[]
+  | StepItem[]
+  | StatItem[]
+  | HeroContent
+  | CtaContent
+  | LandingSections;
 
 export interface SiteContent {
   id: string;
