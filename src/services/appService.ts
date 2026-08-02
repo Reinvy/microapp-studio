@@ -3,6 +3,7 @@
 import { microAppRepo, type PaginatedResult } from '@/db/microAppRepo';
 import type { AppSchema } from '@/types/schema';
 import type { SortConfig } from './dashboardSortService';
+import { serializeBackup, parseBackup, type ImportSummary } from '@/lib/backup';
 
 /**
  * AppService — Scalable service layer wrapping microAppRepo with:
@@ -199,6 +200,32 @@ class AppService {
     } catch (error) {
       console.error('[AppService] batchRemoveApps failed:', error);
     }
+  }
+
+  /**
+   * Export all apps as a portable JSON backup string.
+   * Uses the chunked repo read, then serializes via lib/backup (pure).
+   */
+  async exportApps(): Promise<string> {
+    const { apps, exportedAt } = await microAppRepo.exportAll();
+    return serializeBackup(apps, exportedAt);
+  }
+
+  /**
+   * Import apps from a backup JSON string.
+   * Parses + validates the envelope (throws Error with a clear message on
+   * malformed input), performs the batched transactional write, then clears
+   * the read cache and notifies subscribers so the UI reflects the change.
+   */
+  async importApps(
+    json: string,
+    mode: 'merge' | 'replace' = 'merge'
+  ): Promise<ImportSummary> {
+    const backup = parseBackup(json);
+    const summary = await microAppRepo.importApps(backup.apps, mode);
+    this.clearCache();
+    this.notify();
+    return summary;
   }
 }
 

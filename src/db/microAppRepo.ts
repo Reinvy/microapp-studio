@@ -5,6 +5,7 @@ import type { AppSchema, FieldType } from '@/types/schema';
 import type { SortConfig } from '@/services/dashboardSortService';
 import { sortApps } from '@/services/dashboardSortService';
 import { buildSearchName, withSearchIndex } from '@/lib/searchIndex';
+import { sanitizeAppRecord, type ImportSummary } from '@/lib/backup';
 
 export interface PaginatedResult<T> {
   items: T[];
@@ -37,6 +38,10 @@ export interface StatsOverview {
 const FIELD_STATS_SAMPLE_CAP = 500;
 /** "Recently updated" window used by getStatsOverview(). */
 const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+/** Chunk size for exportAll() offset/limit reads — bounds peak memory on very large datasets. */
+const EXPORT_CHUNK_SIZE = 100;
+/** Chunk size for importApps() batched writes — stays well under IndexedDB transaction limits. */
+const IMPORT_CHUNK_SIZE = 100;
 
 export const microAppRepo = {
   /** Load all apps from IndexedDB */
@@ -335,6 +340,101 @@ export const microAppRepo = {
         fieldTypeCounts: [],
         fieldStatsSampleSize: 0,
       };
+    }
+  },
+
+  /**
+   * Export all apps as a portable backup payload.
+   *
+   * Reads in bounded chunks (offset/limit over the updatedAt index) instead of
+   * one giant full-table toArray(), so peak memory stays O(chunk) + O(records
+   * serialized) regardless of dataset size. The backup envelope/versioning and
+   * validation live in lib/backup.ts (pure, unit-tested).
+   */
+  async exportAll(): Promise<{ apps: AppSchema[]; exportedAt: number }> {
+    try {
+      const total = await db.apps.count();
+      const apps: AppSchema[] = [];
+      for (let offset = 0; offset < total; offset += EXPORT_CHUNK_SIZE) {
+        const chunk = await db.apps
+          .orderBy('updatedAt')
+          .reverse()
+          .offset(offset)
+          .limit(EXPORT_CHUNK_SIZE)
+          .toArray();
+        apps.push(...chunk);
+        if (chunk.length < EXPORT_CHUNK_SIZE) break;
+      }
+      return { apps, exportedAt: Date.now() };
+    } catch (error) {
+      console.error('[MicroAppRepo] exportAll failed:', error);
+      return { apps: [], exportedAt: Date.now() };
+    }
+  },
+
+  /**
+   * Import apps from a backup payload.
+   *
+   * - `merge` mode: records whose id already exists overwrite the existing app
+   *   (counted as `replaced`); new ids are added (`imported`).
+   * - `replace` mode: the apps table is cleared first, then all records are
+   *   written (`imported`).
+   *
+   * Writes happen inside a single readwrite transaction in chunks of
+   * IMPORT_CHUNK_SIZE so very large backups never exceed IndexedDB transaction
+   * limits. Every record is sanitized (validated + search-key backfilled)
+   * before persisting; broken records are counted as `failed` and skipped.
+   */
+  async importApps(
+    apps: AppSchema[],
+    mode: 'merge' | 'replace' = 'merge'
+  ): Promise<ImportSummary> {
+    const summary: ImportSummary = { imported: 0, replaced: 0, skipped: 0, failed: 0 };
+    if (apps.length === 0) return summary;
+
+    try {
+      const sanitized = apps
+        .map((record) => sanitizeAppRecord(record))
+        .filter((app): app is AppSchema => app !== null);
+      summary.failed = apps.length - sanitized.length;
+      if (sanitized.length === 0) return summary;
+
+      await db.transaction('rw', db.apps, async () => {
+        if (mode === 'replace') {
+          await db.apps.clear();
+          for (let i = 0; i < sanitized.length; i += IMPORT_CHUNK_SIZE) {
+            await db.apps.bulkPut(sanitized.slice(i, i + IMPORT_CHUNK_SIZE));
+          }
+          summary.imported = sanitized.length;
+        } else {
+          // merge — dedupe by id against the existing table
+          const existing = new Set(
+            (
+              await db.apps.bulkGet(sanitized.map((app) => app.id))
+            )
+              .filter((app): app is AppSchema => app !== undefined)
+              .map((app) => app.id)
+          );
+          for (let i = 0; i < sanitized.length; i += IMPORT_CHUNK_SIZE) {
+            await db.apps.bulkPut(sanitized.slice(i, i + IMPORT_CHUNK_SIZE));
+          }
+          for (const app of sanitized) {
+            if (existing.has(app.id)) summary.replaced++;
+            else summary.imported++;
+          }
+        }
+      });
+
+      return summary;
+    } catch (error) {
+      console.error('[MicroAppRepo] importApps failed:', error);
+      // Import is all-or-nothing inside the transaction — if it threw, nothing
+      // was persisted, so report every record as failed.
+      summary.imported = 0;
+      summary.replaced = 0;
+      summary.skipped = 0;
+      summary.failed = apps.length;
+      return summary;
     }
   },
 
