@@ -96,6 +96,14 @@ describe('Claymorphism v3 — Fredoka Rounded Font', () => {
     const body = rules.get('body') || '';
     expect(body).toMatch(/font-family:\s*var\(--font-sans\)/);
   });
+
+  it('layout.tsx loads Fredoka via next/font/google (font actually wired)', () => {
+    const layoutPath = path.join(repoRoot, 'src', 'app', 'layout.tsx');
+    const layout = readFileSync(layoutPath, 'utf8');
+    expect(layout).toMatch(/import\s*\{[^}]*Fredoka[^}]*\}\s*from\s*['"]next\/font\/google['"]/);
+    expect(layout).toMatch(/variable:\s*['"]--font-fredoka['"]/);
+    expect(layout).toMatch(/font-sans/); // body applies the font variable
+  });
 });
 
 // ---------------------------------------------------------------------------
