@@ -20,11 +20,19 @@ import {
   ChevronRight,
   ArrowUpDown,
   Columns3,
+  Download,
+  Upload,
 } from 'lucide-react';
 
 // Lazy-load heavy dialog (parsePrompt engine import is heavy)
 const NewAppDialog = dynamic(
   () => import('@/components/dashboard/NewAppDialog'),
+  { ssr: false }
+);
+
+// Lazy-load backup/restore dialog (file parsing only needed on demand)
+const ImportDialog = dynamic(
+  () => import('@/components/dashboard/ImportDialog'),
   { ssr: false }
 );
 
@@ -41,6 +49,7 @@ export default function DashboardPage() {
   const [sort, setSort] = useState<SortConfig>(DEFAULT_SORT);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -87,6 +96,30 @@ export default function DashboardPage() {
   const handleLogout = () => {
     logout();
     router.push('/');
+  };
+
+  const handleExport = async () => {
+    try {
+      const json = await appService.exportApps();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `microapp-studio-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+
+  const handleImportSuccess = () => {
+    setShowImportDialog(false);
+    // Reload the current page so imported apps appear immediately
+    setPage(1);
+    loadApps(searchQuery, 1, pageSize, sort);
   };
 
   const goToPage = (p: number) => {
@@ -167,11 +200,29 @@ export default function DashboardPage() {
               {totalPages > 1 && ` — Page ${page} of ${totalPages}`}
             </p>
           </div>
-          <button onClick={() => setShowNewDialog(true)}
-            className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-foreground bg-[#D5B8F5]">
-            <Plus className="h-4 w-4" />
-            New App
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              title="Download a JSON backup of all your apps"
+              className="clay-button flex h-10 items-center gap-2 px-3 text-sm font-medium text-foreground bg-[#C5F0D5] sm:px-4"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            <button
+              onClick={() => setShowImportDialog(true)}
+              title="Restore apps from a JSON backup"
+              className="clay-button flex h-10 items-center gap-2 px-3 text-sm font-medium text-foreground bg-[#FFF2C5] sm:px-4"
+            >
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+            <button onClick={() => setShowNewDialog(true)}
+              className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-foreground bg-[#D5B8F5]">
+              <Plus className="h-4 w-4" />
+              New App
+            </button>
+          </div>
         </div>
 
         {/* Stats Banner */}
@@ -341,6 +392,13 @@ export default function DashboardPage() {
             setPage(1);
             loadApps(searchQuery, 1, pageSize, sort);
           }}
+        />
+
+        {/* Import Backup Dialog — lazily loaded via next/dynamic */}
+        <ImportDialog
+          open={showImportDialog}
+          onClose={() => setShowImportDialog(false)}
+          onImported={handleImportSuccess}
         />
       </main>
     </div>
