@@ -87,9 +87,11 @@ describe('Claymorphism v3 — Text Color (#4A3F35, not black)', () => {
 
 describe('Claymorphism v3 — Fredoka Rounded Font', () => {
   it('defines --font-sans with Fredoka first', () => {
-    const m = css.match(/--font-sans:\s*'Fredoka'[^;]*/i);
+    // Accepts both the next/font variable reference (var(--font-fredoka))
+    // and the legacy literal font name — either keeps Fredoka first in the stack.
+    const m = css.match(/--font-sans:\s*(?:var\(--font-fredoka\)|'Fredoka')[^;]*/i);
     expect(m).not.toBeNull();
-    expect(m![0]).toMatch(/Fredoka/i);
+    expect(m![0]).toMatch(/Fredoka|font-fredoka/i);
   });
 
   it('body font-family uses var(--font-sans)', () => {

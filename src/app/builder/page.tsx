@@ -255,7 +255,7 @@ function BuilderContent() {
       </DndContext>
 
       {/* Mobile tab bar (<768px) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 clay-card rounded-none rounded-t-2xl flex shadow-lg">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex rounded-t-2xl border-t border-clay-border/30 bg-[var(--clay-card)] shadow-[0_-4px_12px_rgba(174,162,146,0.15)]">
         {TAB_ITEMS.map((tab) => (
           <button
             key={tab.key}

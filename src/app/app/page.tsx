@@ -167,7 +167,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Top Navigation */}
-      <header className="sticky top-0 z-50 bg-[var(--clay-card)] clay-card rounded-none border-b border-border">
+      <header className="sticky top-0 z-50 bg-[var(--clay-card)] border-b border-border shadow-[0_2px_10px_rgba(174,162,146,0.12)]">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl clay-sm bg-[#D5B8F5] text-foreground">

@@ -60,29 +60,39 @@ export const fieldIcons: Record<string, LucideIcon> = {
   button: SquareMousePointer,
 };
 
-/** Pastel Tailwind classes per field type (badge / chip). */
+/**
+ * Pastel clay hex colors per field type.
+ *
+ * Single source of truth for field-type chips / badges. Values are actual
+ * CSS colors (not Tailwind class names) so they work both as inline
+ * `backgroundColor` in Canvas chips and as badge accents elsewhere.
+ *
+ * All colors come from the Claymorphism v3 pastel palette:
+ *   pink #FFD5E5, blue #C5E8F7, purple #D5B8F5, yellow #FFF2C5,
+ *   green #C5F0D5, peach #FFE5D0, rose #FFD0D0
+ */
 export const typeColors: Record<string, string> = {
-  text: 'bg-blue-100 text-blue-700',
-  number: 'bg-cyan-100 text-cyan-700',
-  select: 'bg-violet-100 text-violet-700',
-  checkbox: 'bg-emerald-100 text-emerald-700',
-  textarea: 'bg-amber-100 text-amber-700',
-  date: 'bg-rose-100 text-rose-700',
-  file: 'bg-orange-100 text-orange-700',
-  slider: 'bg-pink-100 text-pink-700',
-  toggle: 'bg-indigo-100 text-indigo-700',
-  email: 'bg-sky-100 text-sky-700',
-  phone: 'bg-teal-100 text-teal-700',
-  url: 'bg-purple-100 text-purple-700',
-  color: 'bg-fuchsia-100 text-fuchsia-700',
-  rating: 'bg-yellow-100 text-yellow-700',
-  heading: 'bg-blue-100 text-blue-700',
-  paragraph: 'bg-slate-100 text-slate-700',
-  divider: 'bg-gray-100 text-gray-700',
-  spacer: 'bg-stone-100 text-stone-700',
-  image: 'bg-green-100 text-green-700',
-  card: 'bg-teal-100 text-teal-700',
-  button: 'bg-purple-100 text-purple-700',
+  text: '#C5E8F7',      // clay blue
+  number: '#FFE5D0',    // clay peach
+  select: '#D5B8F5',    // clay purple
+  checkbox: '#C5F0D5',  // clay green
+  textarea: '#FFF2C5',  // clay yellow
+  date: '#FFD0D0',      // clay rose
+  file: '#FFD5E5',      // clay pink
+  slider: '#C5E8F7',    // clay blue
+  toggle: '#D5B8F5',    // clay purple
+  email: '#C5F0D5',     // clay green
+  phone: '#FFE5D0',     // clay peach
+  url: '#FFF2C5',       // clay yellow
+  color: '#FFD5E5',     // clay pink
+  rating: '#FFD0D0',    // clay rose
+  heading: '#D5B8F5',   // clay purple
+  paragraph: '#C5E8F7', // clay blue
+  divider: '#FFE5D0',   // clay peach
+  spacer: '#FFF2C5',    // clay yellow
+  image: '#C5F0D5',     // clay green
+  card: '#FFD5E5',      // clay pink
+  button: '#D5B8F5',    // clay purple
 };
 
 /** Renders the icon for a field type with a configurable size. */
