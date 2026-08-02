@@ -475,6 +475,84 @@ function createPetSurveyApp(index: number): AppSchema {
   };
 }
 
+function createBmiApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'BMI Calculator',
+    description: 'Calculate your Body Mass Index from height and weight with a live logic node.',
+    prompt: 'Create a BMI calculator with height, weight inputs and a calculate button.',
+    fields: [
+      headingField('bm-heading', 'Heading', 'h2', 'BMI Calculator ⚖️'),
+      paragraphField('bm-intro', 'Intro', 'Enter your height and weight to compute your Body Mass Index.'),
+      numberField('bm-height', 'Height (cm)', 80, 250),
+      numberField('bm-weight', 'Weight (kg)', 20, 300),
+      sliderField('bm-activity', 'Activity Level', 1, 10),
+      ratingField('bm-goal', 'Goal Commitment'),
+      colorField('bm-color', 'Theme Color', pickFrom(pastelColors, index, 18)),
+      buttonField('bm-calc', 'Calculate BMI', pickFrom(buttonVariants, index, 19)),
+      buttonField('bm-reset', 'Reset', 'ghost'),
+    ],
+    logicNodes: [
+      {
+        id: 'bm-node',
+        name: 'Compute BMI',
+        code: 'return weight / Math.pow(height / 100, 2)',
+        inputs: ['weight', 'height'],
+        outputs: ['bmi'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 691200000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createTipApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Tip Calculator',
+    description: 'Split-friendly tip & total calculator with a custom tip percentage slider.',
+    prompt: 'Create a tip calculator with bill amount, tip percentage slider, and total output.',
+    fields: [
+      headingField('tp-heading', 'Heading', 'h2', 'Tip Calculator 💸'),
+      paragraphField('tp-intro', 'Intro', 'Enter your bill amount and pick a tip percentage.'),
+      numberField('tp-bill', 'Bill Amount ($)', 0, 10000),
+      sliderField('tp-tip', 'Tip Percentage', 0, 30),
+      toggleField('tp-round', 'Round up to nearest dollar'),
+      colorField('tp-color', 'Theme Color', pickFrom(pastelColors, index, 20)),
+      buttonField('tp-calc', 'Calculate Tip', pickFrom(buttonVariants, index, 21)),
+    ],
+    logicNodes: [
+      {
+        id: 'tp-tip-node',
+        name: 'Compute Tip',
+        code: 'return Math.round(bill * (tipPercent / 100) * 100) / 100',
+        inputs: ['bill', 'tipPercent'],
+        outputs: ['tip'],
+        version: 1,
+      },
+      {
+        id: 'tp-total-node',
+        name: 'Compute Total',
+        code: 'return Math.round((bill + tip) * 100) / 100',
+        inputs: ['bill', 'tip'],
+        outputs: ['total'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 777600000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
 // ─── Sample app list ───
 
 const sampleApps: AppSchema[] = [
@@ -485,6 +563,8 @@ const sampleApps: AppSchema[] = [
   createQuizApp(4),
   createEventRsvpApp(5),
   createPetSurveyApp(6),
+  createBmiApp(7),
+  createTipApp(8),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -584,6 +664,35 @@ const seedContent: SiteContent[] = [
         'Build fully functional micro-apps by describing them in plain English. Drag, drop, and customize — no coding required.',
       primaryCta: { label: 'Get Started Free', href: '/register' },
       secondaryCta: { label: 'View Demo', href: '/login' },
+    },
+  },
+  {
+    id: 'landing-cta',
+    type: 'landing-cta',
+    data: {
+      heading: 'Ready to build your',
+      headingHighlight: 'first micro-app',
+      subtitle:
+        'Join users building everything from calculators to databases. No signup required to start — just describe and go.',
+      primaryCta: { label: 'Get Started Free', href: '/register' },
+      secondaryCta: { label: 'Sign In', href: '/login' },
+    },
+  },
+  {
+    id: 'landing-sections',
+    type: 'landing-sections',
+    data: {
+      features: {
+        title: 'Everything you need to build',
+        highlight: 'micro-apps',
+        subtitle:
+          'From AI-powered generation to a fully interactive runtime — all in one beautiful studio.',
+      },
+      howItWorks: {
+        title: 'How it',
+        highlight: 'works',
+        subtitle: 'Three simple steps to go from idea to running micro-app.',
+      },
     },
   },
 ];

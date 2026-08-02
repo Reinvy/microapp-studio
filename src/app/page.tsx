@@ -24,7 +24,7 @@ import Navbar from '@/components/landing/Navbar';
 import Footer from '@/components/landing/Footer';
 import FeatureCard from '@/components/landing/FeatureCard';
 import StepCard from '@/components/landing/StepCard';
-import { contentRepo, type FeatureItem, type StepItem, type StatItem, type HeroContent } from '@/db/contentRepo';
+import { contentRepo, type FeatureItem, type StepItem, type StatItem, type HeroContent, type CtaContent, type LandingSections } from '@/db/contentRepo';
 
 // Icon registry — maps stored icon names to Lucide components
 const iconRegistry: Record<string, LucideIcon> = {
@@ -74,11 +74,38 @@ const fallbackHero: HeroContent = {
   secondaryCta: { label: 'View Demo', href: '/login' },
 };
 
+// CTA + section headings are seeded via contentRepo ('landing-cta', 'landing-sections') —
+// fallbacks keep SSR/first paint intact and mirror the seeded defaults.
+const fallbackCta: CtaContent = {
+  heading: 'Ready to build your',
+  headingHighlight: 'first micro-app',
+  subtitle:
+    'Join users building everything from calculators to databases. No signup required to start — just describe and go.',
+  primaryCta: { label: 'Get Started Free', href: '/register' },
+  secondaryCta: { label: 'Sign In', href: '/login' },
+};
+
+const fallbackSections: LandingSections = {
+  features: {
+    title: 'Everything you need to build',
+    highlight: 'micro-apps',
+    subtitle:
+      'From AI-powered generation to a fully interactive runtime — all in one beautiful studio.',
+  },
+  howItWorks: {
+    title: 'How it',
+    highlight: 'works',
+    subtitle: 'Three simple steps to go from idea to running micro-app.',
+  },
+};
+
 export default function LandingPage() {
   const [features, setFeatures] = useState<FeatureData[]>(fallbackFeatures);
   const [steps, setSteps] = useState<StepData[]>(fallbackSteps);
   const [stats, setStats] = useState<StatData[]>(fallbackStats);
   const [hero, setHero] = useState<HeroContent>(fallbackHero);
+  const [cta, setCta] = useState<CtaContent>(fallbackCta);
+  const [sections, setSections] = useState<LandingSections>(fallbackSections);
 
   useEffect(() => {
     // Load dynamic content from IndexedDB — falls back to hardcoded data if DB is empty
@@ -103,6 +130,18 @@ export default function LandingPage() {
     contentRepo.getByType('landing-stats').then((content) => {
       if (content && Array.isArray(content.data)) {
         setStats((content.data as StatItem[]).map(s => ({ ...s, icon: resolveIcon(s.icon, Copy) })));
+      }
+    }).catch(() => {});
+
+    contentRepo.getByType('landing-cta').then((content) => {
+      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
+        setCta(content.data as CtaContent);
+      }
+    }).catch(() => {});
+
+    contentRepo.getByType('landing-sections').then((content) => {
+      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
+        setSections(content.data as LandingSections);
       }
     }).catch(() => {});
   }, []);
@@ -237,12 +276,11 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto mb-14 max-w-2xl text-center">
               <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                Everything you need to build{' '}
-                <span className="gradient-text">micro-apps</span>
+                {sections.features.title}{' '}
+                <span className="gradient-text">{sections.features.highlight}</span>
               </h2>
               <p className="text-lg leading-relaxed text-muted-foreground">
-                From AI-powered generation to a fully interactive runtime — all in one beautiful
-                studio.
+                {sections.features.subtitle}
               </p>
             </div>
 
@@ -278,10 +316,11 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto mb-16 max-w-2xl text-center">
               <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                How it <span className="gradient-text">works</span>
+                {sections.howItWorks.title}{' '}
+                <span className="gradient-text">{sections.howItWorks.highlight}</span>
               </h2>
               <p className="text-lg leading-relaxed text-muted-foreground">
-                Three simple steps to go from idea to running micro-app.
+                {sections.howItWorks.subtitle}
               </p>
             </div>
 
@@ -307,27 +346,26 @@ export default function LandingPage() {
           <div className="relative mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl">
               <h2 className="mb-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                Ready to build your{' '}
-                <span className="gradient-text">first micro-app</span>?
+                {cta.heading}{' '}
+                <span className="gradient-text">{cta.headingHighlight}</span>?
               </h2>
               <p className="mb-10 text-lg leading-relaxed text-muted-foreground">
-                Join users building everything from calculators to databases. No signup required to
-                start — just describe and go.
+                {cta.subtitle}
               </p>
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <Link href="/register">
+                <Link href={cta.primaryCta.href}>
                   <Button variant="primary" size="lg" className="h-12 gap-2 px-8 text-base">
-                    Get Started Free
+                    {cta.primaryCta.label}
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Link href="/login">
+                <Link href={cta.secondaryCta.href}>
                   <Button
                     variant="outline"
                     size="lg"
                     className="h-12 gap-2 px-8 text-base"
                   >
-                    Sign In
+                    {cta.secondaryCta.label}
                   </Button>
                 </Link>
               </div>

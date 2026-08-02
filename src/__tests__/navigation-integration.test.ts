@@ -111,10 +111,16 @@ describe('Navigation — Route Integrity', () => {
     }
   });
 
-  it('landing page contains nav links to login/register', () => {
+  it('landing page wires login/register links via DB-driven content', () => {
     const landing = readFileSync(path.join(appDir, 'page.tsx'), 'utf8');
-    expect(landing).toMatch(/href=["']\/login["']/);
-    expect(landing).toMatch(/href=["']\/register["']/);
+    const seed = readFileSync(path.join(repoRoot, 'src', 'db', 'seed.ts'), 'utf8');
+    // Page renders hero/CTA links from contentRepo-driven state (not hardcoded hrefs)
+    expect(landing).toMatch(/hero\.primaryCta\.href/);
+    expect(landing).toMatch(/cta\.secondaryCta\.href/);
+    expect(landing).toMatch(/cta\.primaryCta\.href/);
+    // Seed content (single source of truth) provides the auth entry points
+    expect(seed).toMatch(/href: '\/login'/);
+    expect(seed).toMatch(/href: '\/register'/);
   });
 
   it('app layout wires AuthProvider + ProtectedRoute', () => {
