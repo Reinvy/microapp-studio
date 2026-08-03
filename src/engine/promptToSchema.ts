@@ -6,7 +6,7 @@
  * no AI API calls).
  */
 
-import { FieldSchema, FieldType, ParsedSchema } from '@/types/schema';
+import { FieldSchema, ParsedSchema } from '@/types/schema';
 import { generateId } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -170,8 +170,8 @@ function fallbackBuild(prompt: string): { fields: FieldSchema[]; name: string; d
   fields.push({
     id: generateId(),
     type: 'text',
-    label: extractFieldLabel(prompt, 'text', 'Name'),
-    placeholder: `Enter your ${extractFieldLabel(prompt, 'text', 'name').toLowerCase()}`,
+    label: extractFieldLabel(prompt, 'Name'),
+    placeholder: `Enter your ${extractFieldLabel(prompt, 'name').toLowerCase()}`,
     required: true,
   });
 
@@ -179,14 +179,14 @@ function fallbackBuild(prompt: string): { fields: FieldSchema[]; name: string; d
     fields.push({
       id: generateId(),
       type: 'number',
-      label: extractFieldLabel(prompt, 'number', 'Number'),
+      label: extractFieldLabel(prompt, 'Number'),
       placeholder: 'Enter a number',
       required: false,
     });
   }
 
   if (hasSelect) {
-    const label = extractFieldLabel(prompt, 'select', 'Option');
+    const label = extractFieldLabel(prompt, 'Option');
     fields.push({
       id: generateId(),
       type: 'select',
@@ -200,7 +200,7 @@ function fallbackBuild(prompt: string): { fields: FieldSchema[]; name: string; d
     fields.push({
       id: generateId(),
       type: 'checkbox',
-      label: extractFieldLabel(prompt, 'checkbox', 'I agree'),
+      label: extractFieldLabel(prompt, 'I agree'),
       required: false,
     });
   }
@@ -209,7 +209,7 @@ function fallbackBuild(prompt: string): { fields: FieldSchema[]; name: string; d
     fields.push({
       id: generateId(),
       type: 'date',
-      label: extractFieldLabel(prompt, 'date', 'Date'),
+      label: extractFieldLabel(prompt, 'Date'),
       required: false,
     });
   }
@@ -218,7 +218,7 @@ function fallbackBuild(prompt: string): { fields: FieldSchema[]; name: string; d
     fields.push({
       id: generateId(),
       type: 'textarea',
-      label: extractFieldLabel(prompt, 'textarea', 'Details'),
+      label: extractFieldLabel(prompt, 'Details'),
       placeholder: 'Enter details...',
       required: false,
     });
@@ -1286,8 +1286,8 @@ function buildShopFields(prompt: string): FieldSchema[] {
 // Helper utilities
 // ---------------------------------------------------------------------------
 
-/** Extract a field label from the prompt for a given field type */
-function extractFieldLabel(prompt: string, type: FieldType, fallback: string): string {
+/** Extract a field label from the prompt */
+function extractFieldLabel(prompt: string, fallback: string): string {
   const words = lowerWords(prompt);
 
   // Common mappings from keywords to labels

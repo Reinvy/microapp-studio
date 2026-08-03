@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-08-03] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency check: `npm outdated` — all packages already at "Wanted"; latest versions are major-only (`typescript` 5→7, `eslint` 9→10, `@types/node` 20→26) — skipped per no-major policy
+- Code cleanup: removed dead code:
+  - `src/engine/promptToSchema.ts`: removed unused `type: FieldType` parameter from `extractFieldLabel()` + updated all 7 call sites; removed now-unused `FieldType` import; fixed stale doc comment
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-02] — Maintenance (evening cycle)
 
 ### Changed
