@@ -78,6 +78,24 @@ export default function DashboardPage() {
     loadApps(searchQuery, page, pageSize, sort);
   }, [page, pageSize, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Latest-view ref for the subscription below — kept current in an effect so
+  // the subscription callback always reloads the CURRENT view state.
+  const viewRef = useRef({ searchQuery, page, pageSize, sort });
+  useEffect(() => {
+    viewRef.current = { searchQuery, page, pageSize, sort };
+  });
+
+  // Subscribe once to the service layer's refresh bus. The grid re-loads the
+  // current view whenever data changes — background SWR revalidations,
+  // mutations from other components, and imports all propagate without the
+  // caller having to reload manually.
+  useEffect(() => {
+    return appService.subscribe(() => {
+      const view = viewRef.current;
+      loadApps(view.searchQuery, view.page, view.pageSize, view.sort);
+    });
+  }, [loadApps]);
+
   // Debounced search — resets to page 1 on query change
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);

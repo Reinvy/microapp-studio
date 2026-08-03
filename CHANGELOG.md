@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-08-04] — Feature & Scalability
+
+### Added
+- **AppService query coalescing + stale-while-revalidate (IndexedDB query optimization)**:
+  - `src/services/appService.ts` now coalesces concurrent identical queries into a single IndexedDB round-trip (no duplicate queries under React StrictMode double-effects, debounced-search races, or rapid page flips)
+  - Stale-while-revalidate cache: reads within 5s are instant; reads within a 30s window serve the cached snapshot immediately and revalidate in the background — the UI never blocks on IndexedDB for repeated queries
+  - Mutation epochs: every create/update/delete bumps the epoch so stale in-flight reads can never re-populate the cache after a mutation
+  - Background revalidations now notify subscribers (previously only mutations did)
+  - Exported `createAppService()` factory for isolated test instances
+- **Dashboard reactive refresh**: `src/app/app/page.tsx` subscribes to the service refresh bus — background revalidations, cross-component mutations, and imports now propagate to the grid without manual reloads
+- **Unit tests**: `src/__tests__/app-service.test.ts` (10 tests) covering fresh-cache hits, in-flight coalescing, SWR serving + background revalidation, hard-expiry, stale fallback on refresh failure, mutation invalidation, stale-write dropping, and subscriber notifications
+
+### 🌐 Deploy
+- Cron 1: Feature Expansion & Architecture Scalability deployment to Vercel
+
 ## [2026-08-03] — Maintenance
 
 ### Changed
