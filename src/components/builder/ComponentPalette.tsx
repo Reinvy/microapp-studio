@@ -105,7 +105,7 @@ function DraggableField({ item }: DraggableFieldProps) {
       )}
     >
       <span
-        className="flex items-center justify-center w-7 h-7 rounded-md shrink-0"
+        className="flex items-center justify-center w-7 h-7 rounded-xl shrink-0"
         style={{ backgroundColor: typeColors[item.type] || '#F5EDE5' }}
       >
         {item.icon}
@@ -186,7 +186,7 @@ export default function ComponentPalette() {
                     title={`Add ${item.label}`}
                   >
                     <span
-                      className="flex items-center justify-center w-6 h-6 rounded-md"
+                      className="flex items-center justify-center w-6 h-6 rounded-xl"
                       style={{ backgroundColor: typeColors[item.type] || '#F5EDE5' }}
                     >
                       {item.icon}

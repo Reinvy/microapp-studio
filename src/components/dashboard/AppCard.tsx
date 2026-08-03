@@ -5,72 +5,16 @@ import {
   Play,
   Pencil,
   Trash2,
-  Type,
-  Hash,
-  List,
-  CheckSquare,
-  AlignLeft,
-  Calendar,
-  Sliders,
-  ToggleLeft,
-  File,
 } from 'lucide-react';
 import type { AppSchema, FieldType } from '@/types/schema';
 import { formatDate } from '@/lib/utils';
+import { FieldTypeIcon, fieldLabels } from '@/lib/fieldMeta';
 
 interface AppCardProps {
   app: AppSchema;
   onDelete: (id: string) => void;
   onRun: (id: string) => void;
 }
-
-const fieldTypeIcons: Record<FieldType, React.ReactNode> = {
-  text: <Type className="h-3 w-3" />,
-  number: <Hash className="h-3 w-3" />,
-  select: <List className="h-3 w-3" />,
-  checkbox: <CheckSquare className="h-3 w-3" />,
-  textarea: <AlignLeft className="h-3 w-3" />,
-  date: <Calendar className="h-3 w-3" />,
-  file: <File className="h-3 w-3" />,
-  slider: <Sliders className="h-3 w-3" />,
-  toggle: <ToggleLeft className="h-3 w-3" />,
-  heading: <Type className="h-3 w-3" />,
-  paragraph: <AlignLeft className="h-3 w-3" />,
-  divider: <Type className="h-3 w-3" />,
-  spacer: <Type className="h-3 w-3" />,
-  image: <File className="h-3 w-3" />,
-  card: <Type className="h-3 w-3" />,
-  button: <Type className="h-3 w-3" />,
-  color: <Hash className="h-3 w-3" />,
-  email: <Type className="h-3 w-3" />,
-  phone: <Hash className="h-3 w-3" />,
-  url: <Type className="h-3 w-3" />,
-  rating: <List className="h-3 w-3" />,
-};
-
-const fieldTypeLabels: Record<FieldType, string> = {
-  text: 'Text',
-  number: 'Number',
-  select: 'Select',
-  checkbox: 'Checkbox',
-  textarea: 'Textarea',
-  date: 'Date',
-  file: 'File',
-  slider: 'Slider',
-  toggle: 'Toggle',
-  heading: 'Heading',
-  paragraph: 'Paragraph',
-  divider: 'Divider',
-  spacer: 'Spacer',
-  image: 'Image',
-  card: 'Card',
-  button: 'Button',
-  color: 'Color',
-  email: 'Email',
-  phone: 'Phone',
-  url: 'URL',
-  rating: 'Rating',
-};
 
 function getFieldTypeCounts(fields: AppSchema['fields']): Map<FieldType, number> {
   const counts = new Map<FieldType, number>();
@@ -123,8 +67,8 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
             key={type}
             className="clay-sm inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-normal text-clay-foreground bg-[#F5EDE5]"
           >
-            {fieldTypeIcons[type]}
-            {fieldTypeLabels[type]}
+            <FieldTypeIcon type={type} className="h-3 w-3" />
+            {fieldLabels[type]}
             {count > 1 && <span className="text-clay-muted">×{count}</span>}
           </span>
         ))}
