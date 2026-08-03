@@ -22,6 +22,7 @@ import {
 import type { AppSchema, EngineResult } from '@/types/schema';
 import { executeSchema } from '@/engine/schemaEngine';
 import { cn } from '@/lib/utils';
+import { getFieldBorderRadius } from '@/lib/fieldStyles';
 import RenderField from './RenderField';
 
 interface AppRunnerProps {
@@ -700,19 +701,4 @@ export default function AppRunner({ app }: AppRunnerProps) {
 }
 
 // ─── Local helpers ───────────────────────────────────────────────────────────
-
-function getFieldBorderRadius(style?: { borderRadius?: string }): string {
-  if (!style?.borderRadius) return 'rounded-xl';
-  const map: Record<string, string> = {
-    none: 'rounded-none',
-    sm: 'rounded-sm',
-    md: 'rounded-md',
-    lg: 'rounded-lg',
-    xl: 'rounded-xl',
-    '2xl': 'rounded-2xl',
-    full: 'rounded-full',
-  };
-  return map[style.borderRadius] || style.borderRadius;
-}
-
 

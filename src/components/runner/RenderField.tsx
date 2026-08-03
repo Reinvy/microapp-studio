@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import type { FieldSchema, FieldStyleConfig } from '@/types/schema';
+import type { FieldSchema } from '@/types/schema';
 import { cn } from '@/lib/utils';
+import { getFieldBorderRadius, getFieldShadow, getFieldAnimation } from '@/lib/fieldStyles';
 import { Star } from 'lucide-react';
 
 interface RenderFieldProps {
@@ -28,40 +29,6 @@ function getInputPadding(size?: 'sm' | 'md' | 'lg'): string {
     case 'lg': return 'px-4 py-3';
     default: return 'px-3 py-2';
   }
-}
-
-function getFieldBorderRadius(style?: FieldStyleConfig): string {
-  if (!style?.borderRadius || style.borderRadius === 'none') return 'rounded-lg';
-  const map: Record<string, string> = {
-    sm: 'rounded-sm',
-    md: 'rounded-md',
-    lg: 'rounded-lg',
-    xl: 'rounded-xl',
-    '2xl': 'rounded-2xl',
-    full: 'rounded-full',
-  };
-  return map[style.borderRadius] || style.borderRadius;
-}
-
-function getFieldShadow(style?: FieldStyleConfig): string {
-  if (!style?.shadow || style.shadow === 'none') return '';
-  const map: Record<string, string> = {
-    sm: 'shadow-sm',
-    md: 'shadow-md',
-    lg: 'shadow-lg',
-  };
-  return map[style.shadow] || style.shadow;
-}
-
-function getFieldAnimation(style?: FieldStyleConfig): string {
-  if (!style?.animation || style.animation === 'none') return '';
-  const map: Record<string, string> = {
-    fade: 'animate-fade-in',
-    slide: 'animate-slide-up',
-    bounce: 'animate-slide-up',
-    pulse: 'animate-fade-in',
-  };
-  return map[style.animation] || '';
 }
 
 function buildContainerStyle(field: FieldSchema): React.CSSProperties {
@@ -271,7 +238,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             if (field.action === 'link' && field.href) window.open(field.href, '_blank');
           }}
           className={cn(
-            'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-200',
+            'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
             btnVariantMap[field.variant || 'primary'],

@@ -106,3 +106,34 @@ export function FieldTypeIcon({
   const Icon = fieldIcons[type] || Type;
   return <Icon className={className} />;
 }
+
+/**
+ * Human-readable label per field type — used by dashboard AppCard badges,
+ * the builder palette, and anywhere a type needs a display name.
+ *
+ * Single source of truth; previously duplicated in AppCard.tsx.
+ */
+export const fieldLabels: Record<string, string> = {
+  text: 'Text',
+  number: 'Number',
+  select: 'Select',
+  checkbox: 'Checkbox',
+  textarea: 'Textarea',
+  date: 'Date',
+  file: 'File',
+  slider: 'Slider',
+  toggle: 'Toggle',
+  email: 'Email',
+  phone: 'Phone',
+  url: 'URL',
+  color: 'Color',
+  rating: 'Rating',
+  heading: 'Heading',
+  paragraph: 'Paragraph',
+  divider: 'Divider',
+  spacer: 'Spacer',
+  image: 'Image',
+  card: 'Card',
+  button: 'Button',
+};
+

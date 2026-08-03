@@ -53,7 +53,7 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(74,63,53,0.3)] animate-fade-in">
       <div className="mx-4 w-full max-w-md animate-scale-in clay-card overflow-hidden">
         <div className="border-b border-clay-border/30 bg-clay-peach/50 px-6 py-4">
           <h2 className="text-lg font-bold text-foreground">Create New App</h2>
