@@ -64,6 +64,18 @@ export interface LandingSections {
   howItWorks: SectionHeading;
 }
 
+/** Builder palette category metadata (labels for ComponentPalette). */
+export interface PaletteCategoryMeta {
+  key: string;
+  label: string;
+}
+
+/** Builder palette field metadata (labels for ComponentPalette field types). */
+export interface PaletteFieldMeta {
+  type: string;
+  label: string;
+}
+
 export type SiteContentData =
   | NavLink[]
   | FooterColumn[]
@@ -72,7 +84,9 @@ export type SiteContentData =
   | StatItem[]
   | HeroContent
   | CtaContent
-  | LandingSections;
+  | LandingSections
+  | PaletteCategoryMeta[]
+  | PaletteFieldMeta[];
 
 export interface SiteContent {
   id: string;

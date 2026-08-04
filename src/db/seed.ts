@@ -267,6 +267,34 @@ function sliderField(id: string, label: string, min: number, max: number): Field
   };
 }
 
+function fileField(id: string, label: string): FieldSchema {
+  return {
+    id,
+    type: 'file',
+    label,
+    required: false,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function dividerField(id: string): FieldSchema {
+  return {
+    id,
+    type: 'divider',
+    label: 'Divider',
+    style: { borderRadius: 'none', shadow: 'none' },
+  };
+}
+
+function spacerField(id: string): FieldSchema {
+  return {
+    id,
+    type: 'spacer',
+    label: 'Spacer',
+    style: { borderRadius: 'none', shadow: 'none' },
+  };
+}
+
 // ─── App generators ───
 
 function createFeedbackApp(index: number): AppSchema {
@@ -553,6 +581,37 @@ function createTipApp(index: number): AppSchema {
   };
 }
 
+function createPortfolioApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Creative Portfolio Builder',
+    description:
+      'Showcase creative work with a project gallery, upload portfolio files, and collect feedback.',
+    prompt:
+      'Create a portfolio builder with project title, image, URL, file upload, divider, spacer, color picker, and rating.',
+    fields: [
+      headingField('pf-heading', 'Heading', 'h2', 'Showcase your work ✨'),
+      imageField('pf-cover', 'Cover image', pickFrom(imagePool, index, 4), 'Portfolio cover illustration'),
+      paragraphField('pf-intro', 'Intro', 'Add your best projects, upload supporting files, and collect ratings from visitors.'),
+      dividerField('pf-divider'),
+      textField('pf-project', 'Project Title', 'e.g. Clay Dashboard'),
+      urlField('pf-link', 'Project Link', 'https://your-project.com'),
+      fileField('pf-upload', 'Upload Portfolio (PDF)'),
+      spacerField('pf-spacer'),
+      colorField('pf-accent', 'Accent Color', pickFrom(pastelColors, index, 22)),
+      ratingField('pf-rating', 'Rate this portfolio'),
+      buttonField('pf-submit', 'Submit Portfolio', pickFrom(buttonVariants, index, 23)),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 864000000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
 // ─── Sample app list ───
 
 const sampleApps: AppSchema[] = [
@@ -565,6 +624,7 @@ const sampleApps: AppSchema[] = [
   createPetSurveyApp(6),
   createBmiApp(7),
   createTipApp(8),
+  createPortfolioApp(9),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -694,6 +754,43 @@ const seedContent: SiteContent[] = [
         subtitle: 'Three simple steps to go from idea to running micro-app.',
       },
     },
+  },
+  {
+    id: 'palette-categories',
+    type: 'palette-categories',
+    data: [
+      { key: 'input', label: 'Input Fields' },
+      { key: 'layout', label: 'Layout Elements' },
+      { key: 'content', label: 'Rich Content' },
+      { key: 'actions', label: 'Actions' },
+    ],
+  },
+  {
+    id: 'palette-fields',
+    type: 'palette-fields',
+    data: [
+      { type: 'text', label: 'Text' },
+      { type: 'number', label: 'Number' },
+      { type: 'select', label: 'Select' },
+      { type: 'checkbox', label: 'Checkbox' },
+      { type: 'textarea', label: 'Textarea' },
+      { type: 'date', label: 'Date' },
+      { type: 'file', label: 'File' },
+      { type: 'slider', label: 'Slider' },
+      { type: 'toggle', label: 'Toggle' },
+      { type: 'email', label: 'Email' },
+      { type: 'phone', label: 'Phone' },
+      { type: 'url', label: 'URL' },
+      { type: 'color', label: 'Color' },
+      { type: 'rating', label: 'Rating' },
+      { type: 'heading', label: 'Heading' },
+      { type: 'paragraph', label: 'Paragraph' },
+      { type: 'divider', label: 'Divider' },
+      { type: 'spacer', label: 'Spacer' },
+      { type: 'image', label: 'Image' },
+      { type: 'card', label: 'Card' },
+      { type: 'button', label: 'Button' },
+    ],
   },
 ];
 

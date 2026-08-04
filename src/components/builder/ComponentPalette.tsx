@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { FieldType } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
 import { FieldTypeIcon, typeColors } from '@/lib/fieldMeta';
+import { contentRepo, type PaletteCategoryMeta, type PaletteFieldMeta } from '@/db/contentRepo';
 
 interface FieldTypeItem {
   type: FieldType;
@@ -117,6 +119,48 @@ function DraggableField({ item }: DraggableFieldProps) {
 
 export default function ComponentPalette() {
   const { addField } = useAppStore();
+  const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({});
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>({});
+
+  // Load palette labels from IndexedDB (seeded via seedDatabase) — falls back to
+  // the hardcoded defaults below when the DB is empty or unavailable.
+  useEffect(() => {
+    contentRepo
+      .getByType('palette-fields')
+      .then((content) => {
+        if (content && Array.isArray(content.data)) {
+          const map: Record<string, string> = {};
+          (content.data as PaletteFieldMeta[]).forEach((f) => {
+            map[f.type] = f.label;
+          });
+          setFieldLabels(map);
+        }
+      })
+      .catch(() => {});
+
+    contentRepo
+      .getByType('palette-categories')
+      .then((content) => {
+        if (content && Array.isArray(content.data)) {
+          const map: Record<string, string> = {};
+          (content.data as PaletteCategoryMeta[]).forEach((c) => {
+            map[c.key] = c.label;
+          });
+          setCategoryLabels(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Resolve labels — DB override wins, hardcoded default is the fallback.
+  const resolvedFieldTypes: FieldTypeItem[] = FIELD_TYPES.map((f) => ({
+    ...f,
+    label: fieldLabels[f.type] || f.label,
+  }));
+  const resolvedCategories = CATEGORIES.map((c) => ({
+    ...c,
+    label: categoryLabels[c.key] || c.label,
+  }));
 
   const handleQuickAdd = (type: FieldType, label: string) => {
     const baseField: Record<string, unknown> = { type, label: `New ${label}` };
@@ -145,8 +189,8 @@ export default function ComponentPalette() {
 
       {/* Palette content */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {CATEGORIES.map((category) => {
-          const items = FIELD_TYPES.filter((f) => f.category === category.key);
+        {resolvedCategories.map((category) => {
+          const items = resolvedFieldTypes.filter((f) => f.category === category.key);
           return (
             <div
               key={category.key}
