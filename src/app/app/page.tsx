@@ -261,7 +261,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {/* Sort Dropdown */}
             <div className="relative" ref={sortMenuRef}>
               <button
@@ -294,7 +294,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Page Size Selector */}
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <Columns3 className="h-3.5 w-3.5 text-clay-muted" />
               {PAGE_SIZES.map((size) => (
                 <button

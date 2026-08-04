@@ -187,6 +187,28 @@ function LivePreview({
 
 // ─── Main AppRunner component ───────────────────────────────────────────────
 
+// Build default values for every field — shared by the initial load and Reset
+// so both code paths stay in sync when new field types are added.
+function buildInitialValues(app: AppSchema): Record<string, unknown> {
+  const initial: Record<string, unknown> = {};
+  for (const field of app.fields) {
+    if (field.defaultValue !== undefined) {
+      initial[field.id] = field.defaultValue;
+    } else if (field.type === 'checkbox' || field.type === 'toggle') {
+      initial[field.id] = false;
+    } else if (field.type === 'number' || field.type === 'slider') {
+      initial[field.id] = field.min ?? 0;
+    } else if (field.type === 'color') {
+      initial[field.id] = field.color || '#D5B8F5';
+    } else if (field.type === 'rating') {
+      initial[field.id] = 0;
+    } else {
+      initial[field.id] = '';
+    }
+  }
+  return initial;
+}
+
 export default function AppRunner({ app }: AppRunnerProps) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [result, setResult] = useState<EngineResult | null>(null);
@@ -201,26 +223,11 @@ export default function AppRunner({ app }: AppRunnerProps) {
 
   // Initialize default values
   useEffect(() => {
-    const initial: Record<string, unknown> = {};
-    for (const field of app.fields) {
-      if (field.defaultValue !== undefined) {
-        initial[field.id] = field.defaultValue;
-      } else if (field.type === 'checkbox' || field.type === 'toggle') {
-        initial[field.id] = false;
-      } else if (field.type === 'number' || field.type === 'slider') {
-        initial[field.id] = field.min ?? 0;
-      } else if (field.type === 'color') {
-        initial[field.id] = field.color || '#D5B8F5';
-      } else if (field.type === 'rating') {
-        initial[field.id] = 0;
-      } else {
-        initial[field.id] = '';
-      }
-    }
+    const initial = buildInitialValues(app);
     setValues(initial);
     setResult(null);
     setErrors({});
-  }, [app.id, app.fields]);
+  }, [app]);
 
   // Real-time live computation
   const liveResult = useMemo(() => {
@@ -277,26 +284,11 @@ export default function AppRunner({ app }: AppRunnerProps) {
   }, [app, values]);
 
   const handleReset = useCallback(() => {
-    const initial: Record<string, unknown> = {};
-    for (const field of app.fields) {
-      if (field.defaultValue !== undefined) {
-        initial[field.id] = field.defaultValue;
-      } else if (field.type === 'checkbox' || field.type === 'toggle') {
-        initial[field.id] = false;
-      } else if (field.type === 'number' || field.type === 'slider') {
-        initial[field.id] = field.min ?? 0;
-      } else if (field.type === 'color') {
-        initial[field.id] = field.color || '#D5B8F5';
-      } else if (field.type === 'rating') {
-        initial[field.id] = 0;
-      } else {
-        initial[field.id] = '';
-      }
-    }
+    const initial = buildInitialValues(app);
     setValues(initial);
     setResult(null);
     setErrors({});
-  }, [app.fields]);
+  }, [app]);
 
   const handleShare = useCallback(() => {
     const url = window.location.href;
@@ -461,7 +453,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                   <button
                     onClick={handleSubmit}
                     disabled={running}
-                    className="flex items-center gap-2 min-w-[130px] h-11 px-6 rounded-xl text-sm font-medium clay-button bg-clay-purple transition-all hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 min-w-[130px] h-11 px-6 text-sm font-medium clay-button bg-clay-purple disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ color: 'var(--clay-foreground)' }}
                   >
                     {running ? (
@@ -479,7 +471,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                   <button
                     onClick={handleReset}
                     disabled={running}
-                    className="flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium clay-sm bg-clay-peach/50 hover:bg-clay-peach/70 transition-all disabled:opacity-60"
+                    className="flex items-center gap-2 h-11 px-5 text-sm font-medium clay-button bg-clay-peach/50 hover:bg-clay-peach/70 disabled:opacity-60"
                     style={{ color: 'var(--clay-foreground)' }}
                   >
                     <RotateCcw className="h-4 w-4" />
@@ -529,10 +521,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                         {running ? 'Processing...' : result?.errors.length === 0 ? 'Success' : 'Validation Errors'}
                       </span>
                       {result && (
-                        <span className={cn(
-                          'text-[11px] ml-2',
-                          result.errors.length === 0 ? 'text-clay-foreground' : ''
-                        )} style={{ color: result.errors.length === 0 ? 'var(--clay-foreground)' : 'var(--clay-foreground)' }}>
+                        <span className="text-[11px] ml-2" style={{ color: 'var(--clay-foreground)' }}>
                           {result.errors.length === 0
                             ? 'All fields valid'
                             : `${result.errors.length} error${result.errors.length !== 1 ? 's' : ''} found`}
