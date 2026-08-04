@@ -555,7 +555,7 @@ function createTipApp(index: number): AppSchema {
 
 // ─── Sample app list ───
 
-const sampleApps: AppSchema[] = [
+export const sampleApps: AppSchema[] = [
   createFeedbackApp(0),
   createPizzaOrderApp(1),
   createMoodTrackerApp(2),
@@ -569,7 +569,7 @@ const sampleApps: AppSchema[] = [
 
 // ─── Content seed data (migrated from hardcoded component data) ───
 
-const seedContent: SiteContent[] = [
+export const seedContent: SiteContent[] = [
   {
     id: 'nav-links',
     type: 'nav-links',
