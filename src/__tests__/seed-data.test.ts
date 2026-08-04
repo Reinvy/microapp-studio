@@ -168,7 +168,7 @@ describe('Seed Data — SiteContent Navigation Integrity', () => {
     if (navContent && navContent.data) {
       const links = Array.isArray(navContent.data)
         ? navContent.data
-        : ((navContent.data as Record<string, unknown>).links as Array<{ href?: string }>) ?? [];
+        : ((navContent.data as unknown as Record<string, unknown>).links as Array<{ href?: string }>) ?? [];
       expect(links.length).toBeGreaterThan(0);
       for (const link of links) {
         const href = (link as { href?: string }).href ?? '';

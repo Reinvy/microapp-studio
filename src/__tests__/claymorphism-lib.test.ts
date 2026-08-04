@@ -165,8 +165,9 @@ describe('Claymorphism — Deterministic Palette Pickers', () => {
 
   it('pickPastel and pickPastelClass agree for the same seed (same palette index)', () => {
     const seed = 'hero-card';
-    const colorIndex = pastelPalette.indexOf(pickPastel(seed));
-    const classIndex = pastelBgClasses.indexOf(pickPastelClass(seed));
+    // Widen to string[] — pickPastel returns string, the palette is a const tuple
+    const colorIndex = (pastelPalette as readonly string[]).indexOf(pickPastel(seed));
+    const classIndex = (pastelBgClasses as readonly string[]).indexOf(pickPastelClass(seed));
     expect(colorIndex).toBe(classIndex);
   });
 });
