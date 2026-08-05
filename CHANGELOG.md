@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-08-05] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency check: `npm outdated` — only major-only updates available (`typescript` 5→7, `eslint` 9→10, `@types/node` 20→26) — skipped per no-major policy; bumped `dompurify` ^3.4.12 → ^3.4.13 (safe patch, latest)
+- Code cleanup: removed dead code (unused, 0 references in `src/`):
+  - `src/components/ui/badge.tsx`
+  - `src/components/ui/card.tsx`
+  - `src/components/ui/select.tsx`
+  - `src/components/ui/tabs.tsx`
+  - `src/lib/validation.ts`
+- No TODO/FIXME/deprecated markers found in `src/`; no unused imports found (eslint `no-unused-vars` clean — remaining warnings are interface-member false positives or intentional interface-satisfaction params)
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-04] — Feature & Scalability
 
 ### Added
