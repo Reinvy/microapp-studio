@@ -18,6 +18,11 @@ import { serializeBackup, parseBackup, type ImportSummary } from '@/lib/backup';
  * - **Mutation epochs**: every create/update/delete bumps the epoch and clears
  *   the cache; in-flight reads that complete AFTER a mutation are dropped, so
  *   stale data can never re-populate the cache.
+ * - **Bounded LRU cache**: the cache is capped at CACHE_MAX_ENTRIES entries.
+ *   Every read (fresh or SWR hit) marks its key as most-recently-used; when a
+ *   write would exceed the cap, the least-recently-used entry is evicted. This
+ *   keeps memory bounded on long sessions that page/sort/search across many
+ *   distinct keys, while hot keys stay cached.
  * - Error handling & retry on writes, plus a subscription bus so the UI can
  *   react to background revalidations and cross-component mutations.
  */
@@ -37,15 +42,55 @@ const CACHE_TTL = 5_000; // 5 seconds
  */
 const SWR_MAX_AGE = 30_000; // 30 seconds
 
+/**
+ * Maximum number of cache entries kept before LRU eviction kicks in. The
+ * dashboard pages/sorts/searches across many distinct keys (one entry per
+ * query × page × pageSize × sort combination); this cap bounds memory on
+ * long-lived sessions without hurting hot-key hit rates.
+ */
+const CACHE_MAX_ENTRIES = 50;
+
 class AppService {
   private cache: Map<string, CacheEntry<unknown>> = new Map();
+  /** LRU cap — configurable via createAppService(maxEntries) for tests. */
+  private readonly maxEntries: number;
   /** In-flight promise per cache key — coalesces concurrent identical queries. */
   private inFlight: Map<string, Promise<unknown>> = new Map();
   private listeners: Set<() => void> = new Set();
   /** Mutation epoch — bumped on every write so stale in-flight reads are dropped. */
   private epoch = 0;
 
+  constructor(maxEntries: number = CACHE_MAX_ENTRIES) {
+    this.maxEntries = Math.max(1, maxEntries);
+  }
+
   // ── Cache + query-coalescing core ──
+
+  /**
+   * Mark a key as most-recently-used. Map preserves insertion order, so
+   * delete + re-set moves the key to the end (MRU position).
+   */
+  private touch(key: string): void {
+    const entry = this.cache.get(key);
+    if (entry) {
+      this.cache.delete(key);
+      this.cache.set(key, entry);
+    }
+  }
+
+  /** Evict least-recently-used entries until the cache is under the cap. */
+  private evictIfNeeded(): void {
+    while (this.cache.size > this.maxEntries) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest === undefined) break;
+      this.cache.delete(oldest);
+    }
+  }
+
+  /** Number of entries currently held — observability/tests. */
+  getCacheSize(): number {
+    return this.cache.size;
+  }
 
   /**
    * Read-through helper implementing fresh-hit → coalesce → SWR → miss.
@@ -63,6 +108,7 @@ class AppService {
 
     // 1. Fresh cache hit → serve instantly, no DB touch.
     if (entry && entry.epoch === epoch && Date.now() - entry.timestamp <= CACHE_TTL) {
+      this.touch(key);
       return entry.data;
     }
 
@@ -74,6 +120,7 @@ class AppService {
 
     // 3. Stale-but-usable → serve instantly, revalidate in the background.
     if (entry && entry.epoch === epoch && Date.now() - entry.timestamp <= SWR_MAX_AGE) {
+      this.touch(key);
       const promise = this.fetchAndCache(key, fetcher, epoch, entry.data, true);
       this.inFlight.set(key, promise);
       return entry.data;
@@ -116,6 +163,7 @@ class AppService {
   private writeCache<T>(key: string, data: T, epoch: number): void {
     if (epoch !== this.epoch) return;
     this.cache.set(key, { data, timestamp: Date.now(), epoch });
+    this.evictIfNeeded();
   }
 
   private clearCache(): void {
@@ -275,10 +323,11 @@ class AppService {
 /**
  * Create a fresh service instance. Exported so tests can construct isolated
  * instances (clean cache + in-flight state) without shared-singleton leakage.
+ * `maxEntries` overrides the LRU cache cap (defaults to CACHE_MAX_ENTRIES).
  * Production code uses the singleton below.
  */
-export function createAppService(): AppService {
-  return new AppService();
+export function createAppService(maxEntries?: number): AppService {
+  return maxEntries === undefined ? new AppService() : new AppService(maxEntries);
 }
 
 /** Singleton instance */

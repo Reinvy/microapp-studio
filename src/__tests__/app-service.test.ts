@@ -198,6 +198,88 @@ describe('AppService read caching', () => {
   });
 });
 
+describe('AppService bounded LRU cache', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('keeps the cache bounded at the configured cap across many distinct queries', async () => {
+    const service = createAppService(3);
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('a')]));
+
+    for (let page = 1; page <= 10; page++) {
+      await service.getApps(page, 12);
+    }
+
+    expect(service.getCacheSize()).toBe(3);
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(10);
+  });
+
+  it('evicts the least-recently-used entry when the cache exceeds its cap', async () => {
+    const service = createAppService(3);
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('a')]));
+
+    // Fill the cache: pages 1, 2, 3 → 3 entries.
+    await service.getApps(1, 12);
+    await service.getApps(2, 12);
+    await service.getApps(3, 12);
+    expect(service.getCacheSize()).toBe(3);
+
+    // Page 4 evicts the LRU entry (page 1).
+    await service.getApps(4, 12);
+    expect(service.getCacheSize()).toBe(3);
+
+    // Page 1 was evicted → re-fetch hits the DB again.
+    await service.getApps(1, 12);
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(5);
+  });
+
+  it('a fresh read marks the key as recently used and protects it from eviction', async () => {
+    const service = createAppService(3);
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('a')]));
+
+    await service.getApps(1, 12);
+    await service.getApps(2, 12);
+    await service.getApps(3, 12);
+
+    // Re-read page 1 while fresh → touched, becomes MRU.
+    await service.getApps(1, 12);
+
+    // Page 4 evicts the NEW LRU (page 2), not the recently-touched page 1.
+    await service.getApps(4, 12);
+
+    // Page 2 must re-fetch (evicted)…
+    await service.getApps(2, 12);
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(5);
+
+    // …but page 1 is still cached fresh — no extra DB call.
+    await service.getApps(1, 12);
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(5);
+  });
+
+  it('an evicted key re-fetches fresh data and re-caches correctly', async () => {
+    const service = createAppService(2);
+    vi.mocked(microAppRepo.getPaginated)
+      .mockResolvedValueOnce(pageResult([makeApp('a')]))
+      .mockResolvedValueOnce(pageResult([makeApp('b')]))
+      .mockResolvedValueOnce(pageResult([makeApp('c')]))
+      .mockResolvedValueOnce(pageResult([makeApp('x', 'fresh-a')]));
+
+    await service.getApps(1, 12); // caches a
+    await service.getApps(2, 12); // caches b
+    await service.getApps(3, 12); // evicts a
+
+    const refetched = await service.getApps(1, 12); // miss → fresh fetch
+    expect(refetched.items[0].name).toBe('fresh-a');
+    expect(service.getCacheSize()).toBe(2);
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(4);
+  });
+});
+
 describe('AppService mutation invalidation', () => {
   beforeEach(() => {
     vi.resetAllMocks();
