@@ -483,8 +483,8 @@ export default function AppRunner({ app }: AppRunnerProps) {
           </div>
 
           {/* ── Live Preview (desktop: sidebar, mobile: below) ────────────── */}
-          <div className="lg:w-[340px] xl:w-[380px] shrink-0">
-            <div className="lg:sticky lg:top-24">
+          <div className="lg:w-[340px] xl:w-[380px] shrink-0 lg:flex lg:flex-col">
+            <div className="lg:sticky lg:top-24 lg:flex-1">
               <LivePreview
                 values={values}
                 liveResult={liveResult}

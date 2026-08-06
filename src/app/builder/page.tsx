@@ -271,21 +271,18 @@ function BuilderContent() {
       </DndContext>
 
       {/* Mobile tab bar (<768px) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex rounded-t-2xl border-t border-clay-border/30 bg-[var(--clay-card)] shadow-[0_-4px_12px_rgba(174,162,146,0.15)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex gap-1 rounded-t-2xl border-t border-clay-border/30 bg-[var(--clay-card)] p-1.5 shadow-[0_-4px_12px_rgba(174,162,146,0.15)]">
         {TAB_ITEMS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActivePanel(tab.key)}
             className={cn(
-              'flex-1 flex flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition-colors relative',
+              'flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-all rounded-2xl',
               activePanel === tab.key
-                ? 'text-foreground'
-                : 'text-clay-muted hover:text-foreground'
+                ? 'text-foreground bg-clay-cream/80 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
+                : 'text-clay-muted hover:text-foreground hover:bg-clay-cream/40 active:scale-95'
             )}
           >
-            {activePanel === tab.key && (
-              <span className="absolute -top-px left-1/4 right-1/4 h-0.5 rounded-full bg-[#D5B8F5]" />
-            )}
             {tab.icon}
             <span>{tab.label}</span>
           </button>
