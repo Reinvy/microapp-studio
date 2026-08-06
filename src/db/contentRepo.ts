@@ -64,6 +64,19 @@ export interface LandingSections {
   howItWorks: SectionHeading;
 }
 
+export interface EmptyStateCopy {
+  /** Title shown when the dashboard has zero apps. */
+  emptyTitle: string;
+  /** Subtitle shown when the dashboard has zero apps. */
+  emptySubtitle: string;
+  /** CTA label for creating the first app. */
+  ctaLabel: string;
+  /** Title shown when a search returns no matches. */
+  noResultsTitle: string;
+  /** Subtitle shown when a search returns no matches. */
+  noResultsSubtitle: string;
+}
+
 export type SiteContentData =
   | NavLink[]
   | FooterColumn[]
@@ -72,7 +85,8 @@ export type SiteContentData =
   | StatItem[]
   | HeroContent
   | CtaContent
-  | LandingSections;
+  | LandingSections
+  | EmptyStateCopy;
 
 export interface SiteContent {
   id: string;

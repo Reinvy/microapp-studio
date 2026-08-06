@@ -8,6 +8,7 @@ import { appService } from '@/services/appService';
 import type { AppSchema } from '@/types/schema';
 import type { SortConfig, PageSize } from '@/services/dashboardSortService';
 import { DEFAULT_SORT, SORT_OPTIONS, PAGE_SIZES, DEFAULT_PAGE_SIZE, getSortLabel } from '@/services/dashboardSortService';
+import { contentRepo, type EmptyStateCopy } from '@/db/contentRepo';
 import AppCard from '@/components/dashboard/AppCard';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import {
@@ -50,6 +51,15 @@ export default function DashboardPage() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  // Empty-state copy is DB-driven ('dashboard-empty' via contentRepo) — fallback keeps first paint intact
+  const [emptyCopy, setEmptyCopy] = useState<EmptyStateCopy>({
+    emptyTitle: 'No apps yet',
+    emptySubtitle:
+      "Create your first micro-app with AI — describe what you want to build and we'll generate it for you.",
+    ctaLabel: 'Create Your First App',
+    noResultsTitle: 'No matching apps',
+    noResultsSubtitle: 'Try a different search term or clear the filter.',
+  });
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -84,6 +94,15 @@ export default function DashboardPage() {
   useEffect(() => {
     viewRef.current = { searchQuery, page, pageSize, sort };
   });
+
+  useEffect(() => {
+    // Load DB-driven empty-state copy — falls back to the default above if unseeded
+    contentRepo.getByType('dashboard-empty').then((content) => {
+      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
+        setEmptyCopy(content.data as EmptyStateCopy);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Subscribe once to the service layer's refresh bus. The grid re-loads the
   // current view whenever data changes — background SWR revalidations,
@@ -326,18 +345,18 @@ export default function DashboardPage() {
               <Sparkles className="h-8 w-8 text-foreground" />
             </div>
             <h3 className="text-lg font-semibold text-foreground">
-              {searchQuery.trim() ? 'No matching apps' : 'No apps yet'}
+              {searchQuery.trim() ? emptyCopy.noResultsTitle : emptyCopy.emptyTitle}
             </h3>
             <p className="mt-1 max-w-sm text-sm text-clay-muted">
               {searchQuery.trim()
-                ? 'Try a different search term or clear the filter.'
-                : 'Create your first micro-app with AI — describe what you want to build and we\'ll generate it for you.'}
+                ? emptyCopy.noResultsSubtitle
+                : emptyCopy.emptySubtitle}
             </p>
             {!searchQuery.trim() && (
               <button onClick={() => setShowNewDialog(true)}
                 className="clay-button mt-6 flex items-center gap-2 px-4 h-10 text-sm font-medium text-foreground bg-[#D5B8F5]">
                 <Plus className="h-4 w-4" />
-                Create Your First App
+                {emptyCopy.ctaLabel}
               </button>
             )}
           </div>

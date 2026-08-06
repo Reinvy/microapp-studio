@@ -267,6 +267,49 @@ function sliderField(id: string, label: string, min: number, max: number): Field
   };
 }
 
+function fileField(id: string, label: string, placeholder: string): FieldSchema {
+  return {
+    id,
+    type: 'file',
+    label,
+    placeholder,
+    required: true,
+    style: { borderRadius: 'lg' },
+  };
+}
+
+function dividerField(id: string, label: string): FieldSchema {
+  return {
+    id,
+    type: 'divider',
+    label,
+    style: { borderRadius: 'none', shadow: 'none' },
+  };
+}
+
+function spacerField(id: string, label: string, height: number): FieldSchema {
+  return {
+    id,
+    type: 'spacer',
+    label,
+    min: height,
+    style: { borderRadius: 'none', shadow: 'none' },
+  };
+}
+
+function cardField(id: string, label: string, content: string): FieldSchema {
+  return {
+    id,
+    type: 'card',
+    label,
+    content,
+    bgColor: '#FFFFFFF5',
+    borderRadius: '2xl',
+    shadow: 'md',
+    style: { borderRadius: '2xl', shadow: 'md', bgColor: '#FFFFFFF5' },
+  };
+}
+
 // ─── App generators ───
 
 function createFeedbackApp(index: number): AppSchema {
@@ -555,6 +598,75 @@ function createTipApp(index: number): AppSchema {
 
 // ─── Sample app list ───
 
+function createJobApplicationApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Job Application Form',
+    description:
+      'A polished job application with resume file upload, contact fields, position select, and a referral card.',
+    prompt:
+      'Create a job application form with resume file upload, contact fields, and position selection.',
+    fields: [
+      headingField('ja-heading', 'Heading', 'h2', 'Join the clay team 🧱'),
+      paragraphField('ja-intro', 'Intro', 'Fill in your details below and attach your resume. We usually reply within a week.'),
+      dividerField('ja-divider', 'Divider'),
+      textField('ja-name', 'Full Name', 'e.g. Jordan Lee'),
+      emailField('ja-email', 'Email Address', 'you@example.com'),
+      phoneField('ja-phone', 'Phone Number', '+62 812 3456 7890'),
+      fileField('ja-resume', 'Resume / CV', 'PDF or DOCX, max 5MB'),
+      selectField('ja-position', 'Position', ['Frontend Engineer', 'Backend Engineer', 'Product Designer', 'QA Engineer', 'DevOps']),
+      toggleField('ja-relocate', 'Willing to relocate?'),
+      spacerField('ja-spacer', 'Spacer', 24),
+      cardField('ja-card', 'Referral', 'Know someone at the company? Add their name below.'),
+      textField('ja-referral', 'Referral Name', 'Optional'),
+      colorField('ja-color', 'Favorite pastel', pickFrom(pastelColors, index, 22)),
+      buttonField('ja-submit', 'Submit Application', pickFrom(buttonVariants, index, 23)),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 864000000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createMealPlannerApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Weekly Meal Planner',
+    description:
+      'Plan weekly meals with meal type select, ingredient checkboxes, servings, spice level, and a rating.',
+    prompt:
+      'Create a weekly meal planner with meal type select, ingredient checklist, and servings number.',
+    fields: [
+      headingField('mp-heading', 'Heading', 'h2', 'Meal Planner 🥗'),
+      imageField('mp-image', 'Inspiration', pickFrom(imagePool, index, 4), 'Healthy meal prep'),
+      paragraphField('mp-intro', 'Intro', 'Pick a meal, choose your ingredients, and set servings for the week.'),
+      dividerField('mp-divider', 'Divider'),
+      selectField('mp-meal', 'Meal Type', ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert']),
+      checkboxField('mp-proteins', 'Proteins'),
+      checkboxField('mp-veggies', 'Veggies'),
+      checkboxField('mp-carbs', 'Carbs / Grains'),
+      checkboxField('mp-dairy', 'Dairy'),
+      numberField('mp-servings', 'Servings', 1, 12),
+      sliderField('mp-spice', 'Spice Level', 0, 5),
+      spacerField('mp-spacer', 'Spacer', 16),
+      ratingField('mp-rating', 'Rate this plan'),
+      colorField('mp-color', 'Theme Color', pickFrom(pastelColors, index, 24)),
+      buttonField('mp-save', 'Save Plan', pickFrom(buttonVariants, index, 25)),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 950400000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
 export const sampleApps: AppSchema[] = [
   createFeedbackApp(0),
   createPizzaOrderApp(1),
@@ -565,6 +677,8 @@ export const sampleApps: AppSchema[] = [
   createPetSurveyApp(6),
   createBmiApp(7),
   createTipApp(8),
+  createJobApplicationApp(9),
+  createMealPlannerApp(10),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -693,6 +807,18 @@ export const seedContent: SiteContent[] = [
         highlight: 'works',
         subtitle: 'Three simple steps to go from idea to running micro-app.',
       },
+    },
+  },
+  {
+    id: 'dashboard-empty',
+    type: 'dashboard-empty',
+    data: {
+      emptyTitle: 'No apps yet',
+      emptySubtitle:
+        "Create your first micro-app with AI — describe what you want to build and we'll generate it for you.",
+      ctaLabel: 'Create Your First App',
+      noResultsTitle: 'No matching apps',
+      noResultsSubtitle: 'Try a different search term or clear the filter.',
     },
   },
 ];

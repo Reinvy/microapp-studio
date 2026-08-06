@@ -87,6 +87,19 @@ describe('Seed Data — FieldSchema Validation (DB data)', () => {
     }
   });
 
+  it('seed covers the full field-type variety (file, divider, spacer, card)', () => {
+    const types = new Set(allFields.map((f) => f.type));
+    expect(types.has('file')).toBe(true);
+    expect(types.has('divider')).toBe(true);
+    expect(types.has('spacer')).toBe(true);
+    expect(types.has('card')).toBe(true);
+    expect(types.has('heading')).toBe(true);
+    expect(types.has('image')).toBe(true);
+    expect(types.has('button')).toBe(true);
+    expect(types.has('color')).toBe(true);
+    expect(types.has('rating')).toBe(true);
+  });
+
   it('required text fields reject empty values via validateField', () => {
     const requiredText = allFields.find(
       (f) => f.type === 'text' && f.required
