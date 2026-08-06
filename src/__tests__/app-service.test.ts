@@ -280,6 +280,153 @@ describe('AppService bounded LRU cache', () => {
   });
 });
 
+describe('AppService prefetch (predictive cache warming)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('warms the cache so a later getApps for the same page skips the DB', async () => {
+    const service = makeService();
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('a')]));
+
+    service.prefetchApps(2, 12);
+    await flush();
+
+    // Prefetched page is now a fresh cache hit.
+    expect(service.hasCachedPage(2, 12)).toBe(true);
+    const result = await service.getApps(2, 12);
+    expect(result.items[0].id).toBe('a');
+    // One DB call for the prefetch; the real read was served from cache.
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(1);
+  });
+
+  it('is silent — prefetching never notifies subscribers', async () => {
+    const service = makeService();
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('a')]));
+
+    const listener = vi.fn();
+    const unsubscribe = service.subscribe(listener);
+
+    service.prefetchApps(2, 12);
+    await flush();
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('no-ops when the page is already cached fresh', async () => {
+    const service = makeService();
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('a')]));
+
+    // Real read populates the cache…
+    await service.getApps(1, 12);
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(1);
+
+    // …so prefetching the same page must not hit the DB again.
+    service.prefetchApps(1, 12);
+    await flush();
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces with an in-flight read — one DB round-trip total', async () => {
+    const service = makeService();
+    let resolveRead!: (r: PaginatedResult<AppSchema>) => void;
+    vi.mocked(microAppRepo.getPaginated).mockImplementation(
+      () => new Promise((res) => (resolveRead = res))
+    );
+
+    const read = service.getApps(3, 12);
+    service.prefetchApps(3, 12); // same key → joins the in-flight read
+    resolveRead(pageResult([makeApp('a')]));
+    await read;
+    await flush();
+
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(1);
+    expect(service.hasCachedPage(3, 12)).toBe(true);
+  });
+
+  it('swallows fetch failures and leaves the cache cold for a real read', async () => {
+    const service = makeService();
+    vi.mocked(microAppRepo.getPaginated)
+      .mockRejectedValueOnce(new Error('IndexedDB unavailable'))
+      .mockResolvedValueOnce(pageResult([makeApp('ok')]));
+
+    // Best-effort: must NOT throw even though the fetch fails.
+    service.prefetchApps(4, 12);
+    await flush();
+
+    expect(service.hasCachedPage(4, 12)).toBe(false);
+
+    // The next real read re-fetches on demand and succeeds.
+    const result = await service.getApps(4, 12);
+    expect(result.items[0].id).toBe('ok');
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(2);
+  });
+
+  it('prefetchSearch warms search keys for a query page', async () => {
+    const service = makeService();
+    vi.mocked(microAppRepo.search).mockResolvedValue(pageResult([makeApp('s')]));
+
+    service.prefetchSearch('clay', 2, 12);
+    await flush();
+
+    const result = await service.searchApps('clay', 2, 12);
+    expect(result.items[0].id).toBe('s');
+    expect(microAppRepo.search).toHaveBeenCalledTimes(1);
+  });
+
+  it('prefetchSearch ignores empty queries (no DB call)', async () => {
+    const service = makeService();
+
+    service.prefetchSearch('   ', 2, 12);
+    await flush();
+
+    expect(microAppRepo.search).not.toHaveBeenCalled();
+  });
+
+  it('drops prefetched data that resolves after a mutation (epoch guard)', async () => {
+    const service = makeService();
+    let resolvePrefetch!: (r: PaginatedResult<AppSchema>) => void;
+    vi.mocked(microAppRepo.getPaginated).mockImplementation(
+      () => new Promise((res) => (resolvePrefetch = res))
+    );
+    vi.mocked(microAppRepo.create).mockResolvedValue(undefined);
+
+    // Start a slow prefetch, then mutate before it resolves.
+    service.prefetchApps(2, 12);
+    await service.createApp(makeApp('b'));
+    resolvePrefetch(pageResult([makeApp('stale')]));
+    await flush();
+
+    // The stale prefetch must NOT be cached — next read re-fetches fresh.
+    expect(service.hasCachedPage(2, 12)).toBe(false);
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('fresh')]));
+    const result = await service.getApps(2, 12);
+    expect(result.items[0].id).toBe('fresh');
+  });
+
+  it('prefetched pages respect LRU eviction alongside real reads', async () => {
+    const service = createAppService(3);
+    vi.mocked(microAppRepo.getPaginated).mockResolvedValue(pageResult([makeApp('a')]));
+
+    // Two real reads + one prefetch → 3 entries at the cap.
+    await service.getApps(1, 12);
+    await service.getApps(2, 12);
+    service.prefetchApps(3, 12);
+    await flush();
+    expect(service.getCacheSize()).toBe(3);
+
+    // A fourth read evicts the LRU entry; cache stays bounded.
+    await service.getApps(4, 12);
+    expect(service.getCacheSize()).toBe(3);
+    expect(microAppRepo.getPaginated).toHaveBeenCalledTimes(4);
+  });
+});
+
 describe('AppService mutation invalidation', () => {
   beforeEach(() => {
     vi.resetAllMocks();

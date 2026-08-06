@@ -183,6 +183,23 @@ class AppService {
     this.listeners.forEach((fn) => fn());
   }
 
+  // ── Cache-key builders ──
+
+  /** Cache key for a paginated apps query. */
+  private pageKey(page: number, pageSize: number, sort?: SortConfig): string {
+    return `apps:${page}:${pageSize}:${sort?.field || 'updatedAt'}:${sort?.direction || 'desc'}`;
+  }
+
+  /** Cache key for a paginated search query. */
+  private searchKey(
+    query: string,
+    page: number,
+    pageSize: number,
+    sort?: SortConfig
+  ): string {
+    return `search:${query}:${page}:${pageSize}:${sort?.field || 'updatedAt'}:${sort?.direction || 'desc'}`;
+  }
+
   // ── Public API ──
 
   /** Get paginated apps with SWR caching + query coalescing */
@@ -191,7 +208,7 @@ class AppService {
     pageSize: number = 12,
     sort?: SortConfig
   ): Promise<PaginatedResult<AppSchema>> {
-    const cacheKey = `apps:${page}:${pageSize}:${sort?.field || 'updatedAt'}:${sort?.direction || 'desc'}`;
+    const cacheKey = this.pageKey(page, pageSize, sort);
     return this.readThrough(cacheKey, () => microAppRepo.getPaginated(page, pageSize, sort));
   }
 
@@ -202,7 +219,7 @@ class AppService {
     pageSize: number = 12,
     sort?: SortConfig
   ): Promise<PaginatedResult<AppSchema>> {
-    const cacheKey = `search:${query}:${page}:${pageSize}:${sort?.field || 'updatedAt'}:${sort?.direction || 'desc'}`;
+    const cacheKey = this.searchKey(query, page, pageSize, sort);
     return this.readThrough(cacheKey, () => microAppRepo.search(query, page, pageSize, sort));
   }
 
@@ -271,6 +288,85 @@ class AppService {
     if (ids.length === 0) return [];
     const cacheKey = `apps:ids:${[...ids].sort().join(',')}`;
     return this.readThrough(cacheKey, () => microAppRepo.getByIds(ids));
+  }
+
+  /**
+   * Predictive prefetch — warm the cache for a page the user is likely to
+   * visit next (e.g. page + 1 on the dashboard) without blocking the UI or
+   * notifying subscribers.
+   *
+   * - No-ops when the key is already fresh or a fetch is already in flight
+   *   (query coalescing is reused, so a prefetch and a real read for the
+   *   same page share ONE IndexedDB round-trip).
+   * - Runs entirely in the background: returns immediately; the fetch is
+   *   scheduled, not awaited.
+   * - Best-effort: a failed prefetch logs at debug level and never surfaces
+   *   to the UI — the cache simply stays cold and the next real read fetches
+   *   on demand.
+   */
+  prefetchApps(page: number, pageSize: number, sort?: SortConfig): void {
+    this.warmCache(this.pageKey(page, pageSize, sort), () =>
+      microAppRepo.getPaginated(page, pageSize, sort)
+    );
+  }
+
+  /** Predictive prefetch for a search-query page (see prefetchApps). */
+  prefetchSearch(
+    query: string,
+    page: number,
+    pageSize: number,
+    sort?: SortConfig
+  ): void {
+    if (!query.trim()) return;
+    this.warmCache(this.searchKey(query, page, pageSize, sort), () =>
+      microAppRepo.search(query, page, pageSize, sort)
+    );
+  }
+
+  /**
+   * True when the given page query is served by a fresh cache entry (no DB
+   * round-trip needed). Lets the dashboard decide whether to prefetch and
+   * lets tests assert warming without counting DB calls.
+   */
+  hasCachedPage(page: number, pageSize: number, sort?: SortConfig): boolean {
+    const key = this.pageKey(page, pageSize, sort);
+    const entry = this.cache.get(key) as CacheEntry<unknown> | undefined;
+    return (
+      !!entry &&
+      entry.epoch === this.epoch &&
+      Date.now() - entry.timestamp <= CACHE_TTL
+    );
+  }
+
+  /**
+   * Fire-and-forget cache warm. Shares the in-flight map with real reads
+   * (coalescing) and honors mutation epochs + the LRU cap via writeCache,
+   * but never notifies subscribers — prefetches must be invisible to the UI.
+   */
+  private warmCache<T>(key: string, fetcher: () => Promise<T>): void {
+    // Already fetching or freshly cached → nothing to do.
+    if (this.inFlight.has(key)) return;
+    const entry = this.cache.get(key) as CacheEntry<T> | undefined;
+    if (
+      entry &&
+      entry.epoch === this.epoch &&
+      Date.now() - entry.timestamp <= CACHE_TTL
+    ) {
+      return;
+    }
+    const epoch = this.epoch;
+    const promise = fetcher()
+      .then((data) => {
+        this.writeCache(key, data, epoch);
+      })
+      .catch((error) => {
+        // Best-effort — a failed prefetch must never surface to the UI.
+        console.debug(`[AppService] prefetch failed for ${key}:`, error);
+      })
+      .finally(() => {
+        this.inFlight.delete(key);
+      });
+    this.inFlight.set(key, promise);
   }
 
   /**

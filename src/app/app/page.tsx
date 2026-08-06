@@ -9,6 +9,7 @@ import type { AppSchema } from '@/types/schema';
 import type { SortConfig, PageSize } from '@/services/dashboardSortService';
 import { DEFAULT_SORT, SORT_OPTIONS, PAGE_SIZES, DEFAULT_PAGE_SIZE, getSortLabel } from '@/services/dashboardSortService';
 import { contentRepo, type EmptyStateCopy } from '@/db/contentRepo';
+import { clampPage, getPageRange } from '@/lib/pagination';
 import AppCard from '@/components/dashboard/AppCard';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import {
@@ -51,6 +52,8 @@ export default function DashboardPage() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  // Jump-to-page input value (large page counts) — empty = untouched
+  const [jumpInput, setJumpInput] = useState('');
   // Empty-state copy is DB-driven ('dashboard-empty' via contentRepo) — fallback keeps first paint intact
   const [emptyCopy, setEmptyCopy] = useState<EmptyStateCopy>({
     emptyTitle: 'No apps yet',
@@ -176,21 +179,29 @@ export default function DashboardPage() {
     setShowSortMenu(false);
   };
 
-  // Generate pagination range
-  const getPageRange = (): (number | 'ellipsis')[] => {
-    const range: (number | 'ellipsis')[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) range.push(i);
-    } else {
-      range.push(1);
-      if (page > 3) range.push('ellipsis');
-      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
-        range.push(i);
+  // Predictive prefetch — warm the cache for the pages the user is most
+  // likely to visit next (forward page, plus the previous page when deep in
+  // the list) so paging feels instant. Best-effort + silent by design: a
+  // failed prefetch never surfaces, and the current view is never disturbed.
+  useEffect(() => {
+    if (totalPages <= 1) return;
+    const prefetch = (p: number) => {
+      if (p < 1 || p > totalPages) return;
+      if (searchQuery.trim()) {
+        appService.prefetchSearch(searchQuery, p, pageSize, sort);
+      } else {
+        appService.prefetchApps(p, pageSize, sort);
       }
-      if (page < totalPages - 2) range.push('ellipsis');
-      range.push(totalPages);
-    }
-    return range;
+    };
+    prefetch(page + 1);
+    if (page > 1) prefetch(page - 1);
+  }, [page, totalPages, pageSize, sort, searchQuery]);
+
+  const handleJumpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = clampPage(parseInt(jumpInput, 10) || 1, totalPages);
+    goToPage(target);
+    setJumpInput('');
   };
 
   return (
@@ -385,7 +396,7 @@ export default function DashboardPage() {
                   <ChevronLeft className="h-4 w-4" />
                 </button>
 
-                {getPageRange().map((item, idx) =>
+                {getPageRange(page, totalPages).map((item, idx) =>
                   item === 'ellipsis' ? (
                     <span key={`ellipsis-${idx}`} className="flex h-9 w-9 items-center justify-center text-sm text-clay-muted">
                       &hellip;
@@ -415,6 +426,37 @@ export default function DashboardPage() {
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
+
+                {/* Jump-to-page — appears when the ellipsis window can't
+                    reach far pages quickly (large datasets). */}
+                {totalPages > 7 && (
+                  <form
+                    onSubmit={handleJumpSubmit}
+                    className="ml-2 flex items-center gap-1.5"
+                    aria-label="Jump to page"
+                  >
+                    <span className="hidden text-xs text-clay-muted sm:inline">
+                      Go to
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={jumpInput}
+                      onChange={(e) => setJumpInput(e.target.value)}
+                      placeholder={String(page)}
+                      aria-label="Page number to jump to"
+                      className="clay-input h-9 w-14 rounded-xl px-2 text-center text-sm text-foreground"
+                    />
+                    <button
+                      type="submit"
+                      aria-label={`Go to page ${jumpInput || page}`}
+                      className="clay-sm h-9 px-3 text-xs font-medium text-foreground bg-[#C5E8F7] hover:scale-105 transition-all duration-200"
+                    >
+                      Go
+                    </button>
+                  </form>
+                )}
               </nav>
             )}
           </>
