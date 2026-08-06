@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 
 function ClaySpinner() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FFF8F0]">
+    <div className="flex min-h-screen items-center justify-center bg-clay-cream">
       <div className="flex flex-col items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-[50%] clay-sm bg-[#D5B8F5] animate-float">
           <AppWindow className="h-7 w-7 text-clay-foreground" />

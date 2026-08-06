@@ -73,7 +73,7 @@ function RegisterForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FFF8F0] p-4 relative overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-clay-cream p-4 relative overflow-hidden">
       {/* Decorative clay blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-[#C5E8F7] clay" style={{filter:'blur(40px)', opacity:0.5}} />

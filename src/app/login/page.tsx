@@ -64,7 +64,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FFF8F0] p-4 relative overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-clay-cream p-4 relative overflow-hidden">
       {/* Decorative clay blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-[#FFD5E5] clay" style={{filter:'blur(40px)', opacity:0.5}} />

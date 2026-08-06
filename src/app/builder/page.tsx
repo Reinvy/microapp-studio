@@ -34,6 +34,40 @@ const TAB_ITEMS: { key: ActivePanel; label: string; icon: React.ReactNode }[] = 
   { key: 'properties', label: 'Properties', icon: <Settings2 className="h-4 w-4" /> },
 ];
 
+// Full literal class names so Tailwind can statically detect them.
+const MD_DISPLAY: Record<'flex' | 'block', string> = {
+  flex: 'md:flex',
+  block: 'md:block',
+};
+
+/**
+ * Responsive panel wrapper — desktop (≥768px) shows the panel side-by-side
+ * with the given layout classes; mobile (<768px) shows only the panel
+ * matching `activePanel` (the others are hidden behind the tab bar).
+ */
+function BuilderPanel({
+  activePanel,
+  panel,
+  desktopClass,
+  mdDisplay = 'flex',
+  children,
+}: {
+  activePanel: ActivePanel;
+  panel: ActivePanel;
+  desktopClass: string;
+  mdDisplay?: 'flex' | 'block';
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <div className={cn('hidden', MD_DISPLAY[mdDisplay], desktopClass)}>{children}</div>
+      <div className={cn('md:hidden flex-1', activePanel !== panel && 'hidden')}>
+        {children}
+      </div>
+    </>
+  );
+}
+
 function BuilderContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -201,50 +235,32 @@ function BuilderContent() {
         onDragEnd={handleDragEnd}
       >
         {/* Desktop (≥768px): show all panels side by side */}
-        {/* Mobile (<768px): show only active panel */}
+        {/* Mobile (<768px): show only active panel (tab bar below) */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Component Palette — hidden on mobile unless active */}
-          <div className={cn(
-            'hidden md:flex',
-            'md:w-64 md:flex-shrink-0'
-          )}>
+          <BuilderPanel
+            activePanel={activePanel}
+            panel="components"
+            desktopClass="md:w-64 md:flex-shrink-0"
+          >
             <ComponentPalette />
-          </div>
-          <div className={cn(
-            'md:hidden flex-1',
-            activePanel !== 'components' && 'hidden'
-          )}>
-            <ComponentPalette />
-          </div>
+          </BuilderPanel>
 
-          {/* Canvas — always flex-1 on desktop, hidden on mobile unless active */}
-          <div className={cn(
-            'flex-1 min-w-0',
-            'hidden md:block',
-            activePanel === 'canvas' && 'md:block'
-          )}>
+          <BuilderPanel
+            activePanel={activePanel}
+            panel="canvas"
+            desktopClass="flex-1 min-w-0"
+            mdDisplay="block"
+          >
             <Canvas />
-          </div>
-          <div className={cn(
-            'md:hidden flex-1',
-            activePanel !== 'canvas' && 'hidden'
-          )}>
-            <Canvas />
-          </div>
+          </BuilderPanel>
 
-          {/* Properties Panel — hidden on mobile unless active */}
-          <div className={cn(
-            'hidden md:flex',
-            'md:w-72 md:flex-shrink-0'
-          )}>
+          <BuilderPanel
+            activePanel={activePanel}
+            panel="properties"
+            desktopClass="md:w-72 md:flex-shrink-0"
+          >
             <PropertiesPanel />
-          </div>
-          <div className={cn(
-            'md:hidden flex-1',
-            activePanel !== 'properties' && 'hidden'
-          )}>
-            <PropertiesPanel />
-          </div>
+          </BuilderPanel>
         </div>
 
         <DragOverlay>

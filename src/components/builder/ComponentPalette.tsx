@@ -135,7 +135,7 @@ export default function ComponentPalette() {
   };
 
   return (
-    <aside className="w-64 flex flex-col h-full overflow-hidden rounded-r-2xl border-r border-clay-border/30 bg-[#FFFFFFF0] shadow-[4px_0_12px_rgba(174,162,146,0.08)]">
+    <aside className="w-full md:w-64 flex flex-col h-full overflow-hidden rounded-r-2xl border-r border-clay-border/30 bg-[#FFFFFFF0] shadow-[4px_0_12px_rgba(174,162,146,0.08)]">
       {/* Header */}
       <div className="px-4 py-4 border-b border-clay-border/40">
         <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
