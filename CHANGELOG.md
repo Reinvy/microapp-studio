@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-08-07] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency check: `npm outdated` — updated safe patch/minor deps (major-only updates `typescript` 5→7, `eslint` 9→10, `@types/node` 20→26 skipped per no-major policy):
+  - `next` 16.2.12 → 16.3.0 (minor)
+  - `eslint-config-next` 16.2.12 → 16.3.0 (minor)
+  - `jose` 6.2.7 → 6.2.8 (patch)
+  - `lucide-react` 1.28.0 → 1.30.0 (minor)
+- Code cleanup: removed dead code (unused, 0 references in `src/`):
+  - `src/types/index.ts` (unused barrel re-exporting `./schema` — everything imports `@/types/schema` directly)
+- No TODO/FIXME/deprecated markers found in `src/`; project eslint clean (only 3 pre-existing warnings: jsx-a11y alt-text ×2, react-hooks exhaustive-deps ×1)
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-05] — Maintenance
 
 ### Changed
