@@ -758,7 +758,7 @@ export default function PropertiesPanel() {
   }, [selectedFieldId, removeField]);
 
   return (
-    <aside className="w-full md:w-72 clay-card rounded-none rounded-l-2xl flex flex-col h-full overflow-hidden" style={{ backgroundColor: '#FFFFFFF0' }}>
+    <aside className="w-full md:w-72 clay-sidebar flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-clay-border/40 shrink-0">
         <div className="flex items-center gap-2">

@@ -23,12 +23,13 @@ import Toolbar from '@/components/builder/Toolbar';
 import ComponentPalette from '@/components/builder/ComponentPalette';
 import Canvas, { CanvasFieldCard } from '@/components/builder/Canvas';
 import PropertiesPanel from '@/components/builder/PropertiesPanel';
+import MobileTabBar, { type TabItem } from '@/components/builder/MobileTabBar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type ActivePanel = 'components' | 'canvas' | 'properties';
 
-const TAB_ITEMS: { key: ActivePanel; label: string; icon: React.ReactNode }[] = [
+const TAB_ITEMS: TabItem[] = [
   { key: 'components', label: 'Components', icon: <LayoutTemplate className="h-4 w-4" /> },
   { key: 'canvas', label: 'Canvas', icon: <SquarePen className="h-4 w-4" /> },
   { key: 'properties', label: 'Properties', icon: <Settings2 className="h-4 w-4" /> },
@@ -271,26 +272,11 @@ function BuilderContent() {
       </DndContext>
 
       {/* Mobile tab bar (<768px) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex gap-1 rounded-t-2xl border-t border-clay-border/30 bg-[var(--clay-card)] p-1.5 shadow-[0_-4px_12px_rgba(174,162,146,0.15)]">
-        {TAB_ITEMS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActivePanel(tab.key)}
-            className={cn(
-              'flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-all rounded-2xl',
-              activePanel === tab.key
-                ? 'text-foreground bg-clay-cream/80 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
-                : 'text-clay-muted hover:text-foreground hover:bg-clay-cream/40 active:scale-95'
-            )}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+      <MobileTabBar items={TAB_ITEMS} active={activePanel} onChange={setActivePanel} />
 
-      {/* Spacer for mobile tab bar — push content up so it's not hidden behind the bar */}
-      <div className="md:hidden h-14" />
+      {/* Spacer for mobile tab bar — matches the fixed bar's height
+          (h-[4.25rem]) so content is never hidden behind it */}
+      <div className="md:hidden h-[4.25rem]" />
     </div>
   );
 }

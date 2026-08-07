@@ -105,7 +105,7 @@ export default function RunPage() {
   return (
     <div className="min-h-screen bg-clay-cream">
       {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b border-clay-border/30 bg-[var(--clay-card)] shadow-[0_2px_10px_rgba(174,162,146,0.12)]">
+      <header className="sticky top-0 z-40 clay-header">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
           <button
             onClick={() => router.push('/')}

@@ -112,7 +112,7 @@ export default function DevPage() {
   return (
     <div className="min-h-screen bg-clay-cream flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 clay-card rounded-none border-b border-clay-border/30">
+      <header className="sticky top-0 z-40 clay-header">
         <div className="flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2">
             <button
@@ -217,7 +217,7 @@ export default function DevPage() {
         </div>
 
         {/* Right sidebar */}
-        <aside className="w-80 clay-card rounded-none rounded-l-2xl flex flex-col overflow-hidden" style={{ backgroundColor: '#FFFFFFF0' }}>
+        <aside className="w-80 clay-sidebar flex flex-col overflow-hidden">
           {/* Test input panel */}
           <div className="border-b border-clay-border/30">
             <div className="flex items-center justify-between px-4 py-3">
