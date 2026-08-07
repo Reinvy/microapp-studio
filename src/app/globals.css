@@ -147,6 +147,22 @@ body {
   box-shadow: 4px 4px 8px var(--clay-shadow-dark), -4px -4px 8px var(--clay-shadow-light);
 }
 
+/* Full-width app header bar (dashboard / runner / builder toolbar / dev) —
+   soft bottom shadow + hairline border instead of a heavy all-around card
+   shadow, so the bar reads as part of the page, not a floating card. */
+.clay-header {
+  background: var(--clay-card);
+  border-bottom: 1px solid var(--clay-border);
+  box-shadow: 0 2px 10px rgba(174, 162, 146, 0.12);
+}
+
+/* Edge-to-edge app sidebar (builder properties / dev test panel) —
+   flat against the viewport edge, separated by a hairline border. */
+.clay-sidebar {
+  background: #FFFFFFF0;
+  border-left: 1px solid var(--clay-border);
+}
+
 /* Gradient text utility */
 .gradient-text {
   background: linear-gradient(135deg, #D5B8F5 0%, #FFD5E5 50%, #C5E8F7 100%);

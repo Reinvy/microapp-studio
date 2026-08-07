@@ -57,7 +57,7 @@ export default function Toolbar() {
   if (!activeApp) return null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-clay-border/30 bg-[var(--clay-card)] shadow-[0_2px_10px_rgba(174,162,146,0.12)]">
+    <header className="sticky top-0 z-50 clay-header">
       <div className="flex items-center justify-between h-14 px-4 gap-2">
         {/* Left: Back + Name */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
