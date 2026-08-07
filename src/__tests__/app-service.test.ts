@@ -501,3 +501,71 @@ describe('AppService mutation invalidation', () => {
     unsubscribe();
   });
 });
+
+describe('AppService getAppById (run-page read path)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('caches a fetched app so a second read of the same id skips the DB', async () => {
+    const service = makeService();
+    vi.mocked(microAppRepo.getById).mockResolvedValue(makeApp('run-1'));
+
+    const first = await service.getAppById('run-1');
+    const second = await service.getAppById('run-1');
+
+    expect(first?.id).toBe('run-1');
+    expect(second?.id).toBe('run-1');
+    // Dashboard → run → back → run reuses the cached record, no IndexedDB re-hit.
+    expect(microAppRepo.getById).toHaveBeenCalledTimes(1);
+  });
+
+  it('caches a miss briefly (negative cache) and re-fetches after the fresh window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-04T00:00:00.000Z'));
+    const service = makeService();
+    vi.mocked(microAppRepo.getById).mockResolvedValue(undefined);
+
+    const miss = await service.getAppById('run-1');
+    expect(miss).toBeUndefined();
+    expect(microAppRepo.getById).toHaveBeenCalledTimes(1);
+
+    // Within the 5s fresh window the miss is served from cache — no DB hit.
+    const again = await service.getAppById('run-1');
+    expect(again).toBeUndefined();
+    expect(microAppRepo.getById).toHaveBeenCalledTimes(1);
+
+    // Past the fresh window but inside the SWR window: stale miss served
+    // instantly, then a background revalidation picks up the now-existing app.
+    await vi.advanceTimersByTimeAsync(6_000);
+    vi.mocked(microAppRepo.getById).mockResolvedValue(makeApp('run-1'));
+    const stale = await service.getAppById('run-1');
+    expect(stale).toBeUndefined();
+    await flush();
+    const hit = await service.getAppById('run-1');
+    expect(hit?.id).toBe('run-1');
+    expect(microAppRepo.getById).toHaveBeenCalledTimes(2);
+  });
+
+  it('invalidates the cached app after a mutation (epoch bump)', async () => {
+    const service = makeService();
+    vi.mocked(microAppRepo.getById).mockResolvedValue(makeApp('run-1', 'Old Name'));
+    vi.mocked(microAppRepo.update).mockResolvedValue(undefined);
+
+    await service.getAppById('run-1');
+    expect(microAppRepo.getById).toHaveBeenCalledTimes(1);
+
+    // Editing the app in the builder clears the cache — the run page must
+    // never show the pre-edit snapshot after a mutation.
+    await service.updateApp('run-1', { name: 'New Name' });
+
+    vi.mocked(microAppRepo.getById).mockResolvedValue(makeApp('run-1', 'New Name'));
+    const fresh = await service.getAppById('run-1');
+    expect(fresh?.name).toBe('New Name');
+    expect(microAppRepo.getById).toHaveBeenCalledTimes(2);
+  });
+});

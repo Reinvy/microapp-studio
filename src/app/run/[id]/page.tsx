@@ -2,10 +2,33 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import type { AppSchema } from '@/types/schema';
-import { microAppRepo } from '@/db/microAppRepo';
-import AppRunner from '@/components/runner/AppRunner';
+import { appService } from '@/services/appService';
+
+// Lazy-load the AppRunner — its chunk bundles the schema engine
+// (executeSchema), the evaluator, RenderField, and a large lucide icon set.
+// Deferring it keeps the run-page shell tiny and lets the IndexedDB read
+// (appService.getAppById) proceed in parallel with the chunk download, so
+// the page paints the shell immediately and the heavy code arrives just in
+// time for the first render of the app.
+const AppRunner = dynamic(() => import('@/components/runner/AppRunner'), {
+  ssr: false,
+  loading: () => <RunnerLoading />,
+});
+
+/** Clay-styled loading fallback shown while the runner chunk is downloading. */
+function RunnerLoading() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3 clay-sm p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
+        <p className="text-sm text-clay-muted">Preparing runner...</p>
+      </div>
+    </div>
+  );
+}
 
 export default function RunPage() {
   const params = useParams();
@@ -25,7 +48,10 @@ export default function RunPage() {
     setLoading(true);
     setError(null);
     try {
-      const found = await microAppRepo.getById(appId);
+      // Read through the service layer — SWR cache + query coalescing mean
+      // navigating dashboard → run → back → run reuses the cached record
+      // instead of re-hitting IndexedDB, and any mutation invalidates it.
+      const found = await appService.getAppById(appId);
       if (found) {
         setApp(found);
       } else {
