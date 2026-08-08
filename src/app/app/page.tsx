@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/context/AuthContext';
 import { appService } from '@/services/appService';
+import { dashboardConfigService } from '@/services/dashboardConfigService';
 import type { AppSchema } from '@/types/schema';
-import type { SortConfig, PageSize } from '@/services/dashboardSortService';
-import { DEFAULT_SORT, SORT_OPTIONS, PAGE_SIZES, DEFAULT_PAGE_SIZE, getSortLabel } from '@/services/dashboardSortService';
+import type { SortConfig } from '@/services/dashboardSortService';
+import { DEFAULT_SORT, DEFAULT_PAGE_SIZE } from '@/services/dashboardSortService';
+import { DEFAULT_DASHBOARD_CONFIG, findSortLabel, type DashboardConfig } from '@/lib/dashboardConfig';
 import { contentRepo, type EmptyStateCopy } from '@/db/contentRepo';
 import { clampPage, getPageRange } from '@/lib/pagination';
 import AppCard from '@/components/dashboard/AppCard';
@@ -47,8 +49,11 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalApps, setTotalApps] = useState(0);
-  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [sort, setSort] = useState<SortConfig>(DEFAULT_SORT);
+  // Runtime-tunable dashboard config — loaded from IndexedDB ('dashboard-config'),
+  // falls back to DEFAULT_DASHBOARD_CONFIG until the async read completes.
+  const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>(DEFAULT_DASHBOARD_CONFIG);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -66,7 +71,7 @@ export default function DashboardPage() {
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadApps = useCallback(async (q: string, p: number, ps: PageSize, s: SortConfig) => {
+  const loadApps = useCallback(async (q: string, p: number, ps: number, s: SortConfig) => {
     setLoading(true);
     try {
       if (q.trim()) {
@@ -105,6 +110,9 @@ export default function DashboardPage() {
         setEmptyCopy(content.data as EmptyStateCopy);
       }
     }).catch(() => {});
+    // Load DB-driven dashboard config (placeholder, debounce, sort options,
+    // page sizes) — sanitized by the service, falls back to defaults.
+    dashboardConfigService.load().then(setDashboardConfig).catch(() => {});
   }, []);
 
   // Subscribe once to the service layer's refresh bus. The grid re-loads the
@@ -125,7 +133,7 @@ export default function DashboardPage() {
     searchTimer.current = setTimeout(() => {
       setPage(1);
       loadApps(value, 1, pageSize, sort);
-    }, 300);
+    }, dashboardConfig.searchDebounceMs);
   };
 
   const handleDeleteApp = async (id: string) => {
@@ -168,7 +176,7 @@ export default function DashboardPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handlePageSizeChange = (newSize: PageSize) => {
+  const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setPage(1);
   };
@@ -284,7 +292,7 @@ export default function DashboardPage() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
             <input
-              placeholder="Search your apps..."
+              placeholder={dashboardConfig.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="clay-input h-10 w-full pl-10 pr-4 text-sm text-foreground"
@@ -299,13 +307,13 @@ export default function DashboardPage() {
                 className="clay-sm flex h-9 items-center gap-1.5 px-3 text-xs font-medium text-foreground bg-[#F5EDE5]"
               >
                 <ArrowUpDown className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{getSortLabel(sort)}</span>
+                <span className="hidden sm:inline">{findSortLabel(dashboardConfig.sortOptions, sort)}</span>
               </button>
               {showSortMenu && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
                   <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] clay-card p-1.5 origin-top-right">
-                    {SORT_OPTIONS.map((opt) => (
+                    {dashboardConfig.sortOptions.map((opt) => (
                       <button
                         key={opt.label}
                         onClick={() => handleSortChange(opt.value)}
@@ -326,7 +334,7 @@ export default function DashboardPage() {
             {/* Page Size Selector */}
             <div className="flex flex-wrap items-center gap-1">
               <Columns3 className="h-3.5 w-3.5 text-clay-muted" />
-              {PAGE_SIZES.map((size) => (
+              {dashboardConfig.pageSizes.map((size) => (
                 <button
                   key={size}
                   onClick={() => handlePageSizeChange(size)}

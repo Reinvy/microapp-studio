@@ -1,6 +1,7 @@
 'use client';
 
 import { db } from './db';
+import type { DashboardConfig } from '@/lib/dashboardConfig';
 
 export interface SiteLink {
   label: string;
@@ -86,11 +87,15 @@ export type SiteContentData =
   | HeroContent
   | CtaContent
   | LandingSections
-  | EmptyStateCopy;
+  | EmptyStateCopy
+  | DashboardConfig;
 
 export interface SiteContent {
   id: string;
-  /** 'nav-links' | 'footer-columns' | 'landing-features' | 'landing-steps' | 'landing-stats' */
+  /**
+   * 'nav-links' | 'footer-columns' | 'landing-features' | 'landing-steps'
+   * | 'landing-stats' | 'dashboard-empty' | 'dashboard-config'
+   */
   type: string;
   data: SiteContentData;
 }
