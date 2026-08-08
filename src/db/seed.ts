@@ -821,6 +821,23 @@ export const seedContent: SiteContent[] = [
       noResultsSubtitle: 'Try a different search term or clear the filter.',
     },
   },
+  {
+    id: 'dashboard-config',
+    type: 'dashboard-config',
+    data: {
+      searchPlaceholder: 'Search your apps...',
+      searchDebounceMs: 300,
+      sortOptions: [
+        { value: { field: 'updatedAt', direction: 'desc' }, label: 'Newest Updated' },
+        { value: { field: 'updatedAt', direction: 'asc' }, label: 'Oldest Updated' },
+        { value: { field: 'createdAt', direction: 'desc' }, label: 'Newest Created' },
+        { value: { field: 'createdAt', direction: 'asc' }, label: 'Oldest Created' },
+        { value: { field: 'name', direction: 'asc' }, label: 'Name A–Z' },
+        { value: { field: 'name', direction: 'desc' }, label: 'Name Z–A' },
+      ],
+      pageSizes: [12, 24, 48],
+    },
+  },
 ];
 
 /**
