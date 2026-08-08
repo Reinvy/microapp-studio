@@ -27,13 +27,20 @@ export function getFieldBorderRadius(style?: Pick<FieldStyleConfig, 'borderRadiu
   return map[style.borderRadius] || style.borderRadius;
 }
 
-/** Maps a field's shadow style to a Tailwind shadow class ('' when none). */
+/**
+ * Maps a field's shadow style to a clay raised shadow class ('' when none).
+ *
+ * The Claymorphism v3 system forbids flat Tailwind shadows (shadow-sm/md/lg
+ * render a single black-tinted drop). Every shadow token resolves to the
+ * clay double-shadow (mengembung): dark bottom-right + light top-left,
+ * scaled by size.
+ */
 export function getFieldShadow(style?: Pick<FieldStyleConfig, 'shadow'>): string {
   if (!style?.shadow || style.shadow === 'none') return '';
   const map: Record<string, string> = {
-    sm: 'shadow-sm',
-    md: 'shadow-md',
-    lg: 'shadow-lg',
+    sm: 'shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)]',
+    md: 'shadow-[6px_6px_12px_var(--clay-shadow-dark),-6px_-6px_12px_var(--clay-shadow-light)]',
+    lg: 'shadow-[8px_8px_16px_var(--clay-shadow-dark),-8px_-8px_16px_var(--clay-shadow-light)]',
   };
   return map[style.shadow] || style.shadow;
 }

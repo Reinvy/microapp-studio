@@ -201,10 +201,10 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
       style={style}
       className={cn(
         'group relative clay-sm bg-card cursor-pointer transition-all duration-200',
-        'hover:shadow-lg hover:-translate-y-0.5',
+        'hover:shadow-[6px_6px_12px_var(--clay-shadow-dark),-6px_-6px_12px_var(--clay-shadow-light)] hover:-translate-y-0.5',
         isSelected
-          ? 'ring-2 ring-clay-purple/40 shadow-lg'
-          : 'shadow-sm',
+          ? 'ring-2 ring-clay-purple/40 shadow-[8px_8px_16px_var(--clay-shadow-dark),-8px_-8px_16px_var(--clay-shadow-light)]'
+          : '',
         isDragging && 'opacity-40 z-50 scale-[1.02] rotate-[2deg]',
         'overflow-hidden'
       )}
@@ -263,7 +263,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
 
 export function CanvasFieldCard({ field }: { field: FieldSchema }) {
   return (
-    <div className="w-72 clay-sm bg-card shadow-xl overflow-hidden">
+    <div className="w-72 clay-sm bg-card shadow-[8px_8px_16px_var(--clay-shadow-dark),-8px_-8px_16px_var(--clay-shadow-light)] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20">
         <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm" style={{ backgroundColor: typeColors[field.type] || '#F5EDE5' }}>
           <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />

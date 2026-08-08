@@ -18,6 +18,7 @@ import type { LogicNode } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { executeCode } from '@/engine/evaluator';
 import { generateId } from '@/lib/utils';
+import { goToDashboard } from '@/lib/navigation';
 import MonacoEditor from '@/components/dev/MonacoEditor';
 import { cn } from '@/lib/utils';
 
@@ -116,7 +117,7 @@ export default function DevPage() {
         <div className="flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push('/')}
+              onClick={() => goToDashboard(router)}
               className="flex items-center justify-center h-9 w-9 rounded-full clay-sm bg-clay-peach/50 hover:bg-clay-peach/70 transition-all"
               aria-label="Back to dashboard"
             >
