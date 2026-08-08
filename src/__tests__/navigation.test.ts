@@ -9,9 +9,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
 import { validateField, executeSchema } from '@/engine/schemaEngine';
 import parsePrompt from '@/engine/promptToSchema';
 import type { FieldSchema, AppSchema } from '@/types/schema';
+
+const repoRoot = path.resolve(__dirname, '..', '..');
 
 // ===========================================================================
 // Helper factories
@@ -483,5 +487,74 @@ describe('promptToSchema — Sample Prompts', () => {
       expect(field.label).toBeTruthy();
       expect(typeof field.required).toBe('boolean');
     }
+  });
+});
+
+// ===========================================================================
+// 4. Navigation UI Integration — Claymorphism v3 on Navigation Components
+// ===========================================================================
+
+describe('Navigation UI Integration — Claymorphism v3', () => {
+  const navSource = readFileSync(
+    path.join(repoRoot, 'src', 'components', 'landing', 'Navbar.tsx'),
+    'utf8'
+  );
+  const buttonSource = readFileSync(
+    path.join(repoRoot, 'src', 'components', 'ui', 'button.tsx'),
+    'utf8'
+  );
+  const landingSource = readFileSync(path.join(repoRoot, 'src', 'app', 'page.tsx'), 'utf8');
+  const css = readFileSync(path.join(repoRoot, 'src', 'app', 'globals.css'), 'utf8');
+
+  describe('Navigation components', () => {
+    it('Navbar renders links from DB-driven contentRepo, not hardcoded hrefs', () => {
+      expect(navSource).toMatch(/contentRepo\.getByType\('nav-links'\)/);
+      expect(navSource).toMatch(/navLinks\.map/);
+    });
+
+    it('Navbar uses clay design tokens (clay-card bg + raised/inset shadows)', () => {
+      expect(navSource).toMatch(/var\(--clay-card\)/);
+      // raised shadow (mengembung) on the nav bar
+      expect(navSource).toMatch(/8px_8px_16px_var\(--clay-shadow-dark\)/);
+      // inset (pressed) hover state on nav links
+      expect(navSource).toMatch(/inset_3px_3px_7px_var\(--clay-shadow-dark\)/);
+    });
+
+    it('landing CTAs use the clay Button component (clay-button class)', () => {
+      expect(landingSource).toMatch(/<Button/);
+      expect(buttonSource).toMatch(/clay-button/);
+      expect(buttonSource).toMatch(/text-clay-foreground/); // #4A3F35, not black
+    });
+  });
+
+  describe('Computed-style design system rules (globals.css)', () => {
+    it('button hover scale transform 1.03 and pressed 0.96 with inset shadow', () => {
+      expect(css).toMatch(/\.clay-button:hover\s*\{[^}]*transform:\s*scale\(1\.03\)/);
+      expect(css).toMatch(/\.clay-button:active\s*\{[^}]*transform:\s*scale\(0\.96\)/);
+      expect(css).toMatch(/\.clay-button:active\s*\{[^}]*inset/);
+    });
+
+    it('input has inset (carved-in) shadow', () => {
+      expect(css).toMatch(/\.clay-input\s*\{[^}]*inset/);
+    });
+
+    it('large border radii: 28-36px elements, 20-24px buttons, 18-22px inputs, 999px badges', () => {
+      expect(css).toMatch(/\.clay\s*\{[^}]*border-radius:\s*28px/);
+      expect(css).toMatch(/\.clay-lg\s*\{[^}]*border-radius:\s*32px/);
+      expect(css).toMatch(/\.clay-button\s*\{[^}]*border-radius:\s*20px/);
+      expect(css).toMatch(/\.clay-input\s*\{[^}]*border-radius:\s*18px/);
+      expect(css).toMatch(/\.clay-badge\s*\{[^}]*border-radius:\s*999px/);
+    });
+
+    it('Fredoka rounded font is loaded as --font-sans', () => {
+      expect(css).toMatch(/--font-sans:\s*var\(--font-fredoka\)/);
+    });
+
+    it('text color is #4A3F35 (warm dark brown), never black #000', () => {
+      expect(css).toMatch(/--foreground:\s*#4A3F35/i);
+      expect(css).toMatch(/--clay-foreground:\s*#4A3F35/i);
+      const blackUses = css.match(/(?:color|--[\w-]+-foreground):\s*#0{3,6}\b/gi) || [];
+      expect(blackUses).toEqual([]);
+    });
   });
 });
