@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Loader2, AlertTriangle, LayoutTemplate, SquarePen, Settings2 } from 'lucide-react';
+import { LayoutTemplate, SquarePen, Settings2 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { microAppRepo } from '@/db/microAppRepo';
 import { generateId } from '@/lib/utils';
@@ -26,6 +26,8 @@ import PropertiesPanel from '@/components/builder/PropertiesPanel';
 import MobileTabBar, { type TabItem } from '@/components/builder/MobileTabBar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { goToDashboard } from '@/lib/navigation';
+import { ClayLoader, ClayErrorCard } from '@/components/ui/clay-feedback';
 
 type ActivePanel = 'components' | 'canvas' | 'properties';
 
@@ -192,35 +194,23 @@ function BuilderContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-clay-cream flex items-center justify-center">
-        <div className="text-center max-w-sm clay p-8">
-          <div className="w-16 h-16 rounded-2xl bg-clay-rose flex items-center justify-center mx-auto mb-4 shadow-inner">
-            <AlertTriangle className="h-8 w-8 text-foreground" />
-          </div>
-          <h2 className="text-lg font-semibold mb-2 text-foreground">Something went wrong</h2>
-          <p className="text-sm mb-6 text-clay-muted">{error}</p>
-          <div className="flex items-center justify-center gap-2">
-            <Button variant="outline" onClick={() => router.push('/')}>
+      <ClayErrorCard
+        title="Something went wrong"
+        message={error}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => goToDashboard(router)}>
               Back to Dashboard
             </Button>
             <Button onClick={loadApp}>Try Again</Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     );
   }
 
   if (isLoading || !initialized) {
-    return (
-      <div className="min-h-screen bg-clay-cream flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 clay-sm p-6">
-          <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
-          <p className="text-sm text-clay-muted">
-            {appId ? 'Loading app...' : 'Creating new app...'}
-          </p>
-        </div>
-      </div>
-    );
+    return <ClayLoader label={appId ? 'Loading app...' : 'Creating new app...'} />;
   }
 
   const dragOverlayField = getDragOverlayField();
@@ -284,14 +274,7 @@ function BuilderContent() {
 export default function BuilderPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen bg-clay-cream flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
-            <p className="text-sm text-clay-muted">Loading builder...</p>
-          </div>
-        </div>
-      }
+      fallback={<ClayLoader label="Loading builder..." />}
     >
       <BuilderContent />
     </Suspense>

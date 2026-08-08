@@ -175,7 +175,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               className={cn(
                 'flex flex-col items-center gap-0.5 py-1.5 rounded-xl clay-sm text-[9px] transition-all',
                 field.type === opt.value
-                  ? 'bg-clay-purple/30 shadow-inner'
+                  ? 'bg-clay-purple/30 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                   : 'bg-white/60 hover:bg-white hover:scale-105'
               )}
               style={{ color: field.type === opt.value ? 'var(--clay-foreground)' : 'var(--clay-muted)' }}
@@ -227,7 +227,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             >
               <span
                 className={cn(
-                  'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  'inline-block h-4 w-4 rounded-full bg-white shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] transition-transform',
                   field.required ? 'translate-x-[18px]' : 'translate-x-[2px]'
                 )}
               />
@@ -276,7 +276,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                   className={cn(
                     'flex-1 py-1 rounded-xl text-[10px] clay-sm transition-all',
                     (field.alignment === a.value || (!field.alignment && a.value === 'left'))
-                      ? 'bg-clay-blue/40 shadow-inner'
+                      ? 'bg-clay-blue/40 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                       : 'bg-white/60 hover:bg-white'
                   )}
                   style={{ color: 'var(--clay-foreground)' }}
@@ -301,7 +301,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                     className={cn(
                       'px-2 py-1 rounded-xl text-[10px] clay-sm transition-all',
                       (field.variant === v.value || (!field.variant && v.value === 'primary'))
-                        ? 'bg-clay-purple/40 shadow-inner'
+                        ? 'bg-clay-purple/40 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                         : 'bg-white/60 hover:bg-white'
                     )}
                     style={{ color: 'var(--clay-foreground)' }}
@@ -435,7 +435,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             >
               <span
                 className={cn(
-                  'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  'inline-block h-4 w-4 rounded-full bg-white shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] transition-transform',
                   field.defaultValue ? 'translate-x-[18px]' : 'translate-x-[2px]'
                 )}
               />
@@ -572,7 +572,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 className={cn(
                   'flex-1 py-1 rounded-xl text-[10px] clay-sm transition-all',
                   (field.widthStyle === w.value || (!field.widthStyle && w.value === 'full'))
-                    ? 'bg-clay-blue/40 shadow-inner'
+                    ? 'bg-clay-blue/40 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                     : 'bg-white/60 hover:bg-white'
                 )}
                 style={{ color: 'var(--clay-foreground)' }}
@@ -625,7 +625,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
           >
             <span
               className={cn(
-                'inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                'inline-block h-4 w-4 rounded-full bg-white shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] transition-transform',
                 field.border ? 'translate-x-[18px]' : 'translate-x-[2px]'
               )}
             />
@@ -655,7 +655,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 className={cn(
                   'px-2 py-1 rounded-xl text-[10px] clay-sm transition-all',
                   (field.shadow === s.value || (!field.shadow && s.value === 'none'))
-                    ? 'bg-clay-purple/40 shadow-inner'
+                    ? 'bg-clay-purple/40 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                     : 'bg-white/60 hover:bg-white'
                 )}
                 style={{ color: 'var(--clay-foreground)' }}
@@ -677,7 +677,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               className={cn(
                 'px-2 py-1 rounded-xl text-[10px] clay-sm transition-all',
                 (field.animation === a.value || (!field.animation && a.value === 'none'))
-                  ? 'bg-clay-yellow/40 shadow-inner'
+                  ? 'bg-clay-yellow/40 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                   : 'bg-white/60 hover:bg-white'
               )}
               style={{ color: 'var(--clay-foreground)' }}

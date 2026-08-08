@@ -15,6 +15,7 @@ import { microAppRepo } from '@/db/microAppRepo';
 import { useAppStore } from '@/store/appStore';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { goToDashboard } from '@/lib/navigation';
 
 export default function Toolbar() {
   const router = useRouter();
@@ -62,7 +63,7 @@ export default function Toolbar() {
         {/* Left: Back + Name */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => goToDashboard(router)}
             className="flex items-center justify-center h-9 w-9 rounded-full clay-sm bg-clay-peach shrink-0 hover:scale-105 active:scale-95 transition-transform"
             aria-label="Back to dashboard"
           >
@@ -85,7 +86,7 @@ export default function Toolbar() {
                     setEditingName(false);
                   }
                 }}
-                className="h-8 text-sm font-medium max-w-[200px] clay-input"
+                className="h-8 text-sm font-medium max-w-[140px] sm:max-w-[200px] clay-input"
                 autoFocus
               />
             ) : (
@@ -137,16 +138,16 @@ export default function Toolbar() {
             ) : (
               <Save className="h-3.5 w-3.5" />
             )}
-            {saved ? 'Saved!' : 'Save'}
+            <span className="hidden sm:inline">{saved ? 'Saved!' : 'Save'}</span>
           </button>
 
           <button
             onClick={handleRun}
-            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-medium clay-button bg-clay-purple transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-1.5 h-8 px-3 sm:px-4 rounded-xl text-xs font-medium clay-button bg-clay-purple transition-all hover:scale-105 active:scale-95"
             style={{ color: 'var(--clay-foreground)' }}
           >
             <Play className="h-3.5 w-3.5 fill-current" />
-            Run
+            <span className="hidden sm:inline">Run</span>
           </button>
         </div>
       </div>

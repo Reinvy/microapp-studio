@@ -58,10 +58,16 @@ describe('getFieldShadow (raised clay shadow mapping)', () => {
     expect(getFieldShadow({ shadow: 'none' })).toBe('');
   });
 
-  it('maps sm/md/lg shadow tokens to Tailwind shadow classes', () => {
-    expect(getFieldShadow({ shadow: 'sm' })).toBe('shadow-sm');
-    expect(getFieldShadow({ shadow: 'md' })).toBe('shadow-md');
-    expect(getFieldShadow({ shadow: 'lg' })).toBe('shadow-lg');
+  it('maps sm/md/lg shadow tokens to clay raised (mengembung) shadow classes', () => {
+    expect(getFieldShadow({ shadow: 'sm' })).toBe(
+      'shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)]'
+    );
+    expect(getFieldShadow({ shadow: 'md' })).toBe(
+      'shadow-[6px_6px_12px_var(--clay-shadow-dark),-6px_-6px_12px_var(--clay-shadow-light)]'
+    );
+    expect(getFieldShadow({ shadow: 'lg' })).toBe(
+      'shadow-[8px_8px_16px_var(--clay-shadow-dark),-8px_-8px_16px_var(--clay-shadow-light)]'
+    );
   });
 
   it('passes through unknown shadow tokens untouched', () => {

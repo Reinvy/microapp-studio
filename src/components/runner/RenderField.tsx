@@ -214,11 +214,11 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
 
   if (field.type === 'button') {
     const btnVariantMap: Record<string, string> = {
-      primary: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
-      secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/90',
-      outline: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
+      primary: 'bg-primary text-primary-foreground shadow-[6px_6px_12px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)] hover:bg-primary/90',
+      secondary: 'bg-secondary text-secondary-foreground shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)] hover:bg-secondary/90',
+      outline: 'border border-input bg-background shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)] hover:bg-accent hover:text-accent-foreground',
       ghost: 'hover:bg-accent hover:text-accent-foreground',
-      danger: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
+      danger: 'bg-destructive text-destructive-foreground shadow-[5px_5px_10px_var(--clay-shadow-dark),-5px_-5px_10px_var(--clay-shadow-light)] hover:bg-destructive/90',
     };
     const btnSizeMap: Record<string, string> = {
       sm: 'h-8 px-3 text-xs',
@@ -566,7 +566,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             >
               <span
                 className={cn(
-                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-all duration-200',
+                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] ring-0 transition-all duration-200',
                   value ? 'translate-x-5' : 'translate-x-0.5'
                 )}
               />

@@ -3,9 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { AppSchema } from '@/types/schema';
 import { appService } from '@/services/appService';
+import { goToDashboard } from '@/lib/navigation';
+import { ClayLoader, ClayErrorCard } from '@/components/ui/clay-feedback';
 
 // Lazy-load the AppRunner — its chunk bundles the schema engine
 // (executeSchema), the evaluator, RenderField, and a large lucide icon set.
@@ -70,35 +72,31 @@ export default function RunPage() {
   }, [loadApp]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-clay-cream flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 clay-sm p-6">
-          <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
-          <p className="text-sm text-clay-muted">Loading app...</p>
-        </div>
-      </div>
-    );
+    return <ClayLoader label="Loading app..." />;
   }
 
   if (error || !app) {
     return (
-      <div className="min-h-screen bg-clay-cream flex items-center justify-center">
-        <div className="text-center max-w-sm clay p-8">
-          <div className="w-16 h-16 rounded-2xl bg-clay-rose flex items-center justify-center mx-auto mb-4 shadow-inner">
-            <AlertTriangle className="h-8 w-8 text-foreground" />
-          </div>
-          <h2 className="text-lg font-semibold mb-2 text-foreground">App not found</h2>
-          <p className="text-sm mb-6 text-clay-muted">{error || 'Something went wrong.'}</p>
-          <div className="flex items-center justify-center gap-2">
-            <button onClick={() => router.push('/')} className="clay-sm px-4 py-2 text-xs font-medium bg-clay-peach/50 hover:bg-clay-peach/70 transition-all text-foreground">
+      <ClayErrorCard
+        title="App not found"
+        message={error || 'Something went wrong.'}
+        actions={
+          <>
+            <button
+              onClick={() => goToDashboard(router)}
+              className="clay-sm px-4 py-2 text-xs font-medium bg-clay-peach/50 hover:bg-clay-peach/70 transition-all text-foreground"
+            >
               Back to Dashboard
             </button>
-            <button onClick={loadApp} className="clay-button bg-clay-purple px-4 py-2 text-xs font-medium text-foreground">
+            <button
+              onClick={loadApp}
+              className="clay-button bg-clay-purple px-4 py-2 text-xs font-medium text-foreground"
+            >
               Try Again
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     );
   }
 
@@ -108,7 +106,7 @@ export default function RunPage() {
       <header className="sticky top-0 z-40 clay-header">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => goToDashboard(router)}
             className="flex items-center gap-1.5 text-xs font-medium h-9 px-3 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
