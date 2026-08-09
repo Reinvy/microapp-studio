@@ -24,7 +24,8 @@ import Navbar from '@/components/landing/Navbar';
 import Footer from '@/components/landing/Footer';
 import FeatureCard from '@/components/landing/FeatureCard';
 import StepCard from '@/components/landing/StepCard';
-import { contentRepo, type FeatureItem, type StepItem, type StatItem, type HeroContent, type CtaContent, type LandingSections } from '@/db/contentRepo';
+import { contentService } from '@/services/contentService';
+import type { FeatureItem, StepItem, StatItem, HeroContent, CtaContent, LandingSections } from '@/db/contentRepo';
 import { pickPastelClass } from '@/lib/claymorphism';
 
 // Icon registry — maps stored icon names to Lucide components
@@ -109,42 +110,51 @@ export default function LandingPage() {
   const [sections, setSections] = useState<LandingSections>(fallbackSections);
 
   useEffect(() => {
-    // Load dynamic content from IndexedDB — falls back to hardcoded data if DB is empty
-    contentRepo.getByType('hero-content').then((content) => {
-      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
-        setHero(content.data as HeroContent);
+    // Load dynamic content from IndexedDB — falls back to hardcoded data if DB is empty.
+    // ONE batched read through the content service (single IndexedDB round trip
+    // via `anyOf`) instead of six sequential `contentRepo.getByType` calls. The
+    // service caches each type, so Navbar/Footer single-type reads that mount
+    // in the same tick become instant cache hits.
+    contentService.getContentMany([
+      'hero-content',
+      'landing-features',
+      'landing-steps',
+      'landing-stats',
+      'landing-cta',
+      'landing-sections',
+    ]).then((map) => {
+      const heroContent = map['hero-content'];
+      if (heroContent && typeof heroContent.data === 'object' && !Array.isArray(heroContent.data)) {
+        setHero(heroContent.data as HeroContent);
       }
-    }).catch(() => {});
 
-    contentRepo.getByType('landing-features').then((content) => {
-      if (content && Array.isArray(content.data)) {
-        setFeatures((content.data as FeatureItem[]).map(f => ({ ...f, icon: resolveIcon(f.icon, Brain) })));
+      const featuresContent = map['landing-features'];
+      if (featuresContent && Array.isArray(featuresContent.data)) {
+        setFeatures((featuresContent.data as FeatureItem[]).map(f => ({ ...f, icon: resolveIcon(f.icon, Brain) })));
       }
-    }).catch(() => {});
 
-    contentRepo.getByType('landing-steps').then((content) => {
-      if (content && Array.isArray(content.data)) {
-        setSteps((content.data as StepItem[]).map(s => ({ ...s, icon: resolveIcon(s.icon, Brain) })));
+      const stepsContent = map['landing-steps'];
+      if (stepsContent && Array.isArray(stepsContent.data)) {
+        setSteps((stepsContent.data as StepItem[]).map(s => ({ ...s, icon: resolveIcon(s.icon, Brain) })));
       }
-    }).catch(() => {});
 
-    contentRepo.getByType('landing-stats').then((content) => {
-      if (content && Array.isArray(content.data)) {
-        setStats((content.data as StatItem[]).map(s => ({ ...s, icon: resolveIcon(s.icon, Copy) })));
+      const statsContent = map['landing-stats'];
+      if (statsContent && Array.isArray(statsContent.data)) {
+        setStats((statsContent.data as StatItem[]).map(s => ({ ...s, icon: resolveIcon(s.icon, Copy) })));
       }
-    }).catch(() => {});
 
-    contentRepo.getByType('landing-cta').then((content) => {
-      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
-        setCta(content.data as CtaContent);
+      const ctaContent = map['landing-cta'];
+      if (ctaContent && typeof ctaContent.data === 'object' && !Array.isArray(ctaContent.data)) {
+        setCta(ctaContent.data as CtaContent);
       }
-    }).catch(() => {});
 
-    contentRepo.getByType('landing-sections').then((content) => {
-      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
-        setSections(content.data as LandingSections);
+      const sectionsContent = map['landing-sections'];
+      if (sectionsContent && typeof sectionsContent.data === 'object' && !Array.isArray(sectionsContent.data)) {
+        setSections(sectionsContent.data as LandingSections);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      // Fallbacks already set — content service is fail-safe.
+    });
   }, []);
 
   useEffect(() => {

@@ -116,6 +116,23 @@ export const contentRepo = {
     }
   },
 
+  /**
+   * Batch fetch multiple content types in ONE IndexedDB query (`anyOf` over
+   * the `type` index). The landing page used to fire one `getByType` per
+   * section (hero, features, steps, stats, CTA, sections, nav, footer — 8
+   * sequential round trips on first paint). A single `anyOf` scan reads all
+   * requested types in one pass, which keeps IndexedDB contention flat as
+   * the number of content sections grows.
+   */
+  async getMany(types: string[]): Promise<SiteContent[]> {
+    try {
+      if (types.length === 0) return [];
+      return await db.content.where('type').anyOf(types).toArray();
+    } catch {
+      return [];
+    }
+  },
+
   /** Save or update content */
   async save(content: SiteContent): Promise<void> {
     try {

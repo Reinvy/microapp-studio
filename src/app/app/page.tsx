@@ -10,7 +10,8 @@ import type { AppSchema } from '@/types/schema';
 import type { SortConfig } from '@/services/dashboardSortService';
 import { DEFAULT_SORT, DEFAULT_PAGE_SIZE } from '@/services/dashboardSortService';
 import { DEFAULT_DASHBOARD_CONFIG, findSortLabel, type DashboardConfig } from '@/lib/dashboardConfig';
-import { contentRepo, type EmptyStateCopy } from '@/db/contentRepo';
+import { contentService } from '@/services/contentService';
+import type { EmptyStateCopy } from '@/db/contentRepo';
 import { clampPage, getPageRange } from '@/lib/pagination';
 import AppCard from '@/components/dashboard/AppCard';
 import DashboardStats from '@/components/dashboard/DashboardStats';
@@ -104,10 +105,11 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    // Load DB-driven empty-state copy — falls back to the default above if unseeded
-    contentRepo.getByType('dashboard-empty').then((content) => {
-      if (content && typeof content.data === 'object' && !Array.isArray(content.data)) {
-        setEmptyCopy(content.data as EmptyStateCopy);
+    // Load DB-driven empty-state copy — falls back to the default above if unseeded.
+    // Read through the content service (SWR-cached, coalesced).
+    contentService.getContent<EmptyStateCopy>('dashboard-empty').then((copy) => {
+      if (copy) {
+        setEmptyCopy(copy);
       }
     }).catch(() => {});
     // Load DB-driven dashboard config (placeholder, debounce, sort options,

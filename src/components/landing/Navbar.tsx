@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Menu, X, AppWindow, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { contentRepo, type NavLink } from '@/db/contentRepo';
+import { contentService } from '@/services/contentService';
+import type { NavLink } from '@/db/contentRepo';
 
 const fallbackNavLinks: NavLink[] = [
   { label: 'Features', href: '#features' },
@@ -18,9 +19,11 @@ export default function Navbar() {
   const [navLinks, setNavLinks] = useState<NavLink[]>(fallbackNavLinks);
 
   useEffect(() => {
-    contentRepo.getByType('nav-links').then((content) => {
-      if (content && Array.isArray(content.data)) {
-        setNavLinks(content.data as NavLink[]);
+    // Read through the content service — when the landing page batched
+    // `nav-links` in the same mount, this is an instant cache hit (no DB).
+    contentService.getContent<NavLink[]>('nav-links').then((links) => {
+      if (links) {
+        setNavLinks(links);
       }
     }).catch(() => {
       // Fallback already set
