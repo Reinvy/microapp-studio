@@ -4,6 +4,7 @@ import { microAppRepo } from './microAppRepo';
 import { contentRepo, type SiteContent } from './contentRepo';
 import type { AppSchema, FieldSchema } from '@/types/schema';
 import { pastelPalette } from '@/lib/claymorphism';
+import { DEFAULT_PROMPT_TEMPLATES } from '@/lib/promptTemplates';
 
 // ─── Generator helpers ───
 
@@ -667,6 +668,47 @@ function createMealPlannerApp(index: number): AppSchema {
   };
 }
 
+function createWorkoutLoggerApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Gym Workout Logger',
+    description:
+      'Log daily workouts with exercise select, sets/reps numbers, intensity slider, and a notes area — tabs layout.',
+    prompt:
+      'Create a gym workout logger with exercise select, sets and reps number fields, intensity slider, and notes textarea.',
+    fields: [
+      headingField('wl-heading', 'Heading', 'h1', '💪 Workout Logger'),
+      paragraphField('wl-intro', 'Intro', "Record today's session — every rep counts."),
+      dateField('wl-date', 'Workout Date'),
+      selectField('wl-exercise', 'Exercise', ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Pull-ups', 'Plank']),
+      numberField('wl-sets', 'Sets', 1, 10),
+      numberField('wl-reps', 'Reps', 1, 50),
+      sliderField('wl-intensity', 'Intensity', 1, 10),
+      toggleField('wl-completed', 'Completed?'),
+      ratingField('wl-feel', 'How did it feel?'),
+      textareaField('wl-notes', 'Notes', 'Form cues, energy level, anything else...'),
+      colorField('wl-color', 'Theme Color', pickFrom(pastelColors, index, 26)),
+      buttonField('wl-save', 'Log Workout', pickFrom(buttonVariants, index, 27)),
+    ],
+    logicNodes: [
+      {
+        id: 'wl-volume-node',
+        name: 'Compute Volume',
+        code: 'return sets * reps',
+        inputs: ['sets', 'reps'],
+        outputs: ['volume'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1036800000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'tabs', theme: 'clay' },
+  };
+}
+
 export const sampleApps: AppSchema[] = [
   createFeedbackApp(0),
   createPizzaOrderApp(1),
@@ -679,6 +721,7 @@ export const sampleApps: AppSchema[] = [
   createTipApp(8),
   createJobApplicationApp(9),
   createMealPlannerApp(10),
+  createWorkoutLoggerApp(11),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -837,6 +880,11 @@ export const seedContent: SiteContent[] = [
       ],
       pageSizes: [12, 24, 48],
     },
+  },
+  {
+    id: 'prompt-templates',
+    type: 'prompt-templates',
+    data: DEFAULT_PROMPT_TEMPLATES,
   },
 ];
 

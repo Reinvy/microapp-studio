@@ -2,6 +2,7 @@
 
 import { db } from './db';
 import type { DashboardConfig } from '@/lib/dashboardConfig';
+import type { PromptTemplate } from '@/lib/promptTemplates';
 
 export interface SiteLink {
   label: string;
@@ -88,7 +89,8 @@ export type SiteContentData =
   | CtaContent
   | LandingSections
   | EmptyStateCopy
-  | DashboardConfig;
+  | DashboardConfig
+  | PromptTemplate[];
 
 export interface SiteContent {
   id: string;
