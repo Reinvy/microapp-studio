@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppWindow, Globe, MessageCircle } from 'lucide-react';
-import { contentRepo, type FooterColumn } from '@/db/contentRepo';
+import { contentService } from '@/services/contentService';
+import type { FooterColumn } from '@/db/contentRepo';
 
 const fallbackFooterColumns: FooterColumn[] = [
   {
@@ -48,9 +49,11 @@ export default function Footer() {
   const [footerColumns, setFooterColumns] = useState<FooterColumn[]>(fallbackFooterColumns);
 
   useEffect(() => {
-    contentRepo.getByType('footer-columns').then((content) => {
-      if (content && Array.isArray(content.data)) {
-        setFooterColumns(content.data as FooterColumn[]);
+    // Read through the content service — when the landing page batched
+    // `footer-columns` in the same mount, this is an instant cache hit.
+    contentService.getContent<FooterColumn[]>('footer-columns').then((columns) => {
+      if (columns) {
+        setFooterColumns(columns);
       }
     }).catch(() => {
       // Fallback already set
