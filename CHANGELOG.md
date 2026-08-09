@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-08-09] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Fixed 2 vulnerabilities via `overrides` in `package.json`:
+  - `nanoid` `<3.3.17` (HIGH, GHSA-2v37-7h3g-55p8 — custom generators can loop indefinitely when size is zero) → overridden to `^3.3.17`, installed `3.3.18` (transitively via `postcss`)
+  - `dompurify` `<=3.4.12` (MODERATE, GHSA-55q2-fjhq-7xh7 — IN_PLACE hook removal XSS, transitive via `monaco-editor`) → monaco-editor override bumped `3.4.12` → `3.4.13`
+- Dependency check: `npm outdated` — no safe patch/minor updates available; only major-only updates (`typescript` 5→7, `eslint` 9→10, `@types/node` 20→26) skipped per no-major policy
+- Code cleanup: removed dead code (0 references in `src/`):
+  - `src/app/globals.css`: removed unused `.animate-slide-down` class + `@keyframes slideDown` (never referenced by any component)
+- No TODO/FIXME/deprecated markers found in `src/`; no unused imports found (eslint `no-unused-vars` clean); no dead files or unused exports found (all lib/services/engine modules referenced by components or tests)
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-07] — Maintenance
 
 ### Changed
