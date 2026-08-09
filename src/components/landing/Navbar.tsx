@@ -30,6 +30,13 @@ export default function Navbar() {
     });
   }, []);
 
+  // CTA button is DB-driven too: nav-links may carry a `Get Started` entry
+  // (label + href) which is rendered as the clay CTA button, not a plain
+  // link. Falls back to the hardcoded defaults until the async read lands.
+  const ctaLink = navLinks.find((l) => l.label === 'Get Started');
+  const ctaLabel = ctaLink?.label ?? 'Get Started';
+  const ctaHref = ctaLink?.href ?? '/register';
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">
       <div className="bg-[var(--clay-card)] border-b border-clay-border/30 shadow-[0_4px_8px_var(--clay-shadow-dark),-2px_-2px_6px_var(--clay-shadow-light)]">
@@ -74,9 +81,9 @@ export default function Navbar() {
                 );
               })}
               <div className="ml-2 flex items-center gap-2">
-                <Link href="/register">
+                <Link href={ctaHref}>
                   <Button variant="primary" className="gap-1.5">
-                    Get Started
+                    {ctaLabel}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -151,9 +158,9 @@ export default function Navbar() {
             );
           })}
           <hr className="my-2 border-[#E8E0D8]/40" />
-          <Link href="/register" onClick={() => setMobileOpen(false)}>
+          <Link href={ctaHref} onClick={() => setMobileOpen(false)}>
             <Button variant="primary" className="w-full gap-1.5">
-              Get Started
+              {ctaLabel}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>

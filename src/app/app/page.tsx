@@ -216,12 +216,15 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Decorative clay blobs */}
+      {/* Decorative pastel blobs — plain blurred circles, NOT .clay cards.
+          The .clay class sets background var(--clay-cream) + 28px radius,
+          which (as unlayered CSS) overrides Tailwind's bg-[...]/rounded-full
+          utilities, rendering the orbs as invisible cream squares. */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-[#FFD5E5] clay" style={{filter:'blur(60px)', opacity:0.3}} />
-        <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-[#C5E8F7] clay" style={{filter:'blur(50px)', opacity:0.25}} />
-        <div className="absolute top-1/3 left-3/4 w-64 h-64 rounded-full bg-[#FFF2C5] clay" style={{filter:'blur(45px)', opacity:0.2}} />
-        <div className="absolute bottom-1/3 right-3/4 w-72 h-72 rounded-full bg-[#D5B8F5] clay" style={{filter:'blur(45px)', opacity:0.15}} />
+        <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-[#FFD5E5]" style={{filter:'blur(60px)', opacity:0.3}} />
+        <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-[#C5E8F7]" style={{filter:'blur(50px)', opacity:0.25}} />
+        <div className="absolute top-1/3 left-3/4 w-64 h-64 rounded-full bg-[#FFF2C5]" style={{filter:'blur(45px)', opacity:0.2}} />
+        <div className="absolute bottom-1/3 right-3/4 w-72 h-72 rounded-full bg-[#D5B8F5]" style={{filter:'blur(45px)', opacity:0.15}} />
       </div>
 
       {/* Top Navigation */}
