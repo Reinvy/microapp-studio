@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { generateId } from '@/lib/utils';
 import parsePrompt from '@/engine/promptToSchema';
 import { appService } from '@/services/appService';
+import { promptTemplateService } from '@/services/promptTemplateService';
+import type { PromptTemplate } from '@/lib/promptTemplates';
 import type { AppSchema } from '@/types/schema';
 
 interface NewAppDialogProps {
@@ -18,6 +20,20 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [creating, setCreating] = useState(false);
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+
+  // Load DB-driven prompt suggestion templates (contentRepo → IndexedDB).
+  // Falls back to DEFAULT_PROMPT_TEMPLATES inside the service on any error.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    promptTemplateService.load().then((items) => {
+      if (!cancelled) setTemplates(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -80,6 +96,31 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
               className="clay-input min-h-[100px] w-full px-3 py-2 text-sm text-foreground resize-none"
             />
           </div>
+          {templates.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Try an example
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {templates.map((tpl) => (
+                  <button
+                    key={tpl.label}
+                    type="button"
+                    onClick={() => {
+                      setPrompt(tpl.prompt);
+                      if (!name.trim()) {
+                        // Prefill a sensible app name from the template label
+                        setName(tpl.label);
+                      }
+                    }}
+                    className={`clay-sm rounded-full px-3 py-1 text-xs font-medium text-clay-foreground transition-all duration-200 hover:scale-105 hover:shadow-[3px_3px_8px_var(--clay-shadow-dark),-3px_-3px_8px_var(--clay-shadow-light)] ${tpl.bgClass}`}
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-3 pt-2">
             <button
               onClick={onClose}
