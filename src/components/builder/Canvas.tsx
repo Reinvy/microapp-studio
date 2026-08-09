@@ -211,7 +211,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
       onClick={() => onSelect(field.id)}
     >
       {/* Top bar: drag handle + type icon + label + delete */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20 rounded-t-[14px]">
+      <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20 rounded-t-2xl">
         {/* Drag handle */}
         <button
           {...attributes}

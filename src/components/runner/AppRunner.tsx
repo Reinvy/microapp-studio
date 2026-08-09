@@ -31,6 +31,47 @@ interface AppRunnerProps {
 
 // ─── Live preview panel component ────────────────────────────────────────────
 
+/** Clay pill showing a value + copy button. Extracted so the live preview,
+ *  input summary, and computed outputs render identical markup. */
+function CopyValuePill({
+  value,
+  copied,
+  onCopy,
+  className,
+}: {
+  value: unknown;
+  copied: boolean;
+  onCopy: () => void;
+  className?: string;
+}) {
+  const display =
+    typeof value === 'object'
+      ? JSON.stringify(value)
+      : String(value ?? '-');
+  return (
+    <div className={cn('flex items-center gap-1.5 shrink-0', className)}>
+      <span
+        className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm max-w-[140px] truncate"
+        style={{ color: 'var(--clay-foreground)' }}
+      >
+        {display}
+      </span>
+      <button
+        onClick={onCopy}
+        className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
+        style={{ color: 'var(--clay-foreground)' }}
+        title="Copy value"
+      >
+        {copied ? (
+          <Check className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
+        ) : (
+          <Copy className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
+        )}
+      </button>
+    </div>
+  );
+}
+
 function LivePreview({
   values,
   liveResult,
@@ -134,24 +175,15 @@ function LivePreview({
                     className="flex items-center justify-between p-2 rounded-xl clay-sm bg-clay-purple/10 group"
                   >
                     <span className="text-xs font-medium truncate mr-2" style={{ color: 'var(--clay-foreground)' }}>{key}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs font-mono bg-white/80 px-1.5 py-0.5 rounded-lg clay-sm max-w-[120px] truncate" style={{ color: 'var(--clay-foreground)' }}>
-                        {typeof val === 'object'
-                          ? JSON.stringify(val)
-                          : String(val ?? '-')}
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            String(val ?? '')
-                          );
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
-                        style={{ color: 'var(--clay-foreground)' }}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </button>
-                    </div>
+                    <CopyValuePill
+                      value={val}
+                      copied={false}
+                      onCopy={() => {
+                        navigator.clipboard.writeText(
+                          String(val ?? '')
+                        );
+                      }}
+                    />
                   </div>
                 ))}
               </div>
@@ -598,24 +630,11 @@ export default function AppRunner({ app }: AppRunnerProps) {
                                 <span className="text-xs truncate mr-3 font-medium" style={{ color: 'var(--clay-muted)' }}>
                                   {field.label}
                                 </span>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm truncate max-w-[140px]" style={{ color: 'var(--clay-foreground)' }}>
-                                    {showRaw
-                                      ? JSON.stringify(val)
-                                      : String(val ?? '-')}
-                                  </span>
-                                  <button
-                                    onClick={() => handleCopyValue(val, field.id)}
-                                    className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
-                                    title="Copy value"
-                                  >
-                                    {copiedId === field.id ? (
-                                      <Check className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
-                                    ) : (
-                                      <Copy className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
-                                    )}
-                                  </button>
-                                </div>
+                                <CopyValuePill
+                                  value={showRaw ? JSON.stringify(val) : val}
+                                  copied={copiedId === field.id}
+                                  onCopy={() => handleCopyValue(val, field.id)}
+                                />
                               </div>
                             );
                           })}
@@ -644,24 +663,11 @@ export default function AppRunner({ app }: AppRunnerProps) {
                               )}
                             >
                               <span className="text-sm font-medium truncate mr-2" style={{ color: 'var(--clay-foreground)' }}>{key}</span>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-xs font-mono bg-white/80 px-2 py-0.5 rounded-lg clay-sm max-w-[140px] truncate" style={{ color: 'var(--clay-foreground)' }}>
-                                  {typeof val === 'object'
-                                    ? JSON.stringify(val)
-                                    : String(val ?? '-')}
-                                </span>
-                                <button
-                                  onClick={() => handleCopyValue(val, key)}
-                                  className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
-                                  title="Copy value"
-                                >
-                                  {copiedId === key ? (
-                                    <Check className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
-                                  ) : (
-                                    <Copy className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
-                                  )}
-                                </button>
-                              </div>
+                              <CopyValuePill
+                                value={val}
+                                copied={copiedId === key}
+                                onCopy={() => handleCopyValue(val, key)}
+                              />
                             </div>
                           ))}
                         </div>
