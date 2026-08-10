@@ -163,7 +163,7 @@ export default function DevPage() {
             <button
               onClick={handleSaveNode}
               disabled={!activeApp || saving}
-              className="h-10 px-4 rounded-xl text-xs font-medium clay-button bg-clay-green/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+              className="h-10 px-4 text-xs font-medium clay-button bg-clay-green/50 transition-all disabled:opacity-50"
               style={{ color: 'var(--clay-foreground)' }}
             >
               {saving ? (
@@ -231,7 +231,7 @@ export default function DevPage() {
               <button
                 onClick={handleRunTest}
                 disabled={testing}
-                className="h-8 px-3 rounded-xl text-[11px] font-medium clay-button bg-clay-purple/50 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                className="h-8 px-3 text-[11px] font-medium clay-button bg-clay-purple/50 transition-all disabled:opacity-50"
                 style={{ color: 'var(--clay-foreground)' }}
               >
                 {testing ? (

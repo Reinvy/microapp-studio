@@ -86,7 +86,7 @@ export default function MonacoEditor({
           <button
             onClick={handleRunTest}
             disabled={testing}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-[11px] font-medium clay-button bg-clay-purple/40 hover:bg-clay-purple/60 transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 h-8 px-3 text-[11px] font-medium clay-button bg-clay-purple/40 hover:bg-clay-purple/60 transition-all disabled:opacity-50"
             style={{ color: 'var(--clay-foreground)' }}
           >
             {testing ? (

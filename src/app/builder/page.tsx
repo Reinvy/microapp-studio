@@ -28,13 +28,15 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { goToDashboard } from '@/lib/navigation';
 import { ClayLoader, ClayErrorCard } from '@/components/ui/clay-feedback';
+import { builderCopy } from '@/lib/builderCopy';
+import { fieldLabels } from '@/lib/fieldMeta';
 
 type ActivePanel = 'components' | 'canvas' | 'properties';
 
 const TAB_ITEMS: TabItem[] = [
-  { key: 'components', label: 'Components', icon: <LayoutTemplate className="h-4 w-4" /> },
-  { key: 'canvas', label: 'Canvas', icon: <SquarePen className="h-4 w-4" /> },
-  { key: 'properties', label: 'Properties', icon: <Settings2 className="h-4 w-4" /> },
+  { key: 'components', label: builderCopy.tabs.components, icon: <LayoutTemplate className="h-4 w-4" /> },
+  { key: 'canvas', label: builderCopy.tabs.canvas, icon: <SquarePen className="h-4 w-4" /> },
+  { key: 'properties', label: builderCopy.tabs.properties, icon: <Settings2 className="h-4 w-4" /> },
 ];
 
 // Full literal class names so Tailwind can statically detect them.
@@ -117,7 +119,7 @@ function BuilderContent() {
           const newIndex = activeApp.fields.findIndex((f) => f.id === over.id);
           addField({
             type: fieldType,
-            label: `New ${String(fieldType).charAt(0).toUpperCase() + String(fieldType).slice(1)}`,
+            label: builderCopy.page.newField(fieldLabels[fieldType] || fieldType),
           });
           if (newIndex >= 0) {
             reorderFields(activeApp.fields.length - 1, newIndex);
@@ -145,13 +147,13 @@ function BuilderContent() {
         if (app) {
           setActiveApp(app);
         } else {
-          setError(`App with ID "${appId}" not found.`);
+          setError(builderCopy.page.notFoundMessage(appId));
         }
       } else {
         const now = Date.now();
         const newApp: AppSchema = {
           id: generateId(),
-          name: 'Untitled App',
+          name: builderCopy.page.untitledApp,
           description: '',
           prompt: '',
           fields: [],
@@ -165,7 +167,7 @@ function BuilderContent() {
       }
     } catch (err) {
       console.error('Failed to load app:', err);
-      setError('Failed to load the app. Please try again.');
+      setError(builderCopy.page.errorMessage);
     } finally {
       setLoading(false);
       setInitialized(true);
@@ -185,7 +187,7 @@ function BuilderContent() {
       return {
         id: 'overlay',
         type: fieldType,
-        label: `New ${fieldType.charAt(0).toUpperCase() + fieldType.slice(1)}`,
+        label: builderCopy.page.newField(fieldLabels[fieldType] || fieldType),
       };
     }
     // Existing field
@@ -195,14 +197,14 @@ function BuilderContent() {
   if (error) {
     return (
       <ClayErrorCard
-        title="Something went wrong"
+        title={builderCopy.page.errorTitle}
         message={error}
         actions={
           <>
             <Button variant="outline" onClick={() => goToDashboard(router)}>
-              Back to Dashboard
+              {builderCopy.page.backToDashboard}
             </Button>
-            <Button onClick={loadApp}>Try Again</Button>
+            <Button onClick={loadApp}>{builderCopy.page.tryAgain}</Button>
           </>
         }
       />
@@ -210,7 +212,7 @@ function BuilderContent() {
   }
 
   if (isLoading || !initialized) {
-    return <ClayLoader label={appId ? 'Loading app...' : 'Creating new app...'} />;
+    return <ClayLoader label={appId ? builderCopy.page.loadingApp : builderCopy.page.creatingApp} />;
   }
 
   const dragOverlayField = getDragOverlayField();

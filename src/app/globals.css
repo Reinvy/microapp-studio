@@ -92,57 +92,65 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Claymorphism utility classes */
-.clay {
-  border-radius: 28px;
-  background: var(--clay-cream);
-  box-shadow: 8px 8px 16px var(--clay-shadow-dark), -8px -8px 16px var(--clay-shadow-light);
-}
-.clay-sm {
-  border-radius: 16px;
-  box-shadow: 5px 5px 10px var(--clay-shadow-dark), -5px -5px 10px var(--clay-shadow-light);
-}
-.clay-lg {
-  border-radius: 32px;
-  box-shadow: 12px 12px 24px var(--clay-shadow-dark), -12px -12px 24px var(--clay-shadow-light);
-}
-.clay-inset {
-  border-radius: 20px;
-  box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
-}
-.clay-card {
-  border-radius: 28px;
-  background: var(--clay-card);
-  box-shadow: 8px 8px 16px var(--clay-shadow-dark), -6px -6px 14px var(--clay-shadow-light);
-}
-.clay-button {
-  border-radius: 20px;
-  box-shadow: 6px 6px 12px var(--clay-shadow-dark), -5px -5px 10px var(--clay-shadow-light);
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  border: none;
-}
-.clay-button:hover {
-  box-shadow: 4px 4px 8px var(--clay-shadow-dark), -3px -3px 8px var(--clay-shadow-light);
-  transform: scale(1.03);
-}
-.clay-button:active {
-  box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
-  transform: scale(0.96);
-}
-.clay-input {
-  border-radius: 18px;
-  background: #F5EDE5;
-  box-shadow: inset 3px 3px 7px var(--clay-shadow-dark), inset -3px -3px 7px var(--clay-shadow-light);
-  border: none;
-  transition: all 0.2s ease;
-}
-.clay-input:focus {
-  box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
-  outline: none;
-}
-.clay-badge {
-  border-radius: 999px;
-  box-shadow: 4px 4px 8px var(--clay-shadow-dark), -4px -4px 8px var(--clay-shadow-light);
+/* Claymorphism utility classes.
+   Wrapped in @layer components so Tailwind utilities (rounded-*, border-*,
+   scale-*, shadow-*) can override them. Unlayered CSS beats layered
+   utilities in the cascade, which previously made:
+     - `rounded-full clay-sm` render as a 16px squircle instead of a circle
+     - `rounded-full clay-sm` badge chips render 16px instead of 999px pills
+     - `.clay-button`'s `border: none` erase outline-variant button borders */
+@layer components {
+  .clay {
+    border-radius: 28px;
+    background: var(--clay-cream);
+    box-shadow: 8px 8px 16px var(--clay-shadow-dark), -8px -8px 16px var(--clay-shadow-light);
+  }
+  .clay-sm {
+    border-radius: 16px;
+    box-shadow: 5px 5px 10px var(--clay-shadow-dark), -5px -5px 10px var(--clay-shadow-light);
+  }
+  .clay-lg {
+    border-radius: 32px;
+    box-shadow: 12px 12px 24px var(--clay-shadow-dark), -12px -12px 24px var(--clay-shadow-light);
+  }
+  .clay-inset {
+    border-radius: 20px;
+    box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
+  }
+  .clay-card {
+    border-radius: 28px;
+    background: var(--clay-card);
+    box-shadow: 8px 8px 16px var(--clay-shadow-dark), -6px -6px 14px var(--clay-shadow-light);
+  }
+  .clay-button {
+    border-radius: 20px;
+    box-shadow: 6px 6px 12px var(--clay-shadow-dark), -5px -5px 10px var(--clay-shadow-light);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: none;
+  }
+  .clay-button:hover {
+    box-shadow: 4px 4px 8px var(--clay-shadow-dark), -3px -3px 8px var(--clay-shadow-light);
+    transform: scale(1.03);
+  }
+  .clay-button:active {
+    box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
+    transform: scale(0.96);
+  }
+  .clay-input {
+    border-radius: 18px;
+    background: #F5EDE5;
+    box-shadow: inset 3px 3px 7px var(--clay-shadow-dark), inset -3px -3px 7px var(--clay-shadow-light);
+    border: none;
+    transition: all 0.2s ease;
+  }
+  .clay-input:focus {
+    box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
+    outline: none;
+  }
+  .clay-badge {
+    border-radius: 999px;
+    box-shadow: 4px 4px 8px var(--clay-shadow-dark), -4px -4px 8px var(--clay-shadow-light);
+  }
 }
 
 /* Full-width app header bar (dashboard / runner / builder toolbar / dev) —

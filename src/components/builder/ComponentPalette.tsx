@@ -4,75 +4,70 @@ import { useDraggable } from '@dnd-kit/core';
 import type { FieldType } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
-import { FieldTypeIcon, typeColors } from '@/lib/fieldMeta';
+import { FieldTypeIcon, fieldLabels, typeColors } from '@/lib/fieldMeta';
+import { builderCopy } from '@/lib/builderCopy';
 
-interface FieldTypeItem {
-  type: FieldType;
-  label: string;
-  icon: React.ReactNode;
-  category: 'input' | 'layout' | 'content' | 'actions';
-}
+type CategoryKey = 'input' | 'layout' | 'content' | 'actions';
 
-const FIELD_TYPES: FieldTypeItem[] = [
+// Field types per category — labels come from fieldLabels and icons from
+// FieldTypeIcon (fieldMeta is the single source of truth; nothing is
+// duplicated here).
+const FIELD_TYPES: { type: FieldType; category: CategoryKey }[] = [
   // ── Input Fields ──
-  { type: 'text', label: 'Text', icon: <FieldTypeIcon type="text" />, category: 'input' },
-  { type: 'number', label: 'Number', icon: <FieldTypeIcon type="number" />, category: 'input' },
-  { type: 'select', label: 'Select', icon: <FieldTypeIcon type="select" />, category: 'input' },
-  { type: 'checkbox', label: 'Checkbox', icon: <FieldTypeIcon type="checkbox" />, category: 'input' },
-  { type: 'textarea', label: 'Textarea', icon: <FieldTypeIcon type="textarea" />, category: 'input' },
-  { type: 'date', label: 'Date', icon: <FieldTypeIcon type="date" />, category: 'input' },
-  { type: 'file', label: 'File', icon: <FieldTypeIcon type="file" />, category: 'input' },
-  { type: 'slider', label: 'Slider', icon: <FieldTypeIcon type="slider" />, category: 'input' },
-  { type: 'toggle', label: 'Toggle', icon: <FieldTypeIcon type="toggle" />, category: 'input' },
-  { type: 'email', label: 'Email', icon: <FieldTypeIcon type="email" />, category: 'input' },
-  { type: 'phone', label: 'Phone', icon: <FieldTypeIcon type="phone" />, category: 'input' },
-  { type: 'url', label: 'URL', icon: <FieldTypeIcon type="url" />, category: 'input' },
-  { type: 'color', label: 'Color', icon: <FieldTypeIcon type="color" />, category: 'input' },
-  { type: 'rating', label: 'Rating', icon: <FieldTypeIcon type="rating" />, category: 'input' },
+  { type: 'text', category: 'input' },
+  { type: 'number', category: 'input' },
+  { type: 'select', category: 'input' },
+  { type: 'checkbox', category: 'input' },
+  { type: 'textarea', category: 'input' },
+  { type: 'date', category: 'input' },
+  { type: 'file', category: 'input' },
+  { type: 'slider', category: 'input' },
+  { type: 'toggle', category: 'input' },
+  { type: 'email', category: 'input' },
+  { type: 'phone', category: 'input' },
+  { type: 'url', category: 'input' },
+  { type: 'color', category: 'input' },
+  { type: 'rating', category: 'input' },
 
   // ── Layout Elements ──
-  { type: 'heading', label: 'Heading', icon: <FieldTypeIcon type="heading" />, category: 'layout' },
-  { type: 'paragraph', label: 'Paragraph', icon: <FieldTypeIcon type="paragraph" />, category: 'layout' },
-  { type: 'divider', label: 'Divider', icon: <FieldTypeIcon type="divider" />, category: 'layout' },
-  { type: 'spacer', label: 'Spacer', icon: <FieldTypeIcon type="spacer" />, category: 'layout' },
+  { type: 'heading', category: 'layout' },
+  { type: 'paragraph', category: 'layout' },
+  { type: 'divider', category: 'layout' },
+  { type: 'spacer', category: 'layout' },
 
   // ── Rich Content ──
-  { type: 'image', label: 'Image', icon: <FieldTypeIcon type="image" />, category: 'content' },
-  { type: 'card', label: 'Card', icon: <FieldTypeIcon type="card" />, category: 'content' },
+  { type: 'image', category: 'content' },
+  { type: 'card', category: 'content' },
 
   // ── Actions ──
-  { type: 'button', label: 'Button', icon: <FieldTypeIcon type="button" />, category: 'actions' },
+  { type: 'button', category: 'actions' },
 ];
 
-const CATEGORIES: { key: string; label: string; gradient: string; border: string }[] = [
+const CATEGORIES: { key: CategoryKey; gradient: string; border: string }[] = [
   {
     key: 'input',
-    label: 'Input Fields',
     gradient: 'from-clay-blue/20 via-clay-blue/10 to-transparent',
     border: 'border-clay-blue/40',
   },
   {
     key: 'layout',
-    label: 'Layout Elements',
     gradient: 'from-clay-yellow/20 via-clay-yellow/10 to-transparent',
     border: 'border-clay-yellow/40',
   },
   {
     key: 'content',
-    label: 'Rich Content',
     gradient: 'from-clay-green/20 via-clay-green/10 to-transparent',
     border: 'border-clay-green/40',
   },
   {
     key: 'actions',
-    label: 'Actions',
     gradient: 'from-clay-purple/20 via-clay-purple/10 to-transparent',
     border: 'border-clay-purple/40',
   },
 ];
 
 interface DraggableFieldProps {
-  item: FieldTypeItem;
+  item: { type: FieldType; category: CategoryKey };
 }
 
 function DraggableField({ item }: DraggableFieldProps) {
@@ -108,9 +103,9 @@ function DraggableField({ item }: DraggableFieldProps) {
         className="flex items-center justify-center w-7 h-7 rounded-xl shrink-0"
         style={{ backgroundColor: typeColors[item.type] || '#F5EDE5' }}
       >
-        {item.icon}
+        <FieldTypeIcon type={item.type} className="h-4 w-4" />
       </span>
-      <span className="flex-1 truncate">{item.label}</span>
+      <span className="flex-1 truncate">{fieldLabels[item.type]}</span>
     </div>
   );
 }
@@ -139,7 +134,7 @@ export default function ComponentPalette() {
       {/* Header */}
       <div className="px-4 py-4 border-b border-clay-border/40">
         <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
-          Components
+          {builderCopy.palette.title}
         </h3>
       </div>
 
@@ -157,7 +152,7 @@ export default function ComponentPalette() {
             >
               <div className="flex items-center gap-1.5 px-1">
                 <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
-                  {category.label}
+                  {builderCopy.palette.categories[category.key]}
                 </span>
                 <span className="text-[10px] ml-auto" style={{ color: 'var(--clay-muted)' }}>
                   {items.length}
@@ -176,22 +171,22 @@ export default function ComponentPalette() {
                 {items.map((item) => (
                   <button
                     key={item.type}
-                    onClick={() => handleQuickAdd(item.type, item.label)}
+                    onClick={() => handleQuickAdd(item.type, fieldLabels[item.type] || item.type)}
                     className={cn(
                       'flex flex-col items-center gap-0.5 py-1.5 rounded-xl clay-sm',
                       'bg-white/80 hover:bg-white',
                       'hover:scale-105 active:scale-95 transition-all',
                       'text-[9px] text-clay-foreground'
                     )}
-                    title={`Add ${item.label}`}
+                    title={builderCopy.palette.addTitle(fieldLabels[item.type] || item.type)}
                   >
                     <span
                       className="flex items-center justify-center w-6 h-6 rounded-xl"
                       style={{ backgroundColor: typeColors[item.type] || '#F5EDE5' }}
                     >
-                      {item.icon}
+                      <FieldTypeIcon type={item.type} className="h-3 w-3" />
                     </span>
-                    <span className="truncate max-w-full">{item.label}</span>
+                    <span className="truncate max-w-full">{fieldLabels[item.type]}</span>
                   </button>
                 ))}
               </div>

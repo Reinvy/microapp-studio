@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -23,6 +23,7 @@ import type { FieldSchema } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
 import { typeColors, FieldTypeIcon } from '@/lib/fieldMeta';
+import { builderCopy } from '@/lib/builderCopy';
 
 // ── Visual Field Preview ──
 
@@ -31,14 +32,14 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
     case 'heading':
       return (
         <div className={cn('font-bold text-foreground', field.alignment === 'center' ? 'text-center' : field.alignment === 'right' ? 'text-right' : 'text-left')}>
-          {field.content || 'Heading'} ({'H' + (field.level || 2)})
+          {field.content || builderCopy.canvas.preview.heading} ({'H' + (field.level || 2)})
         </div>
       );
 
     case 'paragraph':
       return (
         <p className={cn('text-sm text-muted-foreground leading-relaxed', field.alignment === 'center' ? 'text-center' : field.alignment === 'right' ? 'text-right' : 'text-left')}>
-          {field.content || 'Paragraph text...'}
+          {field.content || builderCopy.canvas.preview.paragraph}
         </p>
       );
 
@@ -76,7 +77,7 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
               (!field.variant || field.variant === 'primary') && 'bg-clay-purple text-clay-foreground',
             )}
           >
-            {field.label || 'Button'}
+            {field.label || builderCopy.canvas.preview.button}
           </span>
         </div>
       );
@@ -131,7 +132,7 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
         <div className="space-y-1">
           <span className="text-sm text-clay-muted">{field.label}</span>
           <div className="flex h-8 items-center justify-between clay-inset bg-clay-emboss px-3 text-sm text-clay-muted">
-            {field.placeholder || 'Select...'}
+            {field.placeholder || builderCopy.canvas.preview.select}
           </div>
         </div>
       );
@@ -141,7 +142,7 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
         <div className="space-y-1">
           <span className="text-sm text-clay-muted">{field.label}</span>
           <div className="h-16 clay-inset bg-clay-emboss p-2 text-sm text-clay-muted">
-            {field.placeholder || 'Enter text...'}
+            {field.placeholder || builderCopy.canvas.preview.textarea}
           </div>
         </div>
       );
@@ -152,7 +153,7 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
           <span className="text-sm text-clay-muted">{field.label}</span>
           <div className="flex h-8 items-center gap-2 clay-inset bg-clay-emboss px-3 text-sm text-clay-muted">
             <File className="h-3.5 w-3.5" />
-            Choose file...
+            {builderCopy.canvas.preview.file}
           </div>
         </div>
       );
@@ -164,7 +165,7 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
           <span className="text-sm text-clay-muted">{field.label}</span>
           {field.required && <span className="text-[10px] text-clay-rose">*</span>}
           <div className="flex h-8 items-center clay-inset bg-clay-emboss px-3 text-sm text-clay-muted">
-            {field.placeholder || `Enter ${field.type}...`}
+            {field.placeholder || builderCopy.canvas.preview.input(field.type)}
           </div>
         </div>
       );
@@ -218,7 +219,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
           {...listeners}
           className="flex items-center justify-center h-7 w-6 rounded-full clay-sm bg-clay-peach/40 cursor-grab active:cursor-grabbing transition-all shrink-0"
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Drag to reorder ${field.label}`}
+          aria-label={builderCopy.canvas.dragHandleAria(field.label)}
         >
           <GripVertical className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
         </button>
@@ -245,7 +246,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
             onRemove(field.id);
           }}
           className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-rose/30 opacity-0 group-hover:opacity-100 hover:bg-clay-rose/60 transition-all shrink-0"
-          aria-label={`Delete ${field.label}`}
+          aria-label={builderCopy.canvas.deleteAria(field.label)}
         >
           <Trash2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
         </button>
@@ -291,14 +292,34 @@ export default function Canvas() {
   } = useAppStore();
 
   const [zoom, setZoom] = useState(1);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fields = activeApp?.fields || [];
   const isEmpty = fields.length === 0;
 
-  const handleClearAll = useCallback(() => {
+  // Destructive "Clear all" is two-step: the first click arms the button
+  // (label flips to a confirm prompt), the second click within 3s executes.
+  // Clicking again after the window expires just re-arms. Never clears
+  // without an explicit confirmation.
+  const handleClearClick = useCallback(() => {
     if (!activeApp) return;
-    fields.forEach((f) => removeField(f.id));
-  }, [activeApp, fields, removeField]);
+    if (confirmClear) {
+      if (clearTimer.current) clearTimeout(clearTimer.current);
+      setConfirmClear(false);
+      fields.forEach((f) => removeField(f.id));
+      return;
+    }
+    setConfirmClear(true);
+    clearTimer.current = setTimeout(() => setConfirmClear(false), 3000);
+  }, [activeApp, confirmClear, fields, removeField]);
+
+  // Disarm the confirm timer when the canvas unmounts.
+  useEffect(() => {
+    return () => {
+      if (clearTimer.current) clearTimeout(clearTimer.current);
+    };
+  }, []);
 
   if (!activeApp) {
     return (
@@ -307,9 +328,9 @@ export default function Canvas() {
           <div className="w-16 h-16 rounded-2xl clay-sm bg-clay-peach/60 flex items-center justify-center mx-auto mb-4">
             <Type className="h-8 w-8" style={{ color: 'var(--clay-muted)' }} />
           </div>
-          <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--clay-foreground)' }}>No app selected</h3>
+          <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--clay-foreground)' }}>{builderCopy.canvas.noAppTitle}</h3>
           <p className="text-sm" style={{ color: 'var(--clay-muted)' }}>
-            Select or create an app to start building.
+            {builderCopy.canvas.noAppSubtitle}
           </p>
         </div>
       </div>
@@ -335,11 +356,11 @@ export default function Canvas() {
           <div className="flex items-center justify-between mb-4 clay-sm bg-white/80 px-3 py-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium" style={{ color: 'var(--clay-foreground)' }}>
-                {fields.length} field{fields.length !== 1 ? 's' : ''}
+                {builderCopy.canvas.fieldCount(fields.length)}
               </span>
               {!isEmpty && (
                 <span className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>
-                  &middot; Drag to reorder
+                  &middot; {builderCopy.canvas.dragHint}
                 </span>
               )}
             </div>
@@ -347,7 +368,7 @@ export default function Canvas() {
               <button
                 onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
                 className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all"
-                aria-label="Zoom out"
+                aria-label={builderCopy.canvas.zoomOutAria}
               >
                 <ZoomOut className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
@@ -357,7 +378,7 @@ export default function Canvas() {
               <button
                 onClick={() => setZoom((z) => Math.min(2, z + 0.1))}
                 className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-blue/40 hover:bg-clay-blue/60 transition-all"
-                aria-label="Zoom in"
+                aria-label={builderCopy.canvas.zoomInAria}
               >
                 <ZoomIn className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
@@ -365,7 +386,7 @@ export default function Canvas() {
               <button
                 onClick={() => setZoom(1)}
                 className="flex items-center justify-center h-8 w-8 rounded-xl clay-sm bg-clay-green/40 hover:bg-clay-green/60 transition-all"
-                aria-label="Reset zoom"
+                aria-label={builderCopy.canvas.resetZoomAria}
               >
                 <RotateCcw className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
@@ -373,12 +394,18 @@ export default function Canvas() {
                 <>
                   <div className="w-px h-5 bg-clay-border mx-1" />
                   <button
-                    onClick={handleClearAll}
-                    className="flex items-center gap-1 h-8 px-3 rounded-xl text-[11px] clay-sm bg-clay-rose/40 hover:bg-clay-rose/60 transition-all"
+                    onClick={handleClearClick}
+                    className={cn(
+                      'flex items-center gap-1 h-8 px-3 text-[11px] clay-sm transition-all',
+                      confirmClear
+                        ? 'bg-clay-rose text-clay-foreground shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
+                        : 'bg-clay-rose/40 hover:bg-clay-rose/60'
+                    )}
                     style={{ color: 'var(--clay-foreground)' }}
+                    aria-label={confirmClear ? builderCopy.canvas.clearAllConfirmAria : builderCopy.canvas.clearAllAria}
                   >
                     <Trash2 className="h-3 w-3" />
-                    Clear all
+                    {confirmClear ? builderCopy.canvas.clearAllConfirm : builderCopy.canvas.clearAll}
                   </button>
                 </>
               )}
@@ -403,24 +430,24 @@ export default function Canvas() {
                       </span>
                     </span>
                   </div>
-                  <h3 className="text-base font-semibold mb-1.5" style={{ color: 'var(--clay-foreground)' }}>Drop components here</h3>
+                  <h3 className="text-base font-semibold mb-1.5" style={{ color: 'var(--clay-foreground)' }}>{builderCopy.canvas.emptyTitle}</h3>
                   <p className="text-sm text-center max-w-sm" style={{ color: 'var(--clay-muted)' }}>
-                    Drag fields from the palette on the left, or click a field type to add it to your app.
+                    {builderCopy.canvas.emptySubtitle}
                   </p>
                   <div className="flex items-center gap-2 mt-4 text-[10px]" style={{ color: 'var(--clay-muted)' }}>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-clay-purple/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      Drag & drop
+                      {builderCopy.canvas.hintDrag}
                     </span>
                     <span style={{ color: '#D5C8B8' }}>&bull;</span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-clay-pink/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      Click to add
+                      {builderCopy.canvas.hintClick}
                     </span>
                     <span style={{ color: '#D5C8B8' }}>&bull;</span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-clay-blue/60 animate-bounce" style={{ animationDelay: '300ms' }} />
-                      Reorder
+                      {builderCopy.canvas.hintReorder}
                     </span>
                   </div>
                 </div>
