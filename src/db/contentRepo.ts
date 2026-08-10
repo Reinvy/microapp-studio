@@ -79,6 +79,53 @@ export interface EmptyStateCopy {
   noResultsSubtitle: string;
 }
 
+/**
+ * DashboardStats copy — the stat-card labels and count templates rendered by
+ * DashboardStats.tsx. Previously hardcoded in the component; now seeded via
+ * contentRepo ('dashboard-stats-copy') so copy is editable without a redeploy.
+ * Templates use a `{count}` placeholder, formatted by formatCountTemplate().
+ */
+export interface DashboardStatsCopy {
+  /** Label for the total-apps card. */
+  appsLabel: string;
+  /** Label for the total-fields card. */
+  fieldsLabel: string;
+  /** Label for the total-logic-nodes card. */
+  logicLabel: string;
+  /** Label for the top-field-type card. */
+  topTypeLabel: string;
+  /** Template for the "updated this week" line: `+{count} this week`. */
+  weekTemplate: string;
+  /** Template for the average line: `Avg {count} per app`. */
+  avgTemplate: string;
+  /** Template for the top-type count line: `{count} fields`. */
+  fieldCountTemplate: string;
+  /** Placeholder when no top field type exists (e.g. `—`). */
+  noValue: string;
+}
+
+/**
+ * AppCard copy — labels and count templates rendered by AppCard.tsx.
+ * Previously hardcoded in the component; now seeded via contentRepo
+ * ('app-card-copy') so card microcopy is editable without a redeploy.
+ */
+export interface AppCardCopy {
+  /** Fallback description when an app has none. */
+  noDescription: string;
+  /** Label of the "run" action button. */
+  runLabel: string;
+  /** Singular unit for the field count (e.g. `field`). */
+  fieldSingular: string;
+  /** Plural unit for the field count (e.g. `fields`). */
+  fieldPlural: string;
+  /** Singular unit for the logic-node count (e.g. `node`). */
+  nodeSingular: string;
+  /** Plural unit for the logic-node count (e.g. `nodes`). */
+  nodePlural: string;
+  /** Template for the "+N more" badge: `+{count} more`. */
+  moreTemplate: string;
+}
+
 export type SiteContentData =
   | NavLink[]
   | FooterColumn[]
@@ -89,6 +136,8 @@ export type SiteContentData =
   | CtaContent
   | LandingSections
   | EmptyStateCopy
+  | DashboardStatsCopy
+  | AppCardCopy
   | DashboardConfig
   | PromptTemplate[];
 
@@ -161,3 +210,12 @@ export const contentRepo = {
     }
   },
 };
+
+/**
+ * Format a `{count}` template string (e.g. `+{count} this week`) with a
+ * numeric value. Pure + framework-free so it is trivially unit-testable and
+ * safe to use from any client component.
+ */
+export function formatCountTemplate(template: string, count: number): string {
+  return template.replace(/\{count\}/g, String(count));
+}

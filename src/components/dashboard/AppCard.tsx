@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Play,
@@ -9,12 +10,26 @@ import {
 import type { AppSchema, FieldType } from '@/types/schema';
 import { formatDate } from '@/lib/utils';
 import { FieldTypeIcon, fieldLabels } from '@/lib/fieldMeta';
+import { contentService } from '@/services/contentService';
+import { formatCountTemplate, type AppCardCopy } from '@/db/contentRepo';
 
 interface AppCardProps {
   app: AppSchema;
   onDelete: (id: string) => void;
   onRun: (id: string) => void;
 }
+
+// DB-driven card copy ('app-card-copy' via contentRepo) — fallback keeps
+// first paint intact and mirrors the seeded defaults exactly.
+const defaultCopy: AppCardCopy = {
+  noDescription: 'No description',
+  runLabel: 'Run',
+  fieldSingular: 'field',
+  fieldPlural: 'fields',
+  nodeSingular: 'node',
+  nodePlural: 'nodes',
+  moreTemplate: '+{count} more',
+};
 
 function getFieldTypeCounts(fields: AppSchema['fields']): Map<FieldType, number> {
   const counts = new Map<FieldType, number>();
@@ -24,11 +39,24 @@ function getFieldTypeCounts(fields: AppSchema['fields']): Map<FieldType, number>
   return counts;
 }
 
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
+}
+
 export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
   const router = useRouter();
+  const [copy, setCopy] = useState<AppCardCopy>(defaultCopy);
   const fieldCounts = getFieldTypeCounts(app.fields);
   const totalFields = app.fields.length;
   const logicCount = app.logicNodes?.length || 0;
+
+  useEffect(() => {
+    // Load DB-driven card copy — falls back to the defaults above.
+    // The content service caches per type, so all cards share one read.
+    contentService.getContent<AppCardCopy>('app-card-copy').then((c) => {
+      if (c) setCopy(c);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div className="clay-card group relative overflow-hidden p-5 transition-all duration-300 hover:-translate-y-1">
@@ -57,7 +85,7 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
 
       {/* Description */}
       <p className="text-xs text-clay-muted line-clamp-2 min-h-[2em] mb-3">
-        {app.description || 'No description'}
+        {app.description || copy.noDescription}
       </p>
 
       {/* Field type badges */}
@@ -74,7 +102,7 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
         ))}
         {Array.from(fieldCounts.keys()).length > 5 && (
           <span className="clay-sm inline-flex items-center px-2 py-0.5 text-[10px] font-normal text-clay-muted bg-[#F5EDE5]">
-            +{Array.from(fieldCounts.keys()).length - 5} more
+            {formatCountTemplate(copy.moreTemplate, Array.from(fieldCounts.keys()).length - 5)}
           </span>
         )}
       </div>
@@ -82,8 +110,8 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
       {/* Footer: meta + run button */}
       <div className="flex items-center justify-between pt-1">
         <div className="flex items-center gap-3 text-[10px] text-clay-muted">
-          <span>{totalFields} field{totalFields !== 1 ? 's' : ''}</span>
-          {logicCount > 0 && <span>{logicCount} node{logicCount !== 1 ? 's' : ''}</span>}
+          <span>{totalFields} {pluralize(totalFields, copy.fieldSingular, copy.fieldPlural)}</span>
+          {logicCount > 0 && <span>{logicCount} {pluralize(logicCount, copy.nodeSingular, copy.nodePlural)}</span>}
           <span>{formatDate(app.updatedAt)}</span>
         </div>
         <button
@@ -91,7 +119,7 @@ export default function AppCard({ app, onDelete, onRun }: AppCardProps) {
           onClick={() => onRun(app.id)}
         >
           <Play className="h-3 w-3 fill-current" />
-          Run
+          {copy.runLabel}
         </button>
       </div>
     </div>

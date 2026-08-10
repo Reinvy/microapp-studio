@@ -882,6 +882,33 @@ export const seedContent: SiteContent[] = [
     },
   },
   {
+    id: 'dashboard-stats-copy',
+    type: 'dashboard-stats-copy',
+    data: {
+      appsLabel: 'Apps',
+      fieldsLabel: 'Fields',
+      logicLabel: 'Logic',
+      topTypeLabel: 'Top Type',
+      weekTemplate: '+{count} this week',
+      avgTemplate: 'Avg {count} per app',
+      fieldCountTemplate: '{count} fields',
+      noValue: '—',
+    },
+  },
+  {
+    id: 'app-card-copy',
+    type: 'app-card-copy',
+    data: {
+      noDescription: 'No description',
+      runLabel: 'Run',
+      fieldSingular: 'field',
+      fieldPlural: 'fields',
+      nodeSingular: 'node',
+      nodePlural: 'nodes',
+      moreTemplate: '+{count} more',
+    },
+  },
+  {
     id: 'prompt-templates',
     type: 'prompt-templates',
     data: DEFAULT_PROMPT_TEMPLATES,
