@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-08-10] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency check: `npm outdated` — updated safe patch/minor deps (major-only updates `typescript` 5→7, `eslint` 9→10, `@types/node` 20→26 skipped per no-major policy):
+  - `lucide-react` 1.30.0 → 1.31.0 (minor)
+- Code cleanup: removed dead code (unused, 0 references in `src/`):
+  - `src/app/globals.css`: removed unused `--clay-lavender` and `--clay-mint` CSS custom properties (defined in `:root` but never referenced by any component; other palette vars are used across components)
+- No TODO/FIXME/deprecated markers found in `src/`; no unused imports found (TypeScript `noUnusedLocals` clean); no dead files or unused exports found (all lib/services/engine modules referenced by components or tests)
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-09] — Maintenance
 
 ### Changed
