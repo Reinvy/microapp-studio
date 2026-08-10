@@ -7,7 +7,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildSearchName, withSearchIndex } from '@/lib/searchIndex';
+import {
+  buildSearchName,
+  withSearchIndex,
+  tokenizeQuery,
+  appMatchesTokens,
+} from '@/lib/searchIndex';
 import type { AppSchema } from '@/types/schema';
 
 function makeApp(overrides: Partial<AppSchema> = {}): AppSchema {
@@ -63,5 +68,72 @@ describe('withSearchIndex', () => {
     const indexed = withSearchIndex(app);
     expect(indexed.version).toBe(3);
     expect(indexed.description).toBe('keep me');
+  });
+});
+
+describe('tokenizeQuery', () => {
+  it('lowercases and splits on whitespace', () => {
+    expect(tokenizeQuery('Todo List')).toEqual(['todo', 'list']);
+    expect(tokenizeQuery('  Budget   Tracker ')).toEqual([
+      'budget',
+      'tracker',
+    ]);
+  });
+
+  it('keeps single-character tokens (one-letter queries are valid)', () => {
+    expect(tokenizeQuery('a')).toEqual(['a']);
+    expect(tokenizeQuery('a b')).toEqual(['a', 'b']);
+  });
+
+  it('returns an empty array for empty or whitespace-only queries', () => {
+    expect(tokenizeQuery('')).toEqual([]);
+    expect(tokenizeQuery('   ')).toEqual([]);
+  });
+
+  it('handles undefined and null gracefully', () => {
+    expect(tokenizeQuery(undefined as unknown as string)).toEqual([]);
+    expect(tokenizeQuery(null as unknown as string)).toEqual([]);
+  });
+});
+
+describe('appMatchesTokens', () => {
+  const app = makeApp({
+    name: 'Todo List Pro',
+    description: 'Manage daily tasks',
+  });
+
+  it('matches when every token appears in the name', () => {
+    expect(appMatchesTokens(app, ['todo', 'list'])).toBe(true);
+  });
+
+  it('matches tokens spread across name and description (AND semantics)', () => {
+    expect(appMatchesTokens(app, ['todo', 'tasks'])).toBe(true);
+    expect(appMatchesTokens(app, ['list', 'daily'])).toBe(true);
+  });
+
+  it('fails when any single token is missing', () => {
+    expect(appMatchesTokens(app, ['todo', 'xyz'])).toBe(false);
+    expect(appMatchesTokens(app, ['budget', 'list'])).toBe(false);
+  });
+
+  it('matches an empty token list (empty query = all apps)', () => {
+    expect(appMatchesTokens(app, [])).toBe(true);
+  });
+
+  it('falls back to buildSearchName when nameLower is missing (legacy records)', () => {
+    const legacy = makeApp({ name: 'Event RSVP' }); // no nameLower set
+    expect(appMatchesTokens(legacy, ['event'])).toBe(true);
+    expect(appMatchesTokens(legacy, ['event', 'rsvp'])).toBe(true);
+  });
+
+  it('matches descriptions case-insensitively', () => {
+    const lower = makeApp({ name: 'X', description: 'DAILY Tasks' });
+    expect(appMatchesTokens(lower, ['daily'])).toBe(true);
+  });
+
+  it('handles missing descriptions gracefully', () => {
+    const noDesc = makeApp({ name: 'Calculator', description: '' });
+    expect(appMatchesTokens(noDesc, ['calculator'])).toBe(true);
+    expect(appMatchesTokens(noDesc, ['calculator', 'math'])).toBe(false);
   });
 });

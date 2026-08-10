@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-08-11] — Feature & Scalability
+
+### Added
+- **Tokenized multi-word search (IndexedDB query optimization)**:
+  - `src/lib/searchIndex.ts`: new pure helpers `tokenizeQuery()` (lowercase/whitespace-split/trim; keeps single-char tokens) and `appMatchesTokens()` (AND-match every token against name + description; falls back to `buildSearchName` for legacy records missing `nameLower`)
+  - `src/db/microAppRepo.ts` `search()`: multi-word queries now use the indexed `nameLower` prefix scan on the FIRST token to build a bounded candidate set (O(log n + k), k = apps whose name starts with the token) instead of a full-table `toArray()` scan — the common case for app names like "todo list", "budget tracker", "event rsvp". The full scan is now only a fallback for queries whose first token has no name-prefix hits (e.g. description-only matches)
+  - Same token filter is applied in both the indexed fast path and the fallback scan → consistent AND semantics across single- and multi-word queries
+- **Unit tests**: `src/__tests__/search-index.test.ts` +11 tests (17 total) covering tokenization edge cases (whitespace, single-char, empty/null) and token AND-matching (name-only, name+description spread, missing token, legacy `nameLower` fallback, case-insensitivity, empty description)
+
+### 🌐 Deploy
+- Cron 1: Feature Expansion & Architecture Scalability deployment to Vercel
+
 ## [2026-08-10] — Maintenance
 
 ### Changed
