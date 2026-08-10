@@ -18,3 +18,38 @@ export function buildSearchName(name: string): string {
 export function withSearchIndex(app: AppSchema): AppSchema {
   return { ...app, nameLower: buildSearchName(app.name) };
 }
+
+/**
+ * Split a raw query into normalized search tokens.
+ *
+ * Tokens are lowercased and trimmed; empty tokens (from leading/trailing or
+ * repeated whitespace) are dropped. Single-character tokens are KEPT — a
+ * one-letter query like "a" is a legitimate search for apps starting with
+ * "a" and must not be silently discarded.
+ */
+export function tokenizeQuery(query: string): string[] {
+  return String(query || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
+}
+
+/**
+ * AND-match an app against every token: each token must appear as a substring
+ * of the app's name OR description.
+ *
+ * Empty token list matches everything (vacuous truth) — used for empty
+ * queries, which the repo treats as "return all apps".
+ */
+export function appMatchesTokens(
+  app: Pick<AppSchema, 'name' | 'nameLower' | 'description'>,
+  tokens: string[]
+): boolean {
+  if (tokens.length === 0) return true;
+  const name = (app.nameLower || buildSearchName(app.name)).toLowerCase();
+  const description = String(app.description || '').toLowerCase();
+  return tokens.every(
+    (token) => name.includes(token) || description.includes(token)
+  );
+}

@@ -3,8 +3,13 @@
 import { db } from './db';
 import type { AppSchema, FieldType } from '@/types/schema';
 import type { SortConfig } from '@/services/dashboardSortService';
-import { sortApps } from '@/services/dashboardSortService';
-import { buildSearchName, withSearchIndex } from '@/lib/searchIndex';
+import { sortApps, DEFAULT_SORT } from '@/services/dashboardSortService';
+import {
+  buildSearchName,
+  withSearchIndex,
+  tokenizeQuery,
+  appMatchesTokens,
+} from '@/lib/searchIndex';
 import { sanitizeAppRecord, type ImportSummary } from '@/lib/backup';
 
 export interface PaginatedResult<T> {
@@ -97,7 +102,23 @@ export const microAppRepo = {
     }
   },
 
-  /** Search apps by name or description with pagination — optimized for large datasets */
+  /**
+   * Search apps by name or description with pagination — optimized for large datasets.
+   *
+   * Strategy (applies to BOTH single- and multi-word queries):
+   * 1. Tokenize the query (lowercased, whitespace-split, empty tokens dropped).
+   * 2. Indexed fast path: prefix-scan the FIRST token over the `nameLower`
+   *    index — an O(log n + k) range read that materializes only the apps whose
+   *    name starts with that token (k << n at scale) — then AND-filter that
+   *    bounded candidate set with ALL tokens against name + description.
+   * 3. Fallback (only when the indexed path yields zero hits — e.g. the query
+   *    matches exclusively inside descriptions or at non-prefix positions):
+   *    full scan with the same token filter.
+   *
+   * Multi-word queries no longer trigger a full-table toArray() whenever the
+   * first token has any name-prefix hits — the common case for app names like
+   * "todo list", "budget tracker", "event rsvp".
+   */
   async search(
     query: string,
     page: number = 1,
@@ -105,27 +126,21 @@ export const microAppRepo = {
     sort?: SortConfig
   ): Promise<PaginatedResult<AppSchema>> {
     try {
-      const q = query.toLowerCase().trim();
+      const tokens = tokenizeQuery(query);
 
-      // Fast path: single-word query → indexed case-insensitive prefix scan on `nameLower`.
-      // Falls through to the generic scan when no name matches (e.g. description-only hits).
-      if (q.length > 0 && !q.includes(' ')) {
+      // Indexed fast path: bounded candidate set via first-token prefix scan.
+      if (tokens.length > 0) {
         const prefixResults = await db.apps
           .where('nameLower')
-          .startsWith(q)
+          .startsWith(tokens[0])
           .toArray();
 
-        const matched = prefixResults.filter(
-          (app) =>
-            (app.nameLower || buildSearchName(app.name)).includes(q) ||
-            app.description.toLowerCase().includes(q)
+        const matched = prefixResults.filter((app) =>
+          appMatchesTokens(app, tokens)
         );
 
         if (matched.length > 0) {
-          const effectiveSort: SortConfig = sort ?? {
-            field: 'updatedAt',
-            direction: 'desc',
-          };
+          const effectiveSort: SortConfig = sort ?? DEFAULT_SORT;
           const sorted = sortApps(matched, effectiveSort);
           const total = sorted.length;
           const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -142,20 +157,15 @@ export const microAppRepo = {
         }
       }
 
-      // Generic path: substring match over name + description.
+      // Fallback: full scan (first token has no name-prefix hits, or empty
+      // query). An empty token list matches every app → all apps, paginated.
       const all = await db.apps
         .orderBy('updatedAt')
         .reverse()
-        .filter((app) =>
-          app.name.toLowerCase().includes(q) ||
-          app.description.toLowerCase().includes(q)
-        )
+        .filter((app) => appMatchesTokens(app, tokens))
         .toArray();
 
-      const effectiveSort: SortConfig = sort ?? {
-        field: 'updatedAt',
-        direction: 'desc',
-      };
+      const effectiveSort: SortConfig = sort ?? DEFAULT_SORT;
       const sorted = sortApps(all, effectiveSort);
       const total = sorted.length;
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
