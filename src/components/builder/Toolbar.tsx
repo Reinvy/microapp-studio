@@ -16,6 +16,7 @@ import { useAppStore } from '@/store/appStore';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { goToDashboard } from '@/lib/navigation';
+import { builderCopy } from '@/lib/builderCopy';
 
 export default function Toolbar() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function Toolbar() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editingName, setEditingName] = useState(false);
-  const [name, setName] = useState(activeApp?.name || 'Untitled');
+  const [name, setName] = useState(activeApp?.name || builderCopy.toolbar.untitled);
 
   const handleSave = useCallback(async () => {
     if (!activeApp) return;
@@ -65,7 +66,7 @@ export default function Toolbar() {
           <button
             onClick={() => goToDashboard(router)}
             className="flex items-center justify-center h-9 w-9 rounded-full clay-sm bg-clay-peach shrink-0 hover:scale-105 active:scale-95 transition-transform"
-            aria-label="Back to dashboard"
+            aria-label={builderCopy.toolbar.backAria}
           >
             <ArrowLeft className="h-4 w-4" style={{ color: 'var(--clay-foreground)' }} />
           </button>
@@ -109,14 +110,14 @@ export default function Toolbar() {
           <button
             disabled
             className="hidden sm:flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
-            aria-label="Undo (not available yet)"
+            aria-label={builderCopy.toolbar.undoAria}
           >
             <Undo2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
           </button>
           <button
             disabled
             className="hidden sm:flex items-center justify-center h-8 w-8 rounded-xl clay-sm opacity-40 cursor-not-allowed"
-            aria-label="Redo (not available yet)"
+            aria-label={builderCopy.toolbar.redoAria}
           >
             <Redo2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
           </button>
@@ -127,7 +128,7 @@ export default function Toolbar() {
             onClick={handleSave}
             disabled={saving}
             className={cn(
-              'flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-medium transition-all',
+              'flex items-center gap-1.5 h-8 px-3 text-xs font-medium transition-all',
               'bg-clay-green clay-button',
               saving && 'opacity-70 cursor-not-allowed'
             )}
@@ -138,16 +139,16 @@ export default function Toolbar() {
             ) : (
               <Save className="h-3.5 w-3.5" />
             )}
-            <span className="hidden sm:inline">{saved ? 'Saved!' : 'Save'}</span>
+            <span className="hidden sm:inline">{saved ? builderCopy.toolbar.saved : builderCopy.toolbar.save}</span>
           </button>
 
           <button
             onClick={handleRun}
-            className="flex items-center gap-1.5 h-8 px-3 sm:px-4 rounded-xl text-xs font-medium clay-button bg-clay-purple transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-1.5 h-8 px-3 sm:px-4 text-xs font-medium clay-button bg-clay-purple"
             style={{ color: 'var(--clay-foreground)' }}
           >
             <Play className="h-3.5 w-3.5 fill-current" />
-            <span className="hidden sm:inline">Run</span>
+            <span className="hidden sm:inline">{builderCopy.toolbar.run}</span>
           </button>
         </div>
       </div>

@@ -5,26 +5,9 @@ import {
   Settings2,
   Trash2,
   Type,
-  Hash,
   List,
-  CheckSquare,
-  AlignLeft,
-  Calendar,
   Sliders,
-  ToggleLeft,
-  File,
-  Mail,
-  Phone,
-  Link,
   Palette,
-  Star,
-  Heading,
-  Pilcrow,
-  SeparatorHorizontal,
-  Expand,
-  Image,
-  Layout,
-  SquareMousePointer,
   ChevronDown,
   ChevronUp,
   Plus,
@@ -33,32 +16,25 @@ import {
 import type { FieldType, FieldSchema, ButtonVariant, HeadingLevel, TextAlignment, WidthStyle, AnimationType, AspectRatio, BorderRadius, ShadowSize } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
+import { FieldTypeIcon, fieldLabels } from '@/lib/fieldMeta';
 
 // ── Helpers ──
 
-const FIELD_TYPE_OPTIONS: { value: FieldType; label: string; icon: React.ReactNode }[] = [
-  { value: 'text', label: 'Text', icon: <Type className="h-3.5 w-3.5" /> },
-  { value: 'number', label: 'Number', icon: <Hash className="h-3.5 w-3.5" /> },
-  { value: 'select', label: 'Select', icon: <List className="h-3.5 w-3.5" /> },
-  { value: 'checkbox', label: 'Checkbox', icon: <CheckSquare className="h-3.5 w-3.5" /> },
-  { value: 'textarea', label: 'Textarea', icon: <AlignLeft className="h-3.5 w-3.5" /> },
-  { value: 'date', label: 'Date', icon: <Calendar className="h-3.5 w-3.5" /> },
-  { value: 'file', label: 'File', icon: <File className="h-3.5 w-3.5" /> },
-  { value: 'slider', label: 'Slider', icon: <Sliders className="h-3.5 w-3.5" /> },
-  { value: 'toggle', label: 'Toggle', icon: <ToggleLeft className="h-3.5 w-3.5" /> },
-  { value: 'email', label: 'Email', icon: <Mail className="h-3.5 w-3.5" /> },
-  { value: 'phone', label: 'Phone', icon: <Phone className="h-3.5 w-3.5" /> },
-  { value: 'url', label: 'URL', icon: <Link className="h-3.5 w-3.5" /> },
-  { value: 'color', label: 'Color', icon: <Palette className="h-3.5 w-3.5" /> },
-  { value: 'rating', label: 'Rating', icon: <Star className="h-3.5 w-3.5" /> },
-  { value: 'heading', label: 'Heading', icon: <Heading className="h-3.5 w-3.5" /> },
-  { value: 'paragraph', label: 'Paragraph', icon: <Pilcrow className="h-3.5 w-3.5" /> },
-  { value: 'divider', label: 'Divider', icon: <SeparatorHorizontal className="h-3.5 w-3.5" /> },
-  { value: 'spacer', label: 'Spacer', icon: <Expand className="h-3.5 w-3.5" /> },
-  { value: 'image', label: 'Image', icon: <Image className="h-3.5 w-3.5" /> },
-  { value: 'card', label: 'Card', icon: <Layout className="h-3.5 w-3.5" /> },
-  { value: 'button', label: 'Button', icon: <SquareMousePointer className="h-3.5 w-3.5" /> },
+// Ordered field types for the type picker — labels come from fieldLabels and
+// icons from FieldTypeIcon (fieldMeta is the single source of truth; this
+// list only pins the picker order).
+const FIELD_TYPE_ORDER: FieldType[] = [
+  'text', 'number', 'select', 'checkbox', 'textarea', 'date', 'file',
+  'slider', 'toggle', 'email', 'phone', 'url', 'color', 'rating',
+  'heading', 'paragraph', 'divider', 'spacer', 'image', 'card', 'button',
 ];
+
+const FIELD_TYPE_OPTIONS: { value: FieldType; label: string; icon: React.ReactNode }[] =
+  FIELD_TYPE_ORDER.map((value) => ({
+    value,
+    label: fieldLabels[value] || value,
+    icon: <FieldTypeIcon type={value} className="h-3.5 w-3.5" />,
+  }));
 
 const HEADING_LEVELS: { value: HeadingLevel; label: string }[] = [
   { value: 'h1', label: 'H1 - Largest' },
