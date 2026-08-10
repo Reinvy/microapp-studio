@@ -40,9 +40,12 @@ vi.mock('@/db/contentRepo', () => ({
     exists: vi.fn(),
     save: vi.fn(),
   },
+  formatCountTemplate: (template: string, count: number) =>
+    template.replace(/\{count\}/g, String(count)),
 }));
 
 import { sampleApps, seedContent } from '@/db/seed';
+import { formatCountTemplate, type DashboardStatsCopy, type AppCardCopy } from '@/db/contentRepo';
 import { validateField } from '@/engine/schemaEngine';
 import type { FieldSchema, AppSchema } from '@/types/schema';
 
@@ -205,6 +208,51 @@ describe('Seed Data — SiteContent Navigation Integrity', () => {
       expect(typeof item.type).toBe('string');
       expect(item.type.length).toBeGreaterThan(0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DB-driven component copy — dashboard stats + app card labels/templates
+// ---------------------------------------------------------------------------
+
+describe('Seed Data — Dashboard & AppCard Copy (DB-driven UI text)', () => {
+  it('seed includes dashboard-stats-copy with complete template fields', () => {
+    const content = seedContent.find((c) => c.type === 'dashboard-stats-copy');
+    expect(content).toBeTruthy();
+    const data = content!.data as DashboardStatsCopy;
+    expect(data.appsLabel.length).toBeGreaterThan(0);
+    expect(data.fieldsLabel.length).toBeGreaterThan(0);
+    expect(data.logicLabel.length).toBeGreaterThan(0);
+    expect(data.topTypeLabel.length).toBeGreaterThan(0);
+    // Every count template must contain the {count} placeholder.
+    expect(data.weekTemplate).toContain('{count}');
+    expect(data.avgTemplate).toContain('{count}');
+    expect(data.fieldCountTemplate).toContain('{count}');
+    // Design system: copy text is the warm brown, never black.
+    expect(data.noValue).not.toMatch(/^#?0{3,6}$/);
+  });
+
+  it('seed includes app-card-copy with complete label fields', () => {
+    const content = seedContent.find((c) => c.type === 'app-card-copy');
+    expect(content).toBeTruthy();
+    const data = content!.data as AppCardCopy;
+    expect(data.noDescription.length).toBeGreaterThan(0);
+    expect(data.runLabel.length).toBeGreaterThan(0);
+    expect(data.fieldSingular.length).toBeGreaterThan(0);
+    expect(data.fieldPlural.length).toBeGreaterThan(0);
+    expect(data.nodeSingular.length).toBeGreaterThan(0);
+    expect(data.nodePlural.length).toBeGreaterThan(0);
+    expect(data.moreTemplate).toContain('{count}');
+  });
+
+  it('formatCountTemplate substitutes {count} (single + repeated)', () => {
+    expect(formatCountTemplate('+{count} this week', 3)).toBe('+3 this week');
+    expect(formatCountTemplate('{count} fields', 12)).toBe('12 fields');
+    expect(formatCountTemplate('+{count} more', 2)).toBe('+2 more');
+    // Repeated placeholder occurrences all substitute.
+    expect(formatCountTemplate('{count} of {count}', 4)).toBe('4 of 4');
+    // Missing placeholder leaves the template unchanged.
+    expect(formatCountTemplate('—', 5)).toBe('—');
   });
 });
 
