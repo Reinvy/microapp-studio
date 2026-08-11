@@ -23,6 +23,7 @@ import type { AppSchema, EngineResult } from '@/types/schema';
 import { executeSchema } from '@/engine/schemaEngine';
 import { cn } from '@/lib/utils';
 import { getFieldBorderRadius } from '@/lib/fieldStyles';
+import { runnerCopy } from '@/lib/runnerCopy';
 import RenderField from './RenderField';
 
 interface AppRunnerProps {
@@ -58,9 +59,10 @@ function CopyValuePill({
       </span>
       <button
         onClick={onCopy}
-        className="opacity-0 group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
+        // Visible on touch (no hover): only hide behind hover-reveal on md+ screens
+        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all clay-sm p-1 bg-clay-peach/30 hover:bg-clay-peach/50"
         style={{ color: 'var(--clay-foreground)' }}
-        title="Copy value"
+        title={runnerCopy.preview.copyValue}
       >
         {copied ? (
           <Check className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
@@ -111,7 +113,7 @@ function LivePreview({
           ) : (
             <EyeOff className="h-3.5 w-3.5" style={{ color: 'var(--clay-muted)' }} />
           )}
-          Live Preview
+          {runnerCopy.preview.title}
         </button>
         <div className="flex items-center gap-2">
           {liveResult && (
@@ -128,11 +130,11 @@ function LivePreview({
               ) : (
                 <CheckCircle2 className="h-2.5 w-2.5" />
               )}
-              {errorCount > 0 ? `${errorCount} err` : 'valid'}
+              {errorCount > 0 ? runnerCopy.preview.errShort(errorCount) : runnerCopy.preview.valid}
             </span>
           )}
           <span className="text-[9px] px-2 py-0.5 rounded-full clay-sm bg-clay-blue/20 font-mono" style={{ color: 'var(--clay-foreground)' }}>
-            {Object.keys(values).length} vals
+            {runnerCopy.preview.valsShort(Object.keys(values).length)}
           </span>
         </div>
       </div>
@@ -144,7 +146,7 @@ function LivePreview({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: 'var(--clay-muted)' }}>
-                Current Values
+                {runnerCopy.preview.currentValues}
               </span>
               <button
                 onClick={() => {
@@ -154,7 +156,7 @@ function LivePreview({
                 style={{ color: 'var(--clay-foreground)' }}
               >
                 <Copy className="h-3 w-3" />
-                Copy
+                {runnerCopy.preview.copy}
               </button>
             </div>
             <pre className="text-[11px] font-mono leading-relaxed clay-inset p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-48" style={{ color: 'var(--clay-foreground)' }}>
@@ -166,7 +168,7 @@ function LivePreview({
           {liveResult && Object.keys(liveResult.outputs).length > 0 && (
             <div>
               <span className="text-[10px] font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--clay-muted)' }}>
-                Computed Results
+                {runnerCopy.preview.computedResults}
               </span>
               <div className="space-y-1">
                 {Object.entries(liveResult.outputs).map(([key, val]) => (
@@ -195,7 +197,7 @@ function LivePreview({
             <div className="rounded-xl clay-sm bg-clay-rose/20 p-3">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <AlertCircle className="h-3 w-3" style={{ color: 'var(--clay-foreground)' }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--clay-foreground)' }}>Issues</span>
+                <span className="text-xs font-medium" style={{ color: 'var(--clay-foreground)' }}>{runnerCopy.preview.issues}</span>
               </div>
               <ul className="space-y-0.5">
                 {liveResult.errors.slice(0, 3).map((err, i) => (
@@ -393,8 +395,8 @@ export default function AppRunner({ app }: AppRunnerProps) {
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={handleShare}
-                className="flex items-center justify-center h-9 w-9 rounded-xl clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
-                title="Share this app"
+                className="flex items-center justify-center h-9 w-9 rounded-2xl clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
+                title={runnerCopy.app.shareTitle}
               >
                 {copiedShare ? (
                   <Check className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
@@ -404,8 +406,8 @@ export default function AppRunner({ app }: AppRunnerProps) {
               </button>
               <button
                 onClick={toggleFullscreen}
-                className="flex items-center justify-center h-9 w-9 rounded-xl clay-sm bg-clay-peach/30 hover:bg-clay-peach/50 transition-all"
-                title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                className="flex items-center justify-center h-9 w-9 rounded-2xl clay-sm bg-clay-peach/30 hover:bg-clay-peach/50 transition-all"
+                title={fullscreen ? runnerCopy.app.exitFullscreen : runnerCopy.app.fullscreen}
               >
                 {fullscreen ? (
                   <Minimize2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
@@ -418,18 +420,18 @@ export default function AppRunner({ app }: AppRunnerProps) {
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-yellow/30 flex items-center gap-1" style={{ color: 'var(--clay-foreground)' }}>
               <Sparkles className="h-2.5 w-2.5" />
-              {app.fields.length} field{app.fields.length !== 1 ? 's' : ''}
+              {runnerCopy.app.fieldsCount(app.fields.length)}
             </span>
             {hasLogicNodes && (
               <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-blue/30 flex items-center gap-1" style={{ color: 'var(--clay-foreground)' }}>
                 <Activity className="h-2.5 w-2.5" />
-                {app.logicNodes.length} logic node{app.logicNodes.length !== 1 ? 's' : ''}
+                {runnerCopy.app.logicNodesCount(app.logicNodes.length)}
               </span>
             )}
             {liveResult && liveResult.errors.length > 0 && (
               <span className="text-[10px] px-3 py-0.5 rounded-full clay-sm bg-clay-rose/40 flex items-center gap-1" style={{ color: 'var(--clay-foreground)' }}>
                 <AlertCircle className="h-2.5 w-2.5" />
-                {liveResult.errors.length} issue{liveResult.errors.length !== 1 ? 's' : ''}
+                {runnerCopy.app.issuesCount(liveResult.errors.length)}
               </span>
             )}
           </div>
@@ -445,7 +447,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                 <div className="flex flex-col items-center justify-center py-16 clay-lg bg-clay-cream/60">
                   <AlertCircle className="h-10 w-10 mb-4" style={{ color: 'var(--clay-muted)' }} />
                   <p className="text-sm text-center max-w-xs" style={{ color: 'var(--clay-muted)' }}>
-                    This app has no fields yet. Go to the builder to add some.
+                    {runnerCopy.app.emptyFields}
                   </p>
                 </div>
               )}
@@ -491,12 +493,12 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     {running ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Processing...</span>
+                        <span>{runnerCopy.app.processing}</span>
                       </>
                     ) : (
                       <>
                         <Play className="h-4 w-4 fill-current" />
-                        <span>{hasLogicNodes ? 'Calculate' : 'Submit'}</span>
+                        <span>{hasLogicNodes ? runnerCopy.app.calculate : runnerCopy.app.submit}</span>
                       </>
                     )}
                   </button>
@@ -507,7 +509,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     style={{ color: 'var(--clay-foreground)' }}
                   >
                     <RotateCcw className="h-4 w-4" />
-                    Reset
+                    {runnerCopy.app.reset}
                   </button>
                 </div>
               )}
@@ -550,13 +552,17 @@ export default function AppRunner({ app }: AppRunnerProps) {
                     )}
                     <div>
                       <span className="text-sm font-semibold" style={{ color: 'var(--clay-foreground)' }}>
-                        {running ? 'Processing...' : result?.errors.length === 0 ? 'Success' : 'Validation Errors'}
+                        {running
+                          ? runnerCopy.app.processing
+                          : result?.errors.length === 0
+                            ? runnerCopy.app.success
+                            : runnerCopy.app.validationErrors}
                       </span>
                       {result && (
                         <span className="text-[11px] ml-2" style={{ color: 'var(--clay-foreground)' }}>
                           {result.errors.length === 0
-                            ? 'All fields valid'
-                            : `${result.errors.length} error${result.errors.length !== 1 ? 's' : ''} found`}
+                            ? runnerCopy.app.allFieldsValid
+                            : runnerCopy.app.errorsFound(result.errors.length)}
                         </span>
                       )}
                     </div>
@@ -575,7 +581,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                       style={{ color: 'var(--clay-foreground)' }}
                     >
                       <Download className="h-3 w-3" />
-                      Export
+                      {runnerCopy.app.export}
                     </button>
                   )}
                 </div>
@@ -606,14 +612,14 @@ export default function AppRunner({ app }: AppRunnerProps) {
                       <div>
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-muted)' }}>
-                            Input Values
+                            {runnerCopy.app.inputValues}
                           </span>
                           <button
                             onClick={() => setShowRaw(!showRaw)}
                             className="text-[10px] font-medium transition-colors clay-sm px-2 py-0.5 bg-clay-peach/30 hover:bg-clay-peach/50"
                             style={{ color: 'var(--clay-foreground)' }}
                           >
-                            {showRaw ? 'Show formatted' : 'Show raw'}
+                            {showRaw ? runnerCopy.app.showFormatted : runnerCopy.app.showRaw}
                           </button>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
@@ -647,7 +653,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                       <div>
                         <div className="flex items-center gap-2 mb-3">
                           <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--clay-muted)' }}>
-                            Computed Results
+                            {runnerCopy.preview.computedResults}
                           </span>
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full clay-sm bg-clay-purple/20" style={{ color: 'var(--clay-foreground)' }}>
                             {outputEntries.length}
@@ -680,8 +686,8 @@ export default function AppRunner({ app }: AppRunnerProps) {
                         <div className="w-14 h-14 rounded-full clay-sm bg-clay-green/30 flex items-center justify-center mb-3">
                           <CheckCircle2 className="h-7 w-7" style={{ color: 'var(--clay-foreground)' }} />
                         </div>
-                        <p className="text-sm font-medium" style={{ color: 'var(--clay-foreground)' }}>Form submitted successfully!</p>
-                        <p className="text-xs mt-1" style={{ color: 'var(--clay-muted)' }}>All inputs are valid.</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--clay-foreground)' }}>{runnerCopy.app.formSubmitted}</p>
+                        <p className="text-xs mt-1" style={{ color: 'var(--clay-muted)' }}>{runnerCopy.app.allInputsValid}</p>
                       </div>
                     )}
                   </div>
