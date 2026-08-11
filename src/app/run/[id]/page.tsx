@@ -8,6 +8,7 @@ import type { AppSchema } from '@/types/schema';
 import { appService } from '@/services/appService';
 import { runHistoryService } from '@/services/runHistoryService';
 import { goToDashboard } from '@/lib/navigation';
+import { runnerCopy } from '@/lib/runnerCopy';
 import { ClayLoader, ClayErrorCard } from '@/components/ui/clay-feedback';
 
 // Lazy-load the AppRunner — its chunk bundles the schema engine
@@ -27,7 +28,7 @@ function RunnerLoading() {
     <div className="min-h-[60vh] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3 clay-sm p-8">
         <Loader2 className="h-8 w-8 animate-spin text-clay-purple" />
-        <p className="text-sm text-clay-muted">Preparing runner...</p>
+        <p className="text-sm text-clay-muted">{runnerCopy.page.preparingRunner}</p>
       </div>
     </div>
   );
@@ -44,7 +45,7 @@ export default function RunPage() {
 
   const loadApp = useCallback(async () => {
     if (!appId) {
-      setError('No app ID provided.');
+      setError(runnerCopy.page.noAppId);
       setLoading(false);
       return;
     }
@@ -58,11 +59,11 @@ export default function RunPage() {
       if (found) {
         setApp(found);
       } else {
-        setError('App not found. It may have been deleted.');
+        setError(runnerCopy.page.appNotFound);
       }
     } catch (err) {
       console.error('Failed to load app:', err);
-      setError('Failed to load the app. Please try again.');
+      setError(runnerCopy.page.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -82,27 +83,27 @@ export default function RunPage() {
   }, [app?.id, app?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
-    return <ClayLoader label="Loading app..." />;
+    return <ClayLoader label={runnerCopy.page.loadingApp} />;
   }
 
   if (error || !app) {
     return (
       <ClayErrorCard
-        title="App not found"
-        message={error || 'Something went wrong.'}
+        title={runnerCopy.page.errorTitle}
+        message={error || runnerCopy.page.errorGeneric}
         actions={
           <>
             <button
               onClick={() => goToDashboard(router)}
-              className="clay-sm px-4 py-2 text-xs font-medium bg-clay-peach/50 hover:bg-clay-peach/70 transition-all text-foreground"
+              className="clay-button px-4 py-2 text-xs font-medium bg-clay-peach/50 hover:bg-clay-peach/70 transition-all text-foreground"
             >
-              Back to Dashboard
+              {runnerCopy.page.backToDashboard}
             </button>
             <button
               onClick={loadApp}
               className="clay-button bg-clay-purple px-4 py-2 text-xs font-medium text-foreground"
             >
-              Try Again
+              {runnerCopy.page.tryAgain}
             </button>
           </>
         }
@@ -117,17 +118,17 @@ export default function RunPage() {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
           <button
             onClick={() => goToDashboard(router)}
-            className="flex items-center gap-1.5 text-xs font-medium h-9 px-3 rounded-xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all text-foreground"
+            className="flex items-center gap-1.5 text-xs font-medium h-9 px-3 rounded-2xl clay-sm bg-clay-peach/40 hover:bg-clay-peach/60 transition-all text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Dashboard
+            {runnerCopy.page.dashboard}
           </button>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push(`/builder?id=${app.id}`)}
-              className="h-9 px-4 rounded-xl text-xs font-medium clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all text-foreground"
+              className="h-9 px-4 rounded-2xl text-xs font-medium clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all text-foreground"
             >
-              Open in Builder
+              {runnerCopy.page.openInBuilder}
             </button>
           </div>
         </div>
