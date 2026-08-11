@@ -1021,6 +1021,17 @@ export const seedContent: SiteContent[] = [
     },
   },
   {
+    id: 'recently-run-copy',
+    type: 'recently-run-copy',
+    data: {
+      title: 'Recently Run',
+      subtitle: 'Your latest app launches',
+      emptyText: 'No runs yet — hit Run on any app card to start your trail.',
+      chipLabel: 'Open',
+      regionLabel: 'Recently run apps',
+    },
+  },
+  {
     id: 'auth-copy',
     type: 'auth-copy',
     data: {

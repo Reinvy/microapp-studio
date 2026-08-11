@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { AppSchema } from '@/types/schema';
 import { appService } from '@/services/appService';
+import { runHistoryService } from '@/services/runHistoryService';
 import { goToDashboard } from '@/lib/navigation';
 import { ClayLoader, ClayErrorCard } from '@/components/ui/clay-feedback';
 
@@ -70,6 +71,15 @@ export default function RunPage() {
   useEffect(() => {
     loadApp();
   }, [loadApp]);
+
+  // Record the run in the run-history trail (bounded retention, fire-and-forget).
+  // Fires once per successfully loaded app — the write never blocks rendering
+  // and a failure is swallowed by the service.
+  useEffect(() => {
+    if (app) {
+      runHistoryService.recordRun(app.id, app.name);
+    }
+  }, [app?.id, app?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return <ClayLoader label="Loading app..." />;

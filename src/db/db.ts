@@ -3,11 +3,13 @@
 import Dexie, { type Table } from 'dexie';
 import type { AppSchema } from '@/types/schema';
 import type { SiteContent } from './contentRepo';
+import type { RunRecord } from './runHistoryRepo';
 import { buildSearchName } from '@/lib/searchIndex';
 
 export class MicroAppDB extends Dexie {
   apps!: Table<AppSchema, string>;
   content!: Table<SiteContent, string>;
+  runHistory!: Table<RunRecord, string>;
 
   constructor() {
     super('MicroAppStudio');
@@ -39,6 +41,16 @@ export class MicroAppDB extends Dexie {
             }
           })
       );
+    // v5 — add `runHistory` table for the bounded run-history trail.
+    // `ranAt` is indexed so "recent runs" and "runs today/this week" are
+    // indexed range reads, and the retention prune can delete the oldest
+    // records via primary keys without a full-table scan. `appId` is indexed
+    // so per-app run counts stay O(log n) as the trail grows.
+    this.version(5).stores({
+      apps: 'id, name, nameLower, createdAt, updatedAt, [name+updatedAt]',
+      content: 'id, type',
+      runHistory: 'id, appId, ranAt',
+    });
   }
 }
 

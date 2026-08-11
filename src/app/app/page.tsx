@@ -15,6 +15,7 @@ import type { EmptyStateCopy } from '@/db/contentRepo';
 import { clampPage, getPageRange } from '@/lib/pagination';
 import AppCard from '@/components/dashboard/AppCard';
 import DashboardStats from '@/components/dashboard/DashboardStats';
+import RecentlyRun from '@/components/dashboard/RecentlyRun';
 import {
   AppWindow,
   Plus,
@@ -290,6 +291,9 @@ export default function DashboardPage() {
         <div className="mb-5">
           <DashboardStats />
         </div>
+
+        {/* Recently Run — bounded, IndexedDB-backed run trail */}
+        <RecentlyRun hasApps={totalApps > 0} />
 
         {/* Controls Row: Search + Sort + Page Size */}
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
