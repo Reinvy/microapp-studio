@@ -1,7 +1,7 @@
 'use client';
 
 import { microAppRepo } from './microAppRepo';
-import { contentRepo, type SiteContent } from './contentRepo';
+import { contentRepo, type SiteContent, type AuthCopy } from './contentRepo';
 import type { AppSchema, FieldSchema } from '@/types/schema';
 import { pastelPalette } from '@/lib/claymorphism';
 import { DEFAULT_PROMPT_TEMPLATES } from '@/lib/promptTemplates';
@@ -21,6 +21,8 @@ const imagePool = [
   'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=300&fit=crop',
 ];
 
 const appTemplatePool = [
@@ -709,6 +711,113 @@ function createWorkoutLoggerApp(index: number): AppSchema {
   };
 }
 
+function createTravelBookingApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Travel Booking Form',
+    description:
+      'Book a clay-style getaway with destination select, travel dates, guest count, and a trip notes area — grid layout.',
+    prompt:
+      'Create a travel booking form with destination select, departure date, return date, guest number, and special requests textarea.',
+    fields: [
+      headingField('tb-heading', 'Heading', 'h2', 'Plan your getaway ✈️'),
+      imageField('tb-image', 'Destination preview', pickFrom(imagePool, index, 5), 'Tropical travel destination'),
+      paragraphField('tb-intro', 'Intro', 'Tell us where you want to go — we will handle the rest.'),
+      dividerField('tb-divider', 'Divider'),
+      textField('tb-traveller', 'Traveller Name', 'e.g. Maya Putri'),
+      emailField('tb-email', 'Email Address', 'you@example.com'),
+      selectField('tb-destination', 'Destination', ['Bali', 'Tokyo', 'Paris', 'Raja Ampat', 'Swiss Alps']),
+      dateField('tb-depart', 'Departure Date'),
+      dateField('tb-return', 'Return Date'),
+      numberField('tb-guests', 'Guests', 1, 12),
+      toggleField('tb-insurance', 'Add travel insurance'),
+      urlField('tb-social', 'Social / Blog URL', 'https://...'),
+      textareaField('tb-notes', 'Special Requests', 'Dietary needs, seating, accessibility...'),
+      colorField('tb-color', 'Accent Color', pickFrom(pastelColors, index, 28)),
+      buttonField('tb-submit', 'Book Now', pickFrom(buttonVariants, index, 29)),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 1123200000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'grid', theme: 'clay' },
+  };
+}
+
+function createHabitTrackerApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Daily Habit Tracker',
+    description:
+      'Track daily habits with checkboxes, a consistency slider, streak counter, and a motivational card.',
+    prompt:
+      'Create a daily habit tracker with habit checkboxes, consistency slider, streak number, and a motivational card.',
+    fields: [
+      headingField('ht-heading', 'Heading', 'h2', 'Build better habits 🌱'),
+      cardField('ht-card', 'Daily Tip', 'Small wins compound. Pick 3 habits and stay consistent!'),
+      textField('ht-habit', 'New Habit', 'e.g. Drink 2L water'),
+      checkboxField('ht-habit1', 'Habit 1: Morning stretch'),
+      checkboxField('ht-habit2', 'Habit 2: Read 10 pages'),
+      checkboxField('ht-habit3', 'Habit 3: No sugar'),
+      sliderField('ht-consistency', 'Consistency (1-10)', 1, 10),
+      numberField('ht-streak', 'Current Streak (days)', 0, 365),
+      ratingField('ht-mood', 'How focused were you?'),
+      toggleField('ht-reminder', 'Enable daily reminder'),
+      spacerField('ht-spacer', 'Spacer', 16),
+      colorField('ht-color', 'Accent Color', pickFrom(pastelColors, index, 30)),
+      buttonField('ht-save', 'Save Day', pickFrom(buttonVariants, index, 31)),
+    ],
+    logicNodes: [
+      {
+        id: 'ht-streak-node',
+        name: 'Compute Streak Score',
+        code: 'return Math.round(consistency * (streak + 1) * 100) / 100',
+        inputs: ['consistency', 'streak'],
+        outputs: ['score'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1209600000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createNewsletterApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Newsletter Signup',
+    description:
+      'A simple clay-styled newsletter signup with name, email, topic select, and a consent checkbox.',
+    prompt:
+      'Create a newsletter signup form with name, email address, topic select, and consent checkbox.',
+    fields: [
+      headingField('nl-heading', 'Heading', 'h2', 'Stay in the loop 💌'),
+      paragraphField('nl-intro', 'Intro', 'One clay-themed email a week. No spam, ever.'),
+      textField('nl-name', 'Your Name', 'e.g. Dewi Lestari'),
+      emailField('nl-email', 'Email Address', 'you@example.com'),
+      selectField('nl-topic', 'Favorite Topic', ['Micro-App Tips', 'Design Systems', 'Product News', 'Community Spotlights']),
+      selectField('nl-frequency', 'Frequency', ['Weekly', 'Bi-weekly', 'Monthly']),
+      checkboxField('nl-consent', 'I agree to receive the newsletter'),
+      colorField('nl-color', 'Theme Color', pickFrom(pastelColors, index, 32)),
+      buttonField('nl-submit', 'Subscribe', pickFrom(buttonVariants, index, 33)),
+      buttonField('nl-unsub', 'Unsubscribe', 'ghost'),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 1296000000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
 export const sampleApps: AppSchema[] = [
   createFeedbackApp(0),
   createPizzaOrderApp(1),
@@ -722,6 +831,9 @@ export const sampleApps: AppSchema[] = [
   createJobApplicationApp(9),
   createMealPlannerApp(10),
   createWorkoutLoggerApp(11),
+  createTravelBookingApp(12),
+  createHabitTrackerApp(13),
+  createNewsletterApp(14),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -907,6 +1019,51 @@ export const seedContent: SiteContent[] = [
       nodePlural: 'nodes',
       moreTemplate: '+{count} more',
     },
+  },
+  {
+    id: 'auth-copy',
+    type: 'auth-copy',
+    data: {
+      login: {
+        title: 'Welcome back',
+        subtitle: 'Sign in to continue building your apps.',
+        emailLabel: 'Email',
+        emailPlaceholder: 'you@example.com',
+        passwordLabel: 'Password',
+        passwordPlaceholder: 'Enter your password',
+        forgotPassword: 'Forgot password?',
+        submitLabel: 'Sign In',
+        submittingLabel: 'Signing in...',
+        socialDivider: 'Or continue with',
+        googleLabel: 'Google',
+        githubLabel: 'GitHub',
+        bottomPrefix: "Don't have an account?",
+        bottomCta: 'Sign up',
+      },
+      register: {
+        title: 'Create an account',
+        subtitle: 'Start building micro-apps in minutes.',
+        nameLabel: 'Name',
+        namePlaceholder: 'Your full name',
+        emailLabel: 'Email',
+        emailPlaceholder: 'you@example.com',
+        passwordLabel: 'Password',
+        passwordPlaceholder: 'At least 6 characters',
+        confirmLabel: 'Confirm Password',
+        confirmPlaceholder: 'Repeat your password',
+        termsPrefix: 'I agree to the',
+        termsLink: 'Terms of Service',
+        termsAnd: 'and',
+        privacyLink: 'Privacy Policy',
+        submitLabel: 'Create account',
+        submittingLabel: 'Creating account...',
+        socialDivider: 'Or sign up with',
+        googleLabel: 'Google',
+        githubLabel: 'GitHub',
+        bottomPrefix: 'Already have an account?',
+        bottomCta: 'Sign in',
+      },
+    } satisfies AuthCopy,
   },
   {
     id: 'prompt-templates',

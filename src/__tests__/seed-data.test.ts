@@ -254,6 +254,29 @@ describe('Seed Data — Dashboard & AppCard Copy (DB-driven UI text)', () => {
     // Missing placeholder leaves the template unchanged.
     expect(formatCountTemplate('—', 5)).toBe('—');
   });
+
+  it('seed includes auth-copy with complete login + register fields', () => {
+    const content = seedContent.find((c) => c.type === 'auth-copy');
+    expect(content).toBeTruthy();
+    const data = content!.data as {
+      login: Record<string, string>;
+      register: Record<string, string>;
+    };
+    expect(data.login.title.length).toBeGreaterThan(0);
+    expect(data.login.subtitle.length).toBeGreaterThan(0);
+    expect(data.login.submitLabel.length).toBeGreaterThan(0);
+    expect(data.login.bottomCta.length).toBeGreaterThan(0);
+    expect(data.register.title.length).toBeGreaterThan(0);
+    expect(data.register.subtitle.length).toBeGreaterThan(0);
+    expect(data.register.submitLabel.length).toBeGreaterThan(0);
+    expect(data.register.bottomCta.length).toBeGreaterThan(0);
+    // Every label/placeholder field must be non-empty.
+    for (const group of [data.login, data.register]) {
+      for (const value of Object.values(group)) {
+        expect(value.length).toBeGreaterThan(0);
+      }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { contentService } from '@/services/contentService';
+import type { AuthCopy } from '@/db/contentRepo';
 import {
   AppWindow,
   Mail,
@@ -15,6 +17,32 @@ import {
   ArrowRight,
   Globe,
 } from 'lucide-react';
+
+// Register copy is seeded via contentRepo ('auth-copy') — fallback keeps
+// first paint intact and mirrors the seeded defaults.
+const fallbackAuthCopy: AuthCopy['register'] = {
+  title: 'Create an account',
+  subtitle: 'Start building micro-apps in minutes.',
+  nameLabel: 'Name',
+  namePlaceholder: 'Your full name',
+  emailLabel: 'Email',
+  emailPlaceholder: 'you@example.com',
+  passwordLabel: 'Password',
+  passwordPlaceholder: 'At least 6 characters',
+  confirmLabel: 'Confirm Password',
+  confirmPlaceholder: 'Repeat your password',
+  termsPrefix: 'I agree to the',
+  termsLink: 'Terms of Service',
+  termsAnd: 'and',
+  privacyLink: 'Privacy Policy',
+  submitLabel: 'Create account',
+  submittingLabel: 'Creating account...',
+  socialDivider: 'Or sign up with',
+  googleLabel: 'Google',
+  githubLabel: 'GitHub',
+  bottomPrefix: 'Already have an account?',
+  bottomCta: 'Sign in',
+};
 
 export default function RegisterPage() {
   return (
@@ -28,6 +56,7 @@ function RegisterForm() {
   const router = useRouter();
   const { register } = useAuth();
 
+  const [copy, setCopy] = useState<AuthCopy['register']>(fallbackAuthCopy);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +66,19 @@ function RegisterForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Load auth copy from IndexedDB — falls back to hardcoded defaults.
+    contentService.getContent<AuthCopy>('auth-copy')
+      .then((authCopy) => {
+        if (authCopy && typeof authCopy.register === 'object') {
+          setCopy(authCopy.register);
+        }
+      })
+      .catch(() => {
+        // Fallback already set — content service is fail-safe.
+      });
+  }, []);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -94,8 +136,8 @@ function RegisterForm() {
 
         <div className="clay-card overflow-hidden">
           <div className="bg-gradient-to-r from-[#C5E8F7] to-[#D5B8F5] px-6 py-5">
-            <h1 className="text-xl font-bold text-clay-foreground">Create an account</h1>
-            <p className="mt-1 text-sm text-clay-foreground/70">Start building micro-apps in minutes.</p>
+            <h1 className="text-xl font-bold text-clay-foreground">{copy.title}</h1>
+            <p className="mt-1 text-sm text-clay-foreground/70">{copy.subtitle}</p>
           </div>
 
           <div className="p-6">
@@ -107,11 +149,11 @@ function RegisterForm() {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-clay-foreground">Name</label>
+                <label className="text-sm font-medium text-clay-foreground">{copy.nameLabel}</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
-                    placeholder="Your full name" value={name}
+                    placeholder={copy.namePlaceholder} value={name}
                     onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: '' })); }}
                     className={`clay-input h-11 w-full pl-10 text-sm text-clay-foreground ${errors.name ? 'clay-input-error' : ''}`}
                     autoFocus
@@ -121,11 +163,11 @@ function RegisterForm() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-clay-foreground">Email</label>
+                <label className="text-sm font-medium text-clay-foreground">{copy.emailLabel}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
-                    type="email" placeholder="you@example.com" value={email}
+                    type="email" placeholder={copy.emailPlaceholder} value={email}
                     onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: '' })); }}
                     className={`clay-input h-11 w-full pl-10 text-sm text-clay-foreground ${errors.email ? 'clay-input-error' : ''}`}
                     autoComplete="email"
@@ -135,11 +177,11 @@ function RegisterForm() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-clay-foreground">Password</label>
+                <label className="text-sm font-medium text-clay-foreground">{copy.passwordLabel}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
-                    type={showPassword ? 'text' : 'password'} placeholder="At least 6 characters" value={password}
+                    type={showPassword ? 'text' : 'password'} placeholder={copy.passwordPlaceholder} value={password}
                     onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors((p) => ({ ...p, password: '' })); }}
                     className={`clay-input h-11 w-full pl-10 pr-10 text-sm text-clay-foreground ${errors.password ? 'clay-input-error' : ''}`}
                     autoComplete="new-password"
@@ -154,11 +196,11 @@ function RegisterForm() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-clay-foreground">Confirm Password</label>
+                <label className="text-sm font-medium text-clay-foreground">{copy.confirmLabel}</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />
                   <input
-                    type={showPassword ? 'text' : 'password'} placeholder="Repeat your password" value={confirmPassword}
+                    type={showPassword ? 'text' : 'password'} placeholder={copy.confirmPlaceholder} value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); if (errors.confirmPassword) setErrors((p) => ({ ...p, confirmPassword: '' })); }}
                     className={`clay-input h-11 w-full pl-10 text-sm text-clay-foreground ${errors.confirmPassword ? 'clay-input-error' : ''}`}
                     autoComplete="new-password"
@@ -175,10 +217,10 @@ function RegisterForm() {
                   className="mt-1 h-4 w-4 rounded accent-[#D5B8F5]"
                 />
                 <label htmlFor="terms" className="text-xs leading-relaxed text-clay-muted">
-                  I agree to the{' '}
-                  <button type="button" className="text-clay-foreground underline underline-offset-2 hover:text-clay-foreground/80">Terms of Service</button>
-                  {' '}and{' '}
-                  <button type="button" className="text-clay-foreground underline underline-offset-2 hover:text-clay-foreground/80">Privacy Policy</button>
+                  {copy.termsPrefix}{' '}
+                  <button type="button" className="text-clay-foreground underline underline-offset-2 hover:text-clay-foreground/80">{copy.termsLink}</button>
+                  {' '}{copy.termsAnd}{' '}
+                  <button type="button" className="text-clay-foreground underline underline-offset-2 hover:text-clay-foreground/80">{copy.privacyLink}</button>
                 </label>
               </div>
               {errors.terms && <p className="text-xs text-[#E87A7A]">{errors.terms}</p>}
@@ -186,9 +228,9 @@ function RegisterForm() {
               <button type="submit" disabled={loading}
                 className="clay-button h-11 w-full flex items-center justify-center gap-2 text-sm font-medium text-clay-foreground bg-[#C5E8F7] disabled:opacity-60">
                 {loading ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Creating account...</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {copy.submittingLabel}</>
                 ) : (
-                  <>Create account <ArrowRight className="h-4 w-4" /></>
+                  <>{copy.submitLabel} <ArrowRight className="h-4 w-4" /></>
                 )}
               </button>
             </form>
@@ -196,22 +238,22 @@ function RegisterForm() {
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#E8E0D8]" /></div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#FFFFFFF0] px-2 text-clay-muted">Or sign up with</span>
+                <span className="bg-[#FFFFFFF0] px-2 text-clay-muted">{copy.socialDivider}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFD5E5] text-sm font-medium text-clay-foreground">
-                <Globe className="h-4 w-4" /> Google
+                <Globe className="h-4 w-4" /> {copy.googleLabel}
               </button>
               <button type="button" className="clay-sm flex h-11 items-center justify-center gap-2 bg-[#FFF2C5] text-sm font-medium text-clay-foreground">
-                <Globe className="h-4 w-4" /> GitHub
+                <Globe className="h-4 w-4" /> {copy.githubLabel}
               </button>
             </div>
 
             <p className="mt-6 text-center text-sm text-clay-muted">
-              Already have an account?{' '}
-              <Link href="/login" className="font-medium text-clay-foreground underline-offset-4 hover:underline">Sign in</Link>
+              {copy.bottomPrefix}{' '}
+              <Link href="/login" className="font-medium text-clay-foreground underline-offset-4 hover:underline">{copy.bottomCta}</Link>
             </p>
           </div>
         </div>

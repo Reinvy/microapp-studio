@@ -126,6 +126,63 @@ export interface AppCardCopy {
   moreTemplate: string;
 }
 
+/**
+ * Auth page copy — headings, labels, placeholders and CTAs rendered by the
+ * login and register pages. Previously hardcoded in the page components; now
+ * seeded via contentRepo ('auth-copy') so auth copy is editable without a
+ * redeploy. Validation error messages stay in the page (they are tightly
+ * coupled to form logic).
+ */
+export interface AuthCopy {
+  login: {
+    /** Card header title, e.g. "Welcome back". */
+    title: string;
+    /** Card header subtitle, e.g. "Sign in to continue building your apps." */
+    subtitle: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    passwordLabel: string;
+    passwordPlaceholder: string;
+    forgotPassword: string;
+    submitLabel: string;
+    submittingLabel: string;
+    socialDivider: string;
+    googleLabel: string;
+    githubLabel: string;
+    /** Text before the bottom link, e.g. "Don't have an account?" */
+    bottomPrefix: string;
+    /** Bottom CTA link label, e.g. "Sign up". */
+    bottomCta: string;
+  };
+  register: {
+    /** Card header title, e.g. "Create an account". */
+    title: string;
+    /** Card header subtitle, e.g. "Start building micro-apps in minutes." */
+    subtitle: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    passwordLabel: string;
+    passwordPlaceholder: string;
+    confirmLabel: string;
+    confirmPlaceholder: string;
+    termsPrefix: string;
+    termsLink: string;
+    termsAnd: string;
+    privacyLink: string;
+    submitLabel: string;
+    submittingLabel: string;
+    socialDivider: string;
+    googleLabel: string;
+    githubLabel: string;
+    /** Text before the bottom link, e.g. "Already have an account?" */
+    bottomPrefix: string;
+    /** Bottom CTA link label, e.g. "Sign in". */
+    bottomCta: string;
+  };
+}
+
 export type SiteContentData =
   | NavLink[]
   | FooterColumn[]
@@ -138,6 +195,7 @@ export type SiteContentData =
   | EmptyStateCopy
   | DashboardStatsCopy
   | AppCardCopy
+  | AuthCopy
   | DashboardConfig
   | PromptTemplate[];
 
