@@ -183,6 +183,24 @@ export interface AuthCopy {
   };
 }
 
+/**
+ * RecentlyRun copy — the heading + empty-state text rendered by the dashboard
+ * "Recently Run" strip. Seeded via contentRepo ('recently-run-copy') so copy
+ * is editable without a redeploy, with a built-in fallback in the component.
+ */
+export interface RecentlyRunCopy {
+  /** Section heading, e.g. "Recently Run". */
+  title: string;
+  /** Subtitle under the heading, e.g. "Your latest app launches". */
+  subtitle: string;
+  /** Shown when no runs have been recorded yet. */
+  emptyText: string;
+  /** Accessible label for each run chip (app name is appended). */
+  chipLabel: string;
+  /** Accessible label for the strip. */
+  regionLabel: string;
+}
+
 export type SiteContentData =
   | NavLink[]
   | FooterColumn[]
@@ -195,6 +213,7 @@ export type SiteContentData =
   | EmptyStateCopy
   | DashboardStatsCopy
   | AppCardCopy
+  | RecentlyRunCopy
   | AuthCopy
   | DashboardConfig
   | PromptTemplate[];
