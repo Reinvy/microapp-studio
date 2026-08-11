@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-08-11] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency check: `npm outdated` — no safe patch/minor updates available; only major-only updates (`typescript` 5→7, `eslint` 9→10, `jsdom` 25→30, `@types/node` 20→26) skipped per no-major policy
+- Code cleanup: removed dead code (0 references anywhere in `src/`, including tests):
+  - `src/engine/evaluator.ts`: removed unused exports `createMathOpNode` + `MathOperation` type (math operation node templates), `createComparisonOpNode` + `ComparisonOperation` type + private `getComparisonDisplayName` helper (comparison node templates) — all were never imported by any component, service, or test (-222 lines)
+- No TODO/FIXME/deprecated markers found in `src/`; no unused imports found (eslint `no-unused-vars` clean); no dead files or unused exports found (all lib/services/engine modules referenced by components or tests)
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-11] — Feature & Scalability
 
 ### Added
