@@ -1021,6 +1021,23 @@ export const seedContent: SiteContent[] = [
     },
   },
   {
+    id: 'new-app-dialog-copy',
+    type: 'new-app-dialog-copy',
+    data: {
+      title: 'Create New App',
+      subtitle: 'Describe what you want to build',
+      nameLabel: 'App Name',
+      namePlaceholder: 'My Calculator',
+      promptLabel: 'Prompt (optional)',
+      promptPlaceholder:
+        'e.g. A discount calculator with price, discount %, and tax fields...',
+      templatesLabel: 'Try an example',
+      cancelLabel: 'Cancel',
+      generateLabel: 'Generate',
+      creatingLabel: 'Creating...',
+    },
+  },
+  {
     id: 'recently-run-copy',
     type: 'recently-run-copy',
     data: {

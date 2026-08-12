@@ -201,6 +201,34 @@ export interface RecentlyRunCopy {
   regionLabel: string;
 }
 
+/**
+ * NewAppDialog copy — labels and placeholders rendered by NewAppDialog.tsx.
+ * Previously hardcoded in the component; now seeded via contentRepo
+ * ('new-app-dialog-copy') so dialog microcopy is editable without a redeploy.
+ */
+export interface NewAppDialogCopy {
+  /** Card header title, e.g. "Create New App". */
+  title: string;
+  /** Card header subtitle, e.g. "Describe what you want to build". */
+  subtitle: string;
+  /** Label above the app-name input. */
+  nameLabel: string;
+  /** Placeholder for the app-name input. */
+  namePlaceholder: string;
+  /** Label above the prompt textarea. */
+  promptLabel: string;
+  /** Placeholder for the prompt textarea. */
+  promptPlaceholder: string;
+  /** Label above the template suggestion chips. */
+  templatesLabel: string;
+  /** Cancel button label. */
+  cancelLabel: string;
+  /** Generate button label (idle). */
+  generateLabel: string;
+  /** Generate button label while creating. */
+  creatingLabel: string;
+}
+
 export type SiteContentData =
   | NavLink[]
   | FooterColumn[]
@@ -215,6 +243,7 @@ export type SiteContentData =
   | AppCardCopy
   | RecentlyRunCopy
   | AuthCopy
+  | NewAppDialogCopy
   | DashboardConfig
   | PromptTemplate[];
 
