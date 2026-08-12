@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-08-12] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency check: `npm outdated` — no safe patch/minor updates available; only major-only updates (`typescript` 5→7, `eslint` 9→10, `jsdom` 25→30, `@types/node` 20→26) skipped per no-major policy
+- Code cleanup: no TODO/FIXME/deprecated markers found in `src/`; no unused imports (`tsc --noEmit` clean), no unused exports, no dead files — nothing to remove
+- Bug fix (code health): `src/components/runner/RenderField.tsx` — fixed React `rules-of-hooks` violation: `useInputClasses()` was called after early returns for non-interactive field types (heading/rating/etc.), so a `field.type` change between renders altered hook order and could crash the runner. Hoisted the hook call above the early returns (eslint `react-hooks/rules-of-hooks` error → clean)
+- CHANGELOG.md updated with this maintenance entry
+
+### 🌐 Deploy
+- Cron 5: Performance & Maintenance deployment to Vercel
+
 ## [2026-08-11] — Maintenance
 
 ### Changed
