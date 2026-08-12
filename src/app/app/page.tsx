@@ -16,6 +16,7 @@ import { clampPage, getPageRange } from '@/lib/pagination';
 import AppCard from '@/components/dashboard/AppCard';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import RecentlyRun from '@/components/dashboard/RecentlyRun';
+import ProgressiveAppGrid from '@/components/dashboard/ProgressiveAppGrid';
 import {
   AppWindow,
   Plus,
@@ -390,16 +391,19 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {apps.map((app) => (
+            <ProgressiveAppGrid
+              apps={apps}
+              initialBatch={dashboardConfig.progressiveInitialBatch}
+              batchSize={dashboardConfig.progressiveBatchSize}
+              renderCard={(app) => (
                 <AppCard
                   key={app.id}
                   app={app}
                   onRun={(id) => router.push(`/run/${id}`)}
                   onDelete={() => handleDeleteApp(app.id)}
                 />
-              ))}
-            </div>
+              )}
+            />
 
             {/* Pagination */}
             {totalPages > 1 && (
