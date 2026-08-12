@@ -14,6 +14,46 @@ const fallbackNavLinks: NavLink[] = [
   { label: 'Login', href: '/login' },
 ];
 
+// Route-based detection (not label-based): the CTA and Login entries are
+// identified by their href, so renaming the display label in the content DB
+// (e.g. "Login" → "Sign In") can never silently drop the button styling.
+const CTA_HREF = '/register';
+const LOGIN_HREF = '/login';
+
+/**
+ * Shared clay nav-link renderer — one component for the desktop bar and the
+ * mobile slide-in menu (previously ~40 duplicated lines of markup). Anchor
+ * links (#features) render as plain <a>; route links render as <Link>.
+ */
+function NavItemLink({
+  link,
+  mobile = false,
+  onNavigate,
+}: {
+  link: NavLink;
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
+  const isLogin = link.href === LOGIN_HREF;
+  const className = cn(
+    'rounded-xl text-sm font-medium transition-all hover:text-clay-foreground hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]',
+    mobile ? 'px-4 py-3 text-foreground' : 'px-4 py-2'
+  );
+
+  if (isLogin) {
+    return (
+      <Link key={link.label} href={link.href} onClick={onNavigate} className={className}>
+        {link.label}
+      </Link>
+    );
+  }
+  return (
+    <a key={link.label} href={link.href} onClick={onNavigate} className={className}>
+      {link.label}
+    </a>
+  );
+}
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navLinks, setNavLinks] = useState<NavLink[]>(fallbackNavLinks);
@@ -30,12 +70,15 @@ export default function Navbar() {
     });
   }, []);
 
-  // CTA button is DB-driven too: nav-links may carry a `Get Started` entry
-  // (label + href) which is rendered as the clay CTA button, not a plain
-  // link. Falls back to the hardcoded defaults until the async read lands.
-  const ctaLink = navLinks.find((l) => l.label === 'Get Started');
+  // CTA button is DB-driven too: a nav-link pointing at /register is rendered
+  // as the clay CTA button, not a plain link. Falls back to the hardcoded
+  // defaults until the async read lands.
+  const ctaLink = navLinks.find((l) => l.href === CTA_HREF);
   const ctaLabel = ctaLink?.label ?? 'Get Started';
-  const ctaHref = ctaLink?.href ?? '/register';
+  const ctaHref = ctaLink?.href ?? CTA_HREF;
+  const regularLinks = navLinks.filter((l) => l.href !== CTA_HREF);
+
+  const closeMenu = () => setMobileOpen(false);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">
@@ -54,32 +97,9 @@ export default function Navbar() {
 
             {/* Desktop nav */}
             <div className="hidden items-center gap-1 md:flex">
-              {navLinks.map((link) => {
-                const isButton = link.label === 'Get Started';
-                if (isButton) return null;
-
-                if (link.label === 'Login') {
-                  return (
-                    <Link
-                      key={link.label}
-                      href={link.href}
-                      className="rounded-xl px-4 py-2 text-sm font-medium transition-all hover:text-clay-foreground hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-                    >
-                      {link.label}
-                    </Link>
-                  );
-                }
-
-                return (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    className="rounded-xl px-4 py-2 text-sm font-medium transition-all hover:text-clay-foreground hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-                  >
-                    {link.label}
-                  </a>
-                );
-              })}
+              {regularLinks.map((link) => (
+                <NavItemLink key={link.label} link={link} />
+              ))}
               <div className="ml-2 flex items-center gap-2">
                 <Link href={ctaHref}>
                   <Button variant="primary" className="gap-1.5">
@@ -106,7 +126,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-[rgba(174,162,146,0.3)] md:hidden"
-          onClick={() => setMobileOpen(false)}
+          onClick={closeMenu}
         />
       )}
 
@@ -120,7 +140,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between border-b border-[#E8E0D8]/40 px-4 py-4">
           <span className="text-sm font-semibold text-foreground">Menu</span>
           <button
-            onClick={() => setMobileOpen(false)}
+            onClick={closeMenu}
             className="flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
             aria-label="Close menu"
           >
@@ -128,37 +148,11 @@ export default function Navbar() {
           </button>
         </div>
         <div className="flex flex-col gap-1 p-4">
-          {navLinks.map((link) => {
-            const isGetStarted = link.label === 'Get Started';
-            if (isGetStarted) return null;
-
-            const isLogin = link.label === 'Login';
-            if (isLogin) {
-              return (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-                >
-                  {link.label}
-                </Link>
-              );
-            }
-
-            return (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className="rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-              >
-                {link.label}
-              </a>
-            );
-          })}
+          {regularLinks.map((link) => (
+            <NavItemLink key={link.label} link={link} mobile onNavigate={closeMenu} />
+          ))}
           <hr className="my-2 border-[#E8E0D8]/40" />
-          <Link href={ctaHref} onClick={() => setMobileOpen(false)}>
+          <Link href={ctaHref} onClick={closeMenu}>
             <Button variant="primary" className="w-full gap-1.5">
               {ctaLabel}
               <ArrowRight className="h-4 w-4" />

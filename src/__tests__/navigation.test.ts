@@ -512,7 +512,7 @@ describe('Navigation UI Integration — Claymorphism v3', () => {
       // Links are read from IndexedDB through the content service (which wraps
       // contentRepo with SWR caching + batch reads), never hardcoded in JSX.
       expect(navSource).toMatch(/contentService\.getContent<NavLink\[\]>\(['"]nav-links['"]\)/);
-      expect(navSource).toMatch(/navLinks\.map/);
+      expect(navSource).toMatch(/regularLinks\.map/);
     });
 
     it('Navbar uses clay design tokens (clay-card bg + raised/inset shadows)', () => {

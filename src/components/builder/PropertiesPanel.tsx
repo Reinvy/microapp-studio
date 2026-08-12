@@ -17,6 +17,8 @@ import type { FieldType, FieldSchema, ButtonVariant, HeadingLevel, TextAlignment
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
 import { FieldTypeIcon, fieldLabels } from '@/lib/fieldMeta';
+import { builderCopy } from '@/lib/builderCopy';
+import { ClayToggle } from '@/components/ui/clay-toggle';
 
 // ── Helpers ──
 
@@ -36,63 +38,67 @@ const FIELD_TYPE_OPTIONS: { value: FieldType; label: string; icon: React.ReactNo
     icon: <FieldTypeIcon type={value} className="h-3.5 w-3.5" />,
   }));
 
+// Option labels are centralized in builderCopy.properties.options — these
+// arrays only pin the value order.
+const { options: opt } = builderCopy.properties;
+
 const HEADING_LEVELS: { value: HeadingLevel; label: string }[] = [
-  { value: 'h1', label: 'H1 - Largest' },
-  { value: 'h2', label: 'H2 - Large' },
-  { value: 'h3', label: 'H3 - Medium' },
-  { value: 'h4', label: 'H4 - Small' },
+  { value: 'h1', label: opt.h1 },
+  { value: 'h2', label: opt.h2 },
+  { value: 'h3', label: opt.h3 },
+  { value: 'h4', label: opt.h4 },
 ];
 
 const ALIGNMENTS: { value: TextAlignment; label: string }[] = [
-  { value: 'left', label: 'Left' },
-  { value: 'center', label: 'Center' },
-  { value: 'right', label: 'Right' },
+  { value: 'left', label: opt.left },
+  { value: 'center', label: opt.center },
+  { value: 'right', label: opt.right },
 ];
 
 const BUTTON_VARIANTS: { value: ButtonVariant; label: string }[] = [
-  { value: 'primary', label: 'Primary' },
-  { value: 'secondary', label: 'Secondary' },
-  { value: 'outline', label: 'Outline' },
-  { value: 'ghost', label: 'Ghost' },
-  { value: 'danger', label: 'Danger' },
+  { value: 'primary', label: opt.primary },
+  { value: 'secondary', label: opt.secondary },
+  { value: 'outline', label: opt.outline },
+  { value: 'ghost', label: opt.ghost },
+  { value: 'danger', label: opt.danger },
 ];
 
 const WIDTH_OPTIONS: { value: WidthStyle; label: string }[] = [
-  { value: 'full', label: 'Full Width' },
-  { value: 'half', label: 'Half Width' },
-  { value: 'auto', label: 'Auto' },
+  { value: 'full', label: opt.fullWidth },
+  { value: 'half', label: opt.halfWidth },
+  { value: 'auto', label: opt.auto },
 ];
 
 const ANIMATION_OPTIONS: { value: AnimationType; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'fade', label: 'Fade In' },
-  { value: 'slide', label: 'Slide In' },
-  { value: 'bounce', label: 'Bounce' },
-  { value: 'pulse', label: 'Pulse' },
+  { value: 'none', label: opt.none },
+  { value: 'fade', label: opt.fadeIn },
+  { value: 'slide', label: opt.slideIn },
+  { value: 'bounce', label: opt.bounce },
+  { value: 'pulse', label: opt.pulse },
 ];
 
 const ASPECT_RATIO_OPTIONS: { value: AspectRatio | string; label: string }[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'square', label: 'Square (1:1)' },
-  { value: '16:9', label: 'Widescreen (16:9)' },
-  { value: '4:3', label: 'Standard (4:3)' },
+  { value: 'auto', label: opt.auto },
+  { value: 'square', label: opt.square },
+  { value: '16:9', label: opt.widescreen },
+  { value: '4:3', label: opt.standard },
 ];
 
 const BORDER_RADIUS_OPTIONS: { value: BorderRadius; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'sm', label: 'Small' },
-  { value: 'md', label: 'Medium' },
-  { value: 'lg', label: 'Large' },
-  { value: 'xl', label: 'Extra Large' },
-  { value: '2xl', label: '2XL' },
-  { value: 'full', label: 'Full' },
+  { value: 'none', label: opt.none },
+  { value: 'sm', label: opt.small },
+  { value: 'md', label: opt.medium },
+  { value: 'lg', label: opt.large },
+  { value: 'xl', label: opt.extraLarge },
+  { value: '2xl', label: opt.xl2 },
+  { value: 'full', label: opt.full },
 ];
 
 const SHADOW_OPTIONS: { value: ShadowSize; label: string }[] = [
-  { value: 'none', label: 'No Shadow' },
-  { value: 'sm', label: 'Small' },
-  { value: 'md', label: 'Medium' },
-  { value: 'lg', label: 'Large' },
+  { value: 'none', label: opt.noShadow },
+  { value: 'sm', label: opt.small },
+  { value: 'md', label: opt.medium },
+  { value: 'lg', label: opt.large },
 ];
 
 // ── Collapsible Section ──
@@ -139,40 +145,42 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
   const isTextType = ['text', 'textarea', 'email', 'phone', 'url'].includes(field.type);
   const isNumberType = ['number', 'slider'].includes(field.type);
 
+  const { labels, placeholders, sections } = builderCopy.properties;
+
   return (
     <div className="space-y-2.5">
       {/* ── Type Change ── */}
-      <Section title="Field Type" icon={<Settings2 className="h-3 w-3" />} defaultOpen={false}>
+      <Section title={sections.fieldType} icon={<Settings2 className="h-3 w-3" />} defaultOpen={false}>
         <div className="grid grid-cols-4 gap-1.5">
-          {FIELD_TYPE_OPTIONS.map((opt) => (
+          {FIELD_TYPE_OPTIONS.map((optItem) => (
             <button
-              key={opt.value}
-              onClick={() => onChange({ type: opt.value })}
+              key={optItem.value}
+              onClick={() => onChange({ type: optItem.value })}
               className={cn(
                 'flex flex-col items-center gap-0.5 py-1.5 rounded-xl clay-sm text-[9px] transition-all',
-                field.type === opt.value
+                field.type === optItem.value
                   ? 'bg-clay-purple/30 shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                   : 'bg-white/60 hover:bg-white hover:scale-105'
               )}
-              style={{ color: field.type === opt.value ? 'var(--clay-foreground)' : 'var(--clay-muted)' }}
-              title={opt.label}
+              style={{ color: field.type === optItem.value ? 'var(--clay-foreground)' : 'var(--clay-muted)' }}
+              title={optItem.label}
             >
-              {opt.icon}
-              <span className="truncate max-w-full">{opt.label}</span>
+              {optItem.icon}
+              <span className="truncate max-w-full">{optItem.label}</span>
             </button>
           ))}
         </div>
       </Section>
 
       {/* ── Basic ── */}
-      <Section title="Basic" icon={<Type className="h-3 w-3" />}>
+      <Section title={sections.basic} icon={<Type className="h-3 w-3" />}>
         {/* Label */}
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Label</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.label}</label>
           <input
             value={field.label}
             onChange={(e) => onChange({ label: e.target.value })}
-            placeholder="Field label"
+            placeholder={placeholders.fieldLabel}
             className="clay-input h-8 text-xs w-full px-3"
           />
         </div>
@@ -180,11 +188,11 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Placeholder - for input types */}
         {isInputType && field.type !== 'checkbox' && field.type !== 'toggle' && field.type !== 'color' && field.type !== 'rating' && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Placeholder</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.placeholder}</label>
             <input
               value={field.placeholder || ''}
               onChange={(e) => onChange({ placeholder: e.target.value })}
-              placeholder="Placeholder text"
+              placeholder={placeholders.placeholderText}
               className="clay-input h-8 text-xs w-full px-3"
             />
           </div>
@@ -193,32 +201,23 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Required toggle */}
         {isInputType && (
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Required</label>
-            <button
-              onClick={() => onChange({ required: !field.required })}
-              className={cn(
-                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 clay-sm',
-                field.required ? 'bg-clay-pink' : 'bg-clay-cream'
-              )}
-            >
-              <span
-                className={cn(
-                  'inline-block h-4 w-4 rounded-full bg-white shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] transition-transform',
-                  field.required ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                )}
-              />
-            </button>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.required}</label>
+            <ClayToggle
+              checked={!!field.required}
+              onChange={(v) => onChange({ required: v })}
+              aria-label={labels.required}
+            />
           </div>
         )}
 
         {/* Content text - for heading/paragraph */}
         {(field.type === 'heading' || field.type === 'paragraph') && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Content Text</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.contentText}</label>
             <input
               value={field.content || ''}
               onChange={(e) => onChange({ content: e.target.value })}
-              placeholder={field.type === 'heading' ? 'Heading Text' : 'Paragraph text...'}
+              placeholder={field.type === 'heading' ? placeholders.heading : placeholders.paragraph}
               className="clay-input h-8 text-xs w-full px-3"
             />
           </div>
@@ -227,7 +226,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Heading level */}
         {field.type === 'heading' && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Level</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.level}</label>
             <select
               value={field.level || 'h2'}
               onChange={(e) => onChange({ level: e.target.value as HeadingLevel })}
@@ -243,7 +242,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Alignment - heading/paragraph */}
         {(field.type === 'heading' || field.type === 'paragraph') && (
           <div className="space-y-1">
-            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Alignment</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.alignment}</label>
             <div className="flex gap-1">
               {ALIGNMENTS.map((a) => (
                 <button
@@ -268,7 +267,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {field.type === 'button' && (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Variant</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.variant}</label>
               <div className="flex gap-1 flex-wrap">
                 {BUTTON_VARIANTS.map((v) => (
                   <button
@@ -288,24 +287,24 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Action Type</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.actionType}</label>
               <select
                 value={field.actionType || 'submit'}
                 onChange={(e) => onChange({ actionType: e.target.value as 'submit' | 'reset' | 'link' })}
                 className="clay-input h-8 w-full px-2 text-xs"
               >
-                <option value="submit">Submit</option>
-                <option value="reset">Reset</option>
-                <option value="link">Link</option>
+                <option value="submit">{opt.submit}</option>
+                <option value="reset">{opt.reset}</option>
+                <option value="link">{opt.link}</option>
               </select>
             </div>
             {field.actionType === 'link' && (
               <div className="space-y-1">
-                <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>URL</label>
+                <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.url}</label>
                 <input
                   value={field.href || ''}
                   onChange={(e) => onChange({ href: e.target.value })}
-                  placeholder="https://..."
+                  placeholder={placeholders.url}
                   className="clay-input h-8 text-xs w-full px-3"
                 />
               </div>
@@ -317,25 +316,25 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {field.type === 'image' && (
           <>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Image URL</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.imageUrl}</label>
               <input
                 value={field.src || ''}
                 onChange={(e) => onChange({ src: e.target.value })}
-                placeholder="https://example.com/image.jpg"
+                placeholder={placeholders.imageUrl}
                 className="clay-input h-8 text-xs w-full px-3"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Alt Text</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.altText}</label>
               <input
                 value={field.alt || ''}
                 onChange={(e) => onChange({ alt: e.target.value })}
-                placeholder="Describe the image"
+                placeholder={placeholders.imageAlt}
                 className="clay-input h-8 text-xs w-full px-3"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Aspect Ratio</label>
+              <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.aspectRatio}</label>
               <select
                 value={field.aspectRatio || 'auto'}
                 onChange={(e) => onChange({ aspectRatio: e.target.value as AspectRatio })}
@@ -352,11 +351,11 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Select options */}
         {field.type === 'select' && (
           <div className="space-y-1.5">
-            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Options</label>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.options}</label>
             <div className="space-y-1 max-h-[120px] overflow-y-auto">
-              {(field.options || []).map((opt, i) => (
+              {(field.options || []).map((optItem, i) => (
                 <div key={i} className="flex items-center gap-1">
-                  <span className="flex-1 text-xs px-2 py-0.5 rounded clay-sm bg-clay-cream/80 truncate">{opt}</span>
+                  <span className="flex-1 text-xs px-2 py-0.5 rounded clay-sm bg-clay-cream/80 truncate">{optItem}</span>
                   <button
                     onClick={() => {
                       const newOpts = [...(field.options || [])];
@@ -374,7 +373,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
               <input
                 value={newOption}
                 onChange={(e) => setNewOption(e.target.value)}
-                placeholder="Add option..."
+                placeholder={placeholders.addOption}
                 className="clay-input h-8 text-xs flex-1 px-3"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newOption.trim()) {
@@ -401,33 +400,25 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
         {/* Default value - checkbox/toggle */}
         {(field.type === 'checkbox' || field.type === 'toggle') && (
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Default Value</label>
-            <button
-              onClick={() => onChange({ defaultValue: !field.defaultValue })}
-              className={cn(
-                'relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 clay-sm',
-                field.defaultValue ? 'bg-clay-blue' : 'bg-clay-cream'
-              )}
-            >
-              <span
-                className={cn(
-                  'inline-block h-4 w-4 rounded-full bg-white shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] transition-transform',
-                  field.defaultValue ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                )}
-              />
-            </button>
+            <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.defaultValue}</label>
+            <ClayToggle
+              checked={!!field.defaultValue}
+              onChange={(v) => onChange({ defaultValue: v })}
+              activeClass="bg-clay-blue"
+              aria-label={labels.defaultValue}
+            />
           </div>
         )}
       </Section>
 
       {/* ── Validation Section ── */}
       {(isTextType || isNumberType || field.type === 'select') && (
-        <Section title="Validation" icon={<List className="h-3 w-3" />}>
+        <Section title={sections.validation} icon={<List className="h-3 w-3" />}>
           {isTextType && (
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Min Length</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.minLength}</label>
                   <input
                     type="number"
                     value={field.validation?.minLength ?? ''}
@@ -443,7 +434,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Max Length</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.maxLength}</label>
                   <input
                     type="number"
                     value={field.validation?.maxLength ?? ''}
@@ -460,7 +451,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Regex Pattern</label>
+                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.regexPattern}</label>
                 <input
                   value={field.validation?.pattern || ''}
                   onChange={(e) =>
@@ -471,12 +462,12 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                       },
                     })
                   }
-                  placeholder="e.g. ^[a-zA-Z]+$"
+                  placeholder={placeholders.regex}
                   className="clay-input h-8 text-xs w-full px-3 font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Error Message</label>
+                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.errorMessage}</label>
                 <input
                   value={field.validation?.message || ''}
                   onChange={(e) =>
@@ -487,7 +478,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                       },
                     })
                   }
-                  placeholder="Custom error message"
+                  placeholder={placeholders.errorMessage}
                   className="clay-input h-8 text-xs w-full px-3"
                 />
               </div>
@@ -497,7 +488,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Min</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.min}</label>
                   <input
                     type="number"
                     value={field.min ?? ''}
@@ -508,7 +499,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Max</label>
+                  <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.max}</label>
                   <input
                     type="number"
                     value={field.max ?? ''}
@@ -520,7 +511,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Step</label>
+                <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.step}</label>
                 <input
                   type="number"
                   step="any"
@@ -537,9 +528,9 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       )}
 
       {/* ── Styling Section ── */}
-      <Section title="Styling" icon={<Palette className="h-3 w-3" />}>
+      <Section title={sections.styling} icon={<Palette className="h-3 w-3" />}>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Width</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.width}</label>
           <div className="flex gap-1">
             {WIDTH_OPTIONS.map((w) => (
               <button
@@ -561,12 +552,12 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
 
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>BG Color</label>
+            <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.bgColor}</label>
             <div className="flex items-center gap-1">
               <input
                 value={field.bgColor || ''}
                 onChange={(e) => onChange({ bgColor: e.target.value })}
-                placeholder="#fff"
+                placeholder={placeholders.bgColor}
                 className="clay-input h-8 text-xs flex-1 px-2"
               />
               {field.type === 'color' && (
@@ -580,49 +571,40 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Text Color</label>
+            <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.textColor}</label>
             <input
               value={field.textColor || ''}
               onChange={(e) => onChange({ textColor: e.target.value })}
-              placeholder="#000"
+              placeholder={placeholders.textColor}
               className="clay-input h-8 text-xs w-full px-2"
             />
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Show Border</label>
-          <button
-            onClick={() => onChange({ border: !field.border })}
-            className={cn(
-              'relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 clay-sm',
-              field.border ? 'bg-clay-pink' : 'bg-clay-cream'
-            )}
-          >
-            <span
-              className={cn(
-                'inline-block h-4 w-4 rounded-full bg-white shadow-[3px_3px_6px_var(--clay-shadow-dark),-3px_-3px_6px_var(--clay-shadow-light)] transition-transform',
-                field.border ? 'translate-x-[18px]' : 'translate-x-[2px]'
-              )}
-            />
-          </button>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.showBorder}</label>
+          <ClayToggle
+            checked={!!field.border}
+            onChange={(v) => onChange({ border: v })}
+            aria-label={labels.showBorder}
+          />
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Border Radius</label>
+          <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.borderRadius}</label>
           <select
             value={field.borderRadius || 'md'}
             onChange={(e) => onChange({ borderRadius: e.target.value as BorderRadius })}
             className="clay-input h-8 w-full px-2 text-xs"
           >
-            {BORDER_RADIUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            {BORDER_RADIUS_OPTIONS.map((optItem) => (
+              <option key={optItem.value} value={optItem.value}>{optItem.label}</option>
             ))}
           </select>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>Shadow</label>
+          <label className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>{labels.shadow}</label>
           <div className="flex gap-1 flex-wrap">
             {SHADOW_OPTIONS.map((s) => (
               <button
@@ -644,7 +626,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       </Section>
 
       {/* ── Animation Section ── */}
-      <Section title="Animation" icon={<Sliders className="h-3 w-3" />}>
+      <Section title={sections.animation} icon={<Sliders className="h-3 w-3" />}>
         <div className="flex gap-1 flex-wrap">
           {ANIMATION_OPTIONS.map((a) => (
             <button
@@ -665,31 +647,31 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
       </Section>
 
       {/* ── Advanced Section ── */}
-      <Section title="Advanced" icon={<Settings2 className="h-3 w-3" />} defaultOpen={false}>
+      <Section title={sections.advanced} icon={<Settings2 className="h-3 w-3" />} defaultOpen={false}>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Default Value</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.defaultValue}</label>
           <input
             value={typeof field.defaultValue === 'string' || typeof field.defaultValue === 'number' ? String(field.defaultValue) : ''}
             onChange={(e) => onChange({ defaultValue: e.target.value })}
-            placeholder="Default value"
+            placeholder={placeholders.defaultValue}
             className="clay-input h-8 text-xs w-full px-3"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Custom CSS Class</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.customCssClass}</label>
           <input
             value={field.cssClass || ''}
             onChange={(e) => onChange({ cssClass: e.target.value })}
-            placeholder="my-custom-class"
+            placeholder={placeholders.cssClass}
             className="clay-input h-8 text-xs w-full px-3 font-mono"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>Help Text</label>
+          <label className="text-[10px] font-medium" style={{ color: 'var(--clay-muted)' }}>{labels.helpText}</label>
           <textarea
             value={field.helpText || ''}
             onChange={(e) => onChange({ helpText: e.target.value })}
-            placeholder="Additional information for users..."
+            placeholder={placeholders.helpText}
             className="clay-input min-h-[50px] w-full px-3 py-1.5 text-xs resize-none"
           />
         </div>
@@ -703,7 +685,7 @@ function FieldEditor({ field, onChange, onRemove }: FieldEditorProps) {
           style={{ color: 'var(--clay-foreground)' }}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Remove Field
+          {builderCopy.properties.removeField}
         </button>
       </div>
     </div>
@@ -733,6 +715,8 @@ export default function PropertiesPanel() {
     }
   }, [selectedFieldId, removeField]);
 
+  const { properties } = builderCopy;
+
   return (
     <aside className="w-full md:w-72 clay-sidebar flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -740,7 +724,7 @@ export default function PropertiesPanel() {
         <div className="flex items-center gap-2">
           <Settings2 className="h-4 w-4" style={{ color: 'var(--clay-muted)' }} />
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--clay-foreground)' }}>
-            Properties
+            {properties.panelTitle}
           </h3>
         </div>
         {selectedFieldId && (
@@ -767,14 +751,14 @@ export default function PropertiesPanel() {
             <div className="w-16 h-16 rounded-full clay-lg bg-clay-yellow/30 flex items-center justify-center mb-4 animate-pulse-soft">
               <Settings2 className="h-7 w-7" style={{ color: '#D5B8F5' }} />
             </div>
-            <h4 className="text-sm font-medium mb-1" style={{ color: 'var(--clay-foreground)' }}>No field selected</h4>
+            <h4 className="text-sm font-medium mb-1" style={{ color: 'var(--clay-foreground)' }}>{properties.noSelectionTitle}</h4>
             <p className="text-xs max-w-[180px] leading-relaxed" style={{ color: 'var(--clay-muted)' }}>
-              Click on a field in the canvas to edit its properties here.
+              {properties.noSelectionHint}
             </p>
             <div className="mt-4 flex gap-2 text-[10px]" style={{ color: 'var(--clay-muted)' }}>
-              <span className="px-2 py-1 rounded-xl clay-sm bg-clay-peach/30">Label</span>
-              <span className="px-2 py-1 rounded-xl clay-sm bg-clay-blue/30">Validation</span>
-              <span className="px-2 py-1 rounded-xl clay-sm bg-clay-purple/30">Style</span>
+              {properties.hintChips.map((chip) => (
+                <span key={chip} className="px-2 py-1 rounded-xl clay-sm bg-clay-peach/30">{chip}</span>
+              ))}
             </div>
           </div>
         )}
