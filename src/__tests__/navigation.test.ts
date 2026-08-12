@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import { validateField, executeSchema } from '@/engine/schemaEngine';
 import parsePrompt from '@/engine/promptToSchema';
 import type { FieldSchema, AppSchema } from '@/types/schema';
+import { sampleApps } from '@/db/seed';
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 
@@ -558,5 +559,76 @@ describe('Navigation UI Integration — Claymorphism v3', () => {
       const blackUses = css.match(/(?:color|--[\w-]+-foreground):\s*#0{3,6}\b/gi) || [];
       expect(blackUses).toEqual([]);
     });
+  });
+});
+
+// ===========================================================================
+// 5. Real DB Seed Data Validation (sampleApps → IndexedDB)
+//    sampleApps is the exact dataset seedDatabase() writes to IndexedDB —
+//    validating it guarantees every app users see passes FieldSchema rules.
+// ===========================================================================
+
+describe('DB Seed Data Validation (sampleApps)', () => {
+  const validTypes = [
+    'text', 'number', 'select', 'checkbox', 'textarea', 'date',
+    'file', 'slider', 'toggle', 'heading', 'paragraph', 'divider',
+    'spacer', 'image', 'card', 'button', 'color', 'email', 'phone',
+    'url', 'rating',
+  ];
+
+  it('seeds a non-empty set of apps with complete metadata', () => {
+    expect(sampleApps.length).toBeGreaterThan(0);
+    for (const app of sampleApps) {
+      expect(app.id).toBeTruthy();
+      expect(app.name).toBeTruthy();
+      expect(app.fields.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('every field in every seed app has valid type, non-empty id, label, and boolean required', () => {
+    let fieldCount = 0;
+    for (const app of sampleApps) {
+      for (const field of app.fields) {
+        fieldCount++;
+        expect(validTypes).toContain(field.type);
+        expect(field.id).toBeTruthy();
+        expect(typeof field.id).toBe('string');
+        expect(field.label).toBeTruthy();
+        expect(field.label.length).toBeGreaterThan(2);
+        expect(typeof field.required).toBe('boolean');
+      }
+    }
+    expect(fieldCount).toBeGreaterThan(0);
+  });
+
+  it('select fields in seed data define a non-empty options array', () => {
+    for (const app of sampleApps) {
+      for (const field of app.fields) {
+        if (field.type === 'select') {
+          expect(Array.isArray(field.options)).toBe(true);
+          expect(field.options!.length).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('executeSchema runs on every seed app without crashing', () => {
+    for (const app of sampleApps) {
+      const result = executeSchema(app, {});
+      expect(result).toHaveProperty('inputs');
+      expect(result).toHaveProperty('outputs');
+      expect(result).toHaveProperty('errors');
+      expect(Array.isArray(result.errors)).toBe(true);
+    }
+  });
+
+  it('executeSchema flags required (non-defaulted) fields on seed apps when input is empty', () => {
+    const app = sampleApps.find(a => a.fields.some(f => f.required && f.defaultValue === undefined));
+    expect(app).toBeTruthy();
+    const requiredFields = app!.fields.filter(f => f.required && f.defaultValue === undefined);
+    const result = executeSchema(app!, {});
+    for (const field of requiredFields) {
+      expect(result.errors.some(e => String(e).includes(field.label))).toBe(true);
+    }
   });
 });
