@@ -7,6 +7,8 @@ import { generateId } from '@/lib/utils';
 import parsePrompt from '@/engine/promptToSchema';
 import { appService } from '@/services/appService';
 import { promptTemplateService } from '@/services/promptTemplateService';
+import { contentService } from '@/services/contentService';
+import type { NewAppDialogCopy } from '@/db/contentRepo';
 import type { PromptTemplate } from '@/lib/promptTemplates';
 import type { AppSchema } from '@/types/schema';
 
@@ -15,17 +17,39 @@ interface NewAppDialogProps {
   onClose: () => void;
 }
 
+// DB-driven dialog copy ('new-app-dialog-copy' via contentRepo) — fallback
+// keeps first paint intact and mirrors the seeded defaults exactly.
+const defaultCopy: NewAppDialogCopy = {
+  title: 'Create New App',
+  subtitle: 'Describe what you want to build',
+  nameLabel: 'App Name',
+  namePlaceholder: 'My Calculator',
+  promptLabel: 'Prompt (optional)',
+  promptPlaceholder: 'e.g. A discount calculator with price, discount %, and tax fields...',
+  templatesLabel: 'Try an example',
+  cancelLabel: 'Cancel',
+  generateLabel: 'Generate',
+  creatingLabel: 'Creating...',
+};
+
 export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [creating, setCreating] = useState(false);
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [copy, setCopy] = useState<NewAppDialogCopy>(defaultCopy);
 
-  // Load DB-driven prompt suggestion templates (contentRepo → IndexedDB).
-  // Falls back to DEFAULT_PROMPT_TEMPLATES inside the service on any error.
+  // Load DB-driven dialog copy — falls back to the defaults above.
   useEffect(() => {
     if (!open) return;
+    contentService.getContent<NewAppDialogCopy>('new-app-dialog-copy')
+      .then((c) => {
+        if (c) setCopy(c);
+      })
+      .catch(() => {});
+    // Load DB-driven prompt suggestion templates (contentRepo → IndexedDB).
+    // Falls back to DEFAULT_PROMPT_TEMPLATES inside the service on any error.
     let cancelled = false;
     promptTemplateService.load().then((items) => {
       if (!cancelled) setTemplates(items);
@@ -72,14 +96,14 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(74,63,53,0.3)] animate-fade-in">
       <div className="mx-4 w-full max-w-md animate-scale-in clay-card overflow-hidden">
         <div className="border-b border-clay-border/30 bg-clay-peach/50 px-6 py-4">
-          <h2 className="text-lg font-bold text-foreground">Create New App</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">Describe what you want to build</p>
+          <h2 className="text-lg font-bold text-foreground">{copy.title}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{copy.subtitle}</p>
         </div>
         <div className="space-y-4 p-6">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">App Name</label>
+            <label className="text-sm font-medium text-foreground">{copy.nameLabel}</label>
             <input
-              placeholder="My Calculator"
+              placeholder={copy.namePlaceholder}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="clay-input h-10 w-full text-sm text-foreground"
@@ -88,9 +112,9 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Prompt (optional)</label>
+            <label className="text-sm font-medium text-foreground">{copy.promptLabel}</label>
             <textarea
-              placeholder="e.g. A discount calculator with price, discount %, and tax fields..."
+              placeholder={copy.promptPlaceholder}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               className="clay-input min-h-[100px] w-full px-3 py-2 text-sm text-foreground resize-none"
@@ -99,7 +123,7 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
           {templates.length > 0 && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">
-                Try an example
+                {copy.templatesLabel}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {templates.map((tpl) => (
@@ -127,7 +151,7 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
               disabled={creating}
               className="clay-button flex-1 h-10 text-sm font-medium text-foreground bg-clay-emboss disabled:opacity-50"
             >
-              Cancel
+              {copy.cancelLabel}
             </button>
             <button
               onClick={handleCreate}
@@ -135,7 +159,7 @@ export default function NewAppDialog({ open, onClose }: NewAppDialogProps) {
               className="clay-button flex-1 h-10 flex items-center justify-center gap-2 text-sm font-medium text-foreground bg-clay-purple disabled:opacity-60"
             >
               <Sparkles className="h-4 w-4" />
-              {creating ? 'Creating...' : 'Generate'}
+              {creating ? copy.creatingLabel : copy.generateLabel}
             </button>
           </div>
         </div>
