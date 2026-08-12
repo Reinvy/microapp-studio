@@ -114,13 +114,14 @@ export default function ComponentPalette() {
   const { addField } = useAppStore();
 
   const handleQuickAdd = (type: FieldType, label: string) => {
-    const baseField: Record<string, unknown> = { type, label: `New ${label}` };
+    // Labels and default content come from builderCopy — nothing hardcoded here.
+    const baseField: Record<string, unknown> = { type, label: builderCopy.page.newField(label) };
     if (type === 'heading') {
       baseField.level = 2;
-      baseField.content = 'Heading Text';
+      baseField.content = builderCopy.palette.quickAdd.heading;
     }
     if (type === 'paragraph') {
-      baseField.content = 'Paragraph text goes here...';
+      baseField.content = builderCopy.palette.quickAdd.paragraph;
     }
     if (type === 'button') {
       baseField.variant = 'primary';
