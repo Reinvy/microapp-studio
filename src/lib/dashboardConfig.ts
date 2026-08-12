@@ -36,6 +36,15 @@ export interface DashboardConfig {
   sortOptions: SortOption[];
   /** Page sizes offered by the pagination control. */
   pageSizes: number[];
+  /**
+   * Cards rendered synchronously on the first paint of the progressive
+   * app grid — keeps first paint fast at large page sizes.
+   */
+  progressiveInitialBatch: number;
+  /**
+   * Cards revealed per idle slice by the progressive app grid.
+   */
+  progressiveBatchSize: number;
 }
 
 /** Bounds applied by the sanitizer — keeps DB-provided config sane. */
@@ -43,6 +52,8 @@ const MIN_DEBOUNCE_MS = 100;
 const MAX_DEBOUNCE_MS = 2000;
 const MAX_PAGE_SIZE = 200;
 const MAX_PAGE_SIZES = 8;
+const MIN_PROGRESSIVE_BATCH = 2;
+const MAX_PROGRESSIVE_BATCH = 24;
 const VALID_SORT_FIELDS = new Set(['updatedAt', 'createdAt', 'name']);
 
 /** Fallback config — matches the long-standing hardcoded dashboard behavior. */
@@ -51,6 +62,8 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
   searchDebounceMs: 300,
   sortOptions: SORT_OPTIONS.map((opt) => ({ value: { ...opt.value }, label: opt.label })),
   pageSizes: [...PAGE_SIZES, DEFAULT_PAGE_SIZE],
+  progressiveInitialBatch: 6,
+  progressiveBatchSize: 6,
 };
 
 /**
@@ -123,7 +136,29 @@ export function sanitizeDashboardConfig(raw: unknown): DashboardConfig {
     if (valid.length > 0) sortOptions = valid;
   }
 
-  return { searchPlaceholder, searchDebounceMs, sortOptions, pageSizes };
+  // ── progressiveInitialBatch / progressiveBatchSize ──
+  const sanitizeBatch = (raw: unknown): number | null => {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+    return Math.min(
+      MAX_PROGRESSIVE_BATCH,
+      Math.max(MIN_PROGRESSIVE_BATCH, Math.round(raw))
+    );
+  };
+  const progressiveInitialBatch =
+    sanitizeBatch(source.progressiveInitialBatch) ??
+    DEFAULT_DASHBOARD_CONFIG.progressiveInitialBatch;
+  const progressiveBatchSize =
+    sanitizeBatch(source.progressiveBatchSize) ??
+    DEFAULT_DASHBOARD_CONFIG.progressiveBatchSize;
+
+  return {
+    searchPlaceholder,
+    searchDebounceMs,
+    sortOptions,
+    pageSizes,
+    progressiveInitialBatch,
+    progressiveBatchSize,
+  };
 }
 
 /**

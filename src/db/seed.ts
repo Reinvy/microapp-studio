@@ -1006,6 +1006,8 @@ export const seedContent: SiteContent[] = [
         { value: { field: 'name', direction: 'desc' }, label: 'Name Z–A' },
       ],
       pageSizes: [12, 24, 48],
+      progressiveInitialBatch: 6,
+      progressiveBatchSize: 6,
     },
   },
   {

@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-08-13] — Feature & Scalability
+
+### Added
+- **Time-sliced progressive app grid (lazy rendering at scale)**:
+  - `src/lib/progressiveRender.ts`: pure, framework-free reveal state machine (`initialProgressiveState`, `nextProgressiveState`, `pendingProgressiveCount`) + idle scheduler (`createIdleScheduler` — `requestIdleCallback` with a `setTimeout` fallback, cancelable). The reveal math is idempotent so duplicate idle callbacks can never over-reveal.
+  - `src/hooks/useProgressiveRender.ts`: React glue. First `initialBatch` cards render synchronously (fast first paint), the rest reveal `batchSize` at a time during idle periods; the reveal resets when the dataset identity changes (new page/search/sort) via the React-docs "adjust state when props change" pattern; the pending idle callback is cancelled on unmount/advance so no setState happens after unmount.
+  - `src/components/dashboard/ProgressiveAppGrid.tsx`: grid wrapper that mounts only the visible slice and renders `clay-card shimmer` skeleton placeholders for still-hidden cards, so the grid keeps its height and the layout never jumps at large page sizes (48+ cards).
+  - Dashboard (`src/app/app/page.tsx`) now renders the app grid through `ProgressiveAppGrid`; batch sizes are **DB-driven** via the new `dashboard-config` fields `progressiveInitialBatch` / `progressiveBatchSize` (sanitized in `lib/dashboardConfig.ts`, bounds 2–24, defaults 6; seeded in `src/db/seed.ts`).
+- **Unit tests**: `src/__tests__/progressive-render.test.ts` +12 tests (pure state machine + scheduler fallback/cancel) and `src/__tests__/progressive-grid.test.tsx` +4 jsdom tests (first-paint batching, skeleton placeholder counts, dataset-change reset, unmount-mid-reveal safety).
+
+### 🌐 Deploy
+- Cron 1: Feature Expansion & Architecture Scalability deployment to Vercel
+
 ## [2026-08-12] — Maintenance
 
 ### Changed
