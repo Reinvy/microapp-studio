@@ -95,6 +95,11 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
     [field.id, field.type, onChange]
   );
 
+  // Hoisted above early returns — hooks must run unconditionally on every
+  // render (rules-of-hooks). Previously called after the non-interactive
+  // field returns, so a field.type change between renders changed hook order.
+  const inputClasses = useInputClasses(field, error);
+
   // ── Non-interactive fields ──────────────────────────────────────────────────
 
   if (field.type === 'heading') {
@@ -365,8 +370,6 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
   }
 
   // ── Interactive input fields ───────────────────────────────────────────────
-
-  const inputClasses = useInputClasses(field, error);
 
   const renderInput = () => {
     switch (field.type) {
