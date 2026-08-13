@@ -833,6 +833,56 @@ function createNewsletterApp(index: number): AppSchema {
   };
 }
 
+function createRestaurantReservationApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Restaurant Reservation',
+    description:
+      'Book a clay-styled table with party size, occasion select, dietary checkboxes, and a special requests area — grid layout.',
+    prompt:
+      'Create a restaurant reservation form with date, time slot select, party size number, dietary checkboxes, and special requests textarea.',
+    fields: [
+      headingField('rr-heading', 'Heading', 'h2', 'Reserve your table 🍽️'),
+      imageField('rr-image', 'Restaurant preview', pickFrom(imagePool, index, 6), 'Cozy restaurant interior'),
+      paragraphField('rr-intro', 'Intro', 'Pick a date and time — we will hold the table for 15 minutes.'),
+      dividerField('rr-divider', 'Divider'),
+      textField('rr-name', 'Name', 'e.g. Rina Wijaya'),
+      emailField('rr-email', 'Email Address', 'you@example.com'),
+      phoneField('rr-phone', 'Phone Number', '+62 812 3456 7890'),
+      dateField('rr-date', 'Reservation Date'),
+      selectField('rr-time', 'Time Slot', ['12:00', '13:00', '18:00', '19:00', '20:00']),
+      numberField('rr-guests', 'Party Size', 1, 20),
+      selectField('rr-occasion', 'Occasion', ['Casual', 'Birthday', 'Anniversary', 'Business', 'Date Night']),
+      checkboxField('rr-veggie', 'Vegetarian options needed'),
+      checkboxField('rr-vegan', 'Vegan options needed'),
+      checkboxField('rr-gluten', 'Gluten-free options needed'),
+      sliderField('rr-window', 'Arrival Flexibility (1-10)', 1, 10),
+      toggleField('rr-highchair', 'Need a highchair'),
+      ratingField('rr-priority', 'Party Importance'),
+      textareaField('rr-notes', 'Special Requests', 'Allergies, seating preference, decorations...'),
+      spacerField('rr-spacer', 'Spacer', 16),
+      colorField('rr-color', 'Accent Color', pickFrom(pastelColors, index, 34)),
+      buttonField('rr-submit', 'Reserve Table', pickFrom(buttonVariants, index, 35)),
+    ],
+    logicNodes: [
+      {
+        id: 'rr-cover-node',
+        name: 'Compute Total Covers',
+        code: 'return guests + (highchair ? 1 : 0)',
+        inputs: ['guests', 'highchair'],
+        outputs: ['totalCovers'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1382400000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'grid', theme: 'clay' },
+  };
+}
+
 export const sampleApps: AppSchema[] = [
   createFeedbackApp(0),
   createPizzaOrderApp(1),
@@ -849,6 +899,7 @@ export const sampleApps: AppSchema[] = [
   createTravelBookingApp(12),
   createHabitTrackerApp(13),
   createNewsletterApp(14),
+  createRestaurantReservationApp(15),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -1052,6 +1103,34 @@ export const seedContent: SiteContent[] = [
       cancelLabel: 'Cancel',
       generateLabel: 'Generate',
       creatingLabel: 'Creating...',
+    },
+  },
+  {
+    id: 'import-dialog-copy',
+    type: 'import-dialog-copy',
+    data: {
+      title: 'Import Backup',
+      description:
+        'Restore your micro apps from a JSON backup file. All data stays in your browser\'s IndexedDB — nothing is uploaded.',
+      chooseFile: 'Choose a backup file',
+      fileHint: '.json exported from MicroApp Studio',
+      mergeTitle: 'Merge',
+      mergeDescription: 'Keep existing apps, update matching ids',
+      replaceTitle: 'Replace',
+      replaceDescription: 'Wipe current apps, restore backup',
+      noFileError: 'Select a backup JSON file first.',
+      importError: 'Failed to import backup.',
+      resultPrefix: 'Import complete — ',
+      addedTemplate: '{count} added',
+      updatedTemplate: '{count} updated',
+      failedTemplate: '{count} failed',
+      resultSuffix: '.',
+      tipPrefix: 'Tip: use the ',
+      tipHighlight: 'Export',
+      tipSuffix: ' button on the dashboard to create backups.',
+      cancelLabel: 'Cancel',
+      importLabel: 'Import',
+      importingLabel: 'Importing…',
     },
   },
   {

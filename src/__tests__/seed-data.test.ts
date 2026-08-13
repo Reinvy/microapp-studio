@@ -45,7 +45,7 @@ vi.mock('@/db/contentRepo', () => ({
 }));
 
 import { sampleApps, seedContent } from '@/db/seed';
-import { formatCountTemplate, type DashboardStatsCopy, type AppCardCopy } from '@/db/contentRepo';
+import { formatCountTemplate, type DashboardStatsCopy, type AppCardCopy, type ImportDialogCopy } from '@/db/contentRepo';
 import { validateField } from '@/engine/schemaEngine';
 import type { FieldSchema, AppSchema } from '@/types/schema';
 
@@ -276,6 +276,33 @@ describe('Seed Data — Dashboard & AppCard Copy (DB-driven UI text)', () => {
         expect(value.length).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('seed includes import-dialog-copy with complete label fields', () => {
+    const content = seedContent.find((c) => c.type === 'import-dialog-copy');
+    expect(content).toBeTruthy();
+    const data = content!.data as ImportDialogCopy;
+    expect(data.title.length).toBeGreaterThan(0);
+    expect(data.description.length).toBeGreaterThan(0);
+    expect(data.chooseFile.length).toBeGreaterThan(0);
+    expect(data.mergeTitle.length).toBeGreaterThan(0);
+    expect(data.mergeDescription.length).toBeGreaterThan(0);
+    expect(data.replaceTitle.length).toBeGreaterThan(0);
+    expect(data.replaceDescription.length).toBeGreaterThan(0);
+    expect(data.noFileError.length).toBeGreaterThan(0);
+    expect(data.importError.length).toBeGreaterThan(0);
+    expect(data.cancelLabel.length).toBeGreaterThan(0);
+    expect(data.importLabel.length).toBeGreaterThan(0);
+    expect(data.importingLabel.length).toBeGreaterThan(0);
+    // Count templates carry the {count} placeholder.
+    expect(data.addedTemplate).toContain('{count}');
+    expect(data.updatedTemplate).toContain('{count}');
+    expect(data.failedTemplate).toContain('{count}');
+    // Formatting produces the expected composed result copy.
+    expect(formatCountTemplate(data.addedTemplate, 3)).toBe('3 added');
+    expect(
+      `${data.resultPrefix}${formatCountTemplate(data.addedTemplate, 2)}, ${formatCountTemplate(data.updatedTemplate, 1)}${data.resultSuffix}`
+    ).toBe('Import complete — 2 added, 1 updated.');
   });
 });
 
