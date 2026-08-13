@@ -136,7 +136,9 @@ export const builderCopy = {
       regex: 'e.g. ^[a-zA-Z]+$',
       errorMessage: 'Custom error message',
       bgColor: '#fff',
-      textColor: '#000',
+      // Claymorphism v3: default text is warm dark brown (#4A3F35), never
+      // pure black — the placeholder advertises the design token.
+      textColor: '#4A3F35',
       defaultValue: 'Default value',
       cssClass: 'my-custom-class',
       helpText: 'Additional information for users...',
@@ -187,6 +189,7 @@ export const builderCopy = {
     tryAgain: 'Try Again',
     loadingApp: 'Loading app...',
     creatingApp: 'Creating new app...',
+    loadingBuilder: 'Loading builder...',
     untitledApp: 'Untitled App',
     newField: (name: string) => `New ${name}`,
   },

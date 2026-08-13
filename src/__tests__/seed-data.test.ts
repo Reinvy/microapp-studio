@@ -11,6 +11,10 @@
  */
 
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
+
+const repoRoot = path.resolve(__dirname, '..', '..');
 
 // Stub the repo modules so the real modules (which import Dexie) never load.
 vi.mock('@/db/microAppRepo', () => ({
@@ -208,6 +212,41 @@ describe('Seed Data — SiteContent Navigation Integrity', () => {
       expect(typeof item.type).toBe('string');
       expect(item.type.length).toBeGreaterThan(0);
     }
+  });
+
+  it('seed includes hero-showcase with all three showcase fields', () => {
+    const content = seedContent.find((c) => c.type === 'hero-showcase');
+    expect(content).toBeTruthy();
+    const data = content!.data as { windowUrl: string; leftTile: string; rightTile: string };
+    expect(typeof data.windowUrl).toBe('string');
+    expect(data.windowUrl.length).toBeGreaterThan(0);
+    expect(typeof data.leftTile).toBe('string');
+    expect(data.leftTile.length).toBeGreaterThan(0);
+    expect(typeof data.rightTile).toBe('string');
+    expect(data.rightTile.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Landing hero showcase — DB-driven, no hardcoded copy in the page source
+// ---------------------------------------------------------------------------
+
+describe('Landing hero showcase — DB-driven copy (Cron 2, UI/UX)', () => {
+  const landingPage = readFileSync(path.join(repoRoot, 'src/app/page.tsx'), 'utf8');
+
+  it('page.tsx reads showcase copy from contentService and falls back to defaults', () => {
+    expect(landingPage).toMatch(/hero-showcase/);
+    expect(landingPage).toMatch(/showcase\.windowUrl/);
+    expect(landingPage).toMatch(/showcase\.leftTile/);
+    expect(landingPage).toMatch(/showcase\.rightTile/);
+  });
+
+  it('page.tsx no longer hardcodes the showcase labels in JSX', () => {
+    // Fallback consts may mirror the seeded defaults — what must NOT exist is
+    // the old literal JSX text nodes (>…< wrappers only appear in markup).
+    expect(landingPage).not.toContain('>my-micro-app<');
+    expect(landingPage).not.toContain('>Preview your app<');
+    expect(landingPage).not.toContain('>Edit with AI<');
   });
 });
 

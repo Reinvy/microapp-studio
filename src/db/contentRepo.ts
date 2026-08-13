@@ -47,6 +47,21 @@ export interface HeroContent {
   secondaryCta: { label: string; href: string };
 }
 
+/**
+ * HeroShowcase copy — the fake app-window labels rendered inside the landing
+ * hero's browser mockup (URL pill + the two feature tiles). Previously
+ * hardcoded in src/app/page.tsx; now seeded via contentRepo ('hero-showcase')
+ * so the showcase is editable without a redeploy.
+ */
+export interface HeroShowcase {
+  /** Text in the fake browser address bar, e.g. "my-micro-app". */
+  windowUrl: string;
+  /** Label under the first showcase tile (e.g. "Preview your app"). */
+  leftTile: string;
+  /** Label under the second showcase tile (e.g. "Edit with AI"). */
+  rightTile: string;
+}
+
 export interface CtaContent {
   heading: string;
   headingHighlight: string;
@@ -288,6 +303,7 @@ export type SiteContentData =
   | StepItem[]
   | StatItem[]
   | HeroContent
+  | HeroShowcase
   | CtaContent
   | LandingSections
   | EmptyStateCopy
