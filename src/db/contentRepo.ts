@@ -229,6 +229,58 @@ export interface NewAppDialogCopy {
   creatingLabel: string;
 }
 
+/**
+ * ImportDialog copy — headings, labels, mode descriptions and result copy
+ * rendered by ImportDialog.tsx. Previously hardcoded in the component; now
+ * seeded via contentRepo ('import-dialog-copy') so backup/restore dialog
+ * microcopy is editable without a redeploy. The `{count}` templates are
+ * formatted with formatCountTemplate().
+ */
+export interface ImportDialogCopy {
+  /** Dialog header title, e.g. "Import Backup". */
+  title: string;
+  /** Dialog description under the title. */
+  description: string;
+  /** Dropzone label when no file is chosen yet. */
+  chooseFile: string;
+  /** Helper text under the dropzone, e.g. ".json exported from MicroApp Studio". */
+  fileHint: string;
+  /** Merge mode card title. */
+  mergeTitle: string;
+  /** Merge mode card description. */
+  mergeDescription: string;
+  /** Replace mode card title. */
+  replaceTitle: string;
+  /** Replace mode card description. */
+  replaceDescription: string;
+  /** Error shown when the user hits Import without a file. */
+  noFileError: string;
+  /** Generic error fallback when the import throws. */
+  importError: string;
+  /** Result prefix, e.g. "Import complete — ". */
+  resultPrefix: string;
+  /** Result template for the added count: `{count} added`. */
+  addedTemplate: string;
+  /** Result template for the replaced count: `{count} updated`. */
+  updatedTemplate: string;
+  /** Result template for the failed count: `{count} failed`. */
+  failedTemplate: string;
+  /** Result sentence terminator, e.g. ".". */
+  resultSuffix: string;
+  /** Format hint prefix, e.g. "Tip: use the ". */
+  tipPrefix: string;
+  /** Format hint emphasized label, e.g. "Export". */
+  tipHighlight: string;
+  /** Format hint suffix, e.g. " button on the dashboard to create backups.". */
+  tipSuffix: string;
+  /** Cancel button label. */
+  cancelLabel: string;
+  /** Import button label (idle). */
+  importLabel: string;
+  /** Import button label while busy. */
+  importingLabel: string;
+}
+
 export type SiteContentData =
   | NavLink[]
   | FooterColumn[]
@@ -244,6 +296,7 @@ export type SiteContentData =
   | RecentlyRunCopy
   | AuthCopy
   | NewAppDialogCopy
+  | ImportDialogCopy
   | DashboardConfig
   | PromptTemplate[];
 
