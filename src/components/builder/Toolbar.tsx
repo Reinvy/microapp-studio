@@ -11,12 +11,12 @@ import {
   Settings2,
   Loader2,
 } from 'lucide-react';
-import { microAppRepo } from '@/db/microAppRepo';
 import { useAppStore } from '@/store/appStore';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { goToDashboard } from '@/lib/navigation';
 import { builderCopy } from '@/lib/builderCopy';
+import { saveQueueService } from '@/services/saveQueueService';
 
 export default function Toolbar() {
   const router = useRouter();
@@ -30,7 +30,10 @@ export default function Toolbar() {
     if (!activeApp) return;
     setSaving(true);
     try {
-      await microAppRepo.update(activeApp.id, activeApp);
+      // Save through the write-coalescing queue: forces an immediate write
+      // (bypasses the autosave debounce) and also flushes any pending
+      // autosave snapshot, so manual save never double-writes.
+      await saveQueueService.saveNow(activeApp);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -48,12 +51,12 @@ export default function Toolbar() {
   }, [activeApp, name, updateApp]);
 
   const handleRun = useCallback(() => {
-    if (activeApp) {
-      // Save before running
-      microAppRepo.update(activeApp.id, activeApp).then(() => {
-        router.push(`/run/${activeApp.id}`);
-      });
-    }
+    if (!activeApp) return;
+    // Persist before running — saveNow flushes the autosave queue too, so no
+    // pending edit is lost when the runner page loads.
+    saveQueueService.saveNow(activeApp).then(() => {
+      router.push(`/run/${activeApp.id}`);
+    });
   }, [activeApp, router]);
 
   if (!activeApp) return null;

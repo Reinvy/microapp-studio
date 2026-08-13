@@ -30,6 +30,7 @@ import { goToDashboard } from '@/lib/navigation';
 import { ClayLoader, ClayErrorCard } from '@/components/ui/clay-feedback';
 import { builderCopy } from '@/lib/builderCopy';
 import { fieldLabels } from '@/lib/fieldMeta';
+import { saveQueueService } from '@/services/saveQueueService';
 
 type ActivePanel = 'components' | 'canvas' | 'properties';
 
@@ -177,6 +178,32 @@ function BuilderContent() {
   useEffect(() => {
     loadApp();
   }, [loadApp]);
+
+  // Autosave — every edit enqueues a debounced, coalesced write through the
+  // save queue. A burst of edits (drag-and-drop, property changes) collapses
+  // into ONE IndexedDB write after the debounce window; the manual Save/Run
+  // buttons share the same queue, so autosave + manual save can never
+  // double-write the same record.
+  useEffect(() => {
+    if (!initialized) return;
+    // The first store change after subscribing is the initial load's
+    // setActiveApp — skip it so opening an app never writes it back.
+    let first = true;
+    const unsubscribe = useAppStore.subscribe((state, prevState) => {
+      if (first) {
+        first = false;
+        return;
+      }
+      if (state.activeApp && state.activeApp !== prevState.activeApp) {
+        saveQueueService.enqueue(state.activeApp);
+      }
+    });
+    return () => {
+      unsubscribe();
+      // Best-effort flush of any pending autosave when leaving the builder.
+      saveQueueService.flushAll().catch(() => {});
+    };
+  }, [initialized]);
 
   /** Build a preview field for the DragOverlay */
   const getDragOverlayField = (): FieldSchema | null => {
