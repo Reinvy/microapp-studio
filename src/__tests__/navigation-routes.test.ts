@@ -180,3 +180,87 @@ describe('Navigation components link to real routes', () => {
     expect(appPage).toMatch(/router\.push\(`\/run\/\$\{/);
   });
 });
+
+describe('Anchor integrity — every #anchor nav/footer link has a real section id', () => {
+  // The landing page renders sections server-side in page.tsx, but a nav link
+  // pointing at `#foo` with no matching `id="foo"` passes every HTTP check
+  // while scrolling nowhere. Cross-reference ALL anchor hrefs (seed content +
+  // component fallbacks) against section ids actually present in the source.
+  const landing = readFileSync(path.join(repoRoot, 'src', 'app', 'page.tsx'), 'utf8');
+  const navbar = readFileSync(
+    path.join(repoRoot, 'src', 'components', 'landing', 'Navbar.tsx'),
+    'utf8'
+  );
+  const footer = readFileSync(
+    path.join(repoRoot, 'src', 'components', 'landing', 'Footer.tsx'),
+    'utf8'
+  );
+
+  function anchorHrefsFrom(source: string): string[] {
+    return Array.from(source.matchAll(/href:\s*["'](#[^"'#]+)["']/g)).map((m) => m[1]);
+  }
+
+  function collectSeedAnchorHrefs(): string[] {
+    const hrefs: string[] = [];
+    for (const content of seedContent) {
+      if (content.type !== 'nav-links' && content.type !== 'footer-columns') continue;
+      const data = content.data as
+        | { href?: string }[]
+        | { links?: { href?: string }[] }[];
+      if (Array.isArray(data)) {
+        for (const entry of data) {
+          if (typeof entry === 'object' && entry !== null && 'href' in entry) {
+            const e = entry as { href?: string };
+            // Skip placeholder hrefs ("#") — only real in-page anchors.
+            if (e.href && e.href.startsWith('#') && e.href.length > 1) hrefs.push(e.href);
+          } else {
+            const col = entry as { links?: { href?: string }[] };
+            for (const link of col.links ?? []) {
+              if (link.href && link.href.startsWith('#') && link.href.length > 1) hrefs.push(link.href);
+            }
+          }
+        }
+      }
+    }
+    return hrefs;
+  }
+
+  it('every seed nav-links / footer-columns anchor has a matching section id in the landing source', () => {
+    const sectionIds = new Set(
+      Array.from(landing.matchAll(/\bid=["']([^"']+)["']/g)).map((m) => m[1])
+    );
+    const anchorHrefs = [...new Set(collectSeedAnchorHrefs())];
+    expect(anchorHrefs.length).toBeGreaterThan(0);
+    for (const href of anchorHrefs) {
+      const id = href.slice(1); // "#features" → "features"
+      expect(
+        sectionIds.has(id),
+        `seed anchor "${href}" has no matching id="${id}" in src/app/page.tsx`
+      ).toBe(true);
+    }
+  });
+
+  it('every fallback anchor in Navbar and Footer has a matching section id', () => {
+    const sectionIds = new Set(
+      Array.from(landing.matchAll(/\bid=["']([^"']+)["']/g)).map((m) => m[1])
+    );
+    const allAnchors = [...new Set([
+      ...anchorHrefsFrom(navbar),
+      ...anchorHrefsFrom(footer),
+    ])];
+    expect(allAnchors.length).toBeGreaterThan(0);
+    for (const href of allAnchors) {
+      const id = href.slice(1);
+      expect(
+        sectionIds.has(id),
+        `fallback anchor "${href}" has no matching id="${id}" in src/app/page.tsx`
+      ).toBe(true);
+    }
+  });
+
+  it('landing sections with ids are also listed by scroll-mt anchors (features, how-it-works)', () => {
+    // Regression guard: the two primary scroll targets must stay present.
+    expect(landing).toMatch(/<section id="features"/);
+    expect(landing).toMatch(/<section id="how-it-works"/);
+  });
+});
