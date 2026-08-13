@@ -397,6 +397,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                 onClick={handleShare}
                 className="flex items-center justify-center h-9 w-9 rounded-2xl clay-sm bg-clay-blue/30 hover:bg-clay-blue/50 transition-all"
                 title={runnerCopy.app.shareTitle}
+                aria-label={runnerCopy.app.shareTitle}
               >
                 {copiedShare ? (
                   <Check className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
@@ -408,6 +409,7 @@ export default function AppRunner({ app }: AppRunnerProps) {
                 onClick={toggleFullscreen}
                 className="flex items-center justify-center h-9 w-9 rounded-2xl clay-sm bg-clay-peach/30 hover:bg-clay-peach/50 transition-all"
                 title={fullscreen ? runnerCopy.app.exitFullscreen : runnerCopy.app.fullscreen}
+                aria-label={fullscreen ? runnerCopy.app.exitFullscreen : runnerCopy.app.fullscreen}
               >
                 {fullscreen ? (
                   <Minimize2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />

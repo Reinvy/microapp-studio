@@ -303,7 +303,7 @@ function BuilderContent() {
 export default function BuilderPage() {
   return (
     <Suspense
-      fallback={<ClayLoader label="Loading builder..." />}
+      fallback={<ClayLoader label={builderCopy.page.loadingBuilder} />}
     >
       <BuilderContent />
     </Suspense>

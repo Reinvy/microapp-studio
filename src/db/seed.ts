@@ -1002,6 +1002,15 @@ export const seedContent: SiteContent[] = [
     },
   },
   {
+    id: 'hero-showcase',
+    type: 'hero-showcase',
+    data: {
+      windowUrl: 'my-micro-app',
+      leftTile: 'Preview your app',
+      rightTile: 'Edit with AI',
+    },
+  },
+  {
     id: 'landing-cta',
     type: 'landing-cta',
     data: {

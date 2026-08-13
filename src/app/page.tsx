@@ -25,7 +25,7 @@ import Footer from '@/components/landing/Footer';
 import FeatureCard from '@/components/landing/FeatureCard';
 import StepCard from '@/components/landing/StepCard';
 import { contentService } from '@/services/contentService';
-import type { FeatureItem, StepItem, StatItem, HeroContent, CtaContent, LandingSections } from '@/db/contentRepo';
+import type { FeatureItem, StepItem, StatItem, HeroContent, HeroShowcase, CtaContent, LandingSections } from '@/db/contentRepo';
 import { pickPastelClass } from '@/lib/claymorphism';
 
 // Icon registry — maps stored icon names to Lucide components
@@ -87,6 +87,14 @@ const fallbackCta: CtaContent = {
   secondaryCta: { label: 'Sign In', href: '/login' },
 };
 
+// Hero browser-mockup copy is seeded via contentRepo ('hero-showcase') —
+// fallback keeps SSR/first paint intact and mirrors the seeded defaults.
+const fallbackShowcase: HeroShowcase = {
+  windowUrl: 'my-micro-app',
+  leftTile: 'Preview your app',
+  rightTile: 'Edit with AI',
+};
+
 const fallbackSections: LandingSections = {
   features: {
     title: 'Everything you need to build',
@@ -106,6 +114,7 @@ export default function LandingPage() {
   const [steps, setSteps] = useState<StepData[]>(fallbackSteps);
   const [stats, setStats] = useState<StatData[]>(fallbackStats);
   const [hero, setHero] = useState<HeroContent>(fallbackHero);
+  const [showcase, setShowcase] = useState<HeroShowcase>(fallbackShowcase);
   const [cta, setCta] = useState<CtaContent>(fallbackCta);
   const [sections, setSections] = useState<LandingSections>(fallbackSections);
 
@@ -117,6 +126,7 @@ export default function LandingPage() {
     // in the same tick become instant cache hits.
     contentService.getContentMany([
       'hero-content',
+      'hero-showcase',
       'landing-features',
       'landing-steps',
       'landing-stats',
@@ -126,6 +136,11 @@ export default function LandingPage() {
       const heroContent = map['hero-content'];
       if (heroContent && typeof heroContent.data === 'object' && !Array.isArray(heroContent.data)) {
         setHero(heroContent.data as HeroContent);
+      }
+
+      const showcaseContent = map['hero-showcase'];
+      if (showcaseContent && typeof showcaseContent.data === 'object' && !Array.isArray(showcaseContent.data)) {
+        setShowcase(showcaseContent.data as HeroShowcase);
       }
 
       const featuresContent = map['landing-features'];
@@ -260,19 +275,19 @@ export default function LandingPage() {
                       <div className="h-3 w-3 rounded-full bg-[#FFF2C5] shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]" />
                       <div className="h-3 w-3 rounded-full bg-[#C5F0D5] shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]" />
                       <div className="ml-4 flex-1 rounded-xl bg-[#F5EDE5] px-3 py-1 text-center text-xs text-muted-foreground shadow-[inset_2px_2px_4px_var(--clay-shadow-dark),inset_-2px_-2px_4px_var(--clay-shadow-light)]">
-                        my-micro-app
+                        {showcase.windowUrl}
                       </div>
                     </div>
                     {/* Fake app content */}
                     <div className="flex flex-1 items-center justify-center gap-4 p-8">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <AppWindow className="h-12 w-12 text-[#D5B8F5]/60" />
-                        <span className="text-sm font-medium">Preview your app</span>
+                        <span className="text-sm font-medium">{showcase.leftTile}</span>
                       </div>
                       <ChevronRight className="h-8 w-8 text-muted-foreground/40" />
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <Code2 className="h-12 w-12 text-[#FFD5E5]/60" />
-                        <span className="text-sm font-medium">Edit with AI</span>
+                        <span className="text-sm font-medium">{showcase.rightTile}</span>
                       </div>
                     </div>
                   </div>

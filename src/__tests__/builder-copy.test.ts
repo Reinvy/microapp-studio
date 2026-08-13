@@ -105,6 +105,11 @@ describe('Builder tool chrome — copy centralization (Cron 2)', () => {
     expect(builderCopy).toMatch(/h1: 'H1 - Largest'/);
     expect(builderCopy).toMatch(/fullWidth: 'Full Width'/);
     expect(builderCopy).toMatch(/noShadow: 'No Shadow'/);
-    expect(builderCopy).toMatch(/widescreen: 'Widescreen \(16:9\)'/);
+    expect(builderCopy).toMatch(/widescreen: 'Widescreen/);
+  });
+
+  it('textColor placeholder is the clay token #4A3F35, never pure black', () => {
+    expect(builderCopy).toMatch(/textColor: '#4A3F35'/);
+    expect(builderCopy).not.toMatch(/textColor: '#000'/);
   });
 });
