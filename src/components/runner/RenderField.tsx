@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import type { FieldSchema } from '@/types/schema';
 import { cn } from '@/lib/utils';
 import { getFieldBorderRadius, getFieldShadow, getFieldAnimation } from '@/lib/fieldStyles';
+import { runnerCopy } from '@/lib/runnerCopy';
 import { Star } from 'lucide-react';
 
 interface RenderFieldProps {
@@ -200,7 +201,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={field.src || ''}
-            alt={field.alt || field.label || 'Image'}
+            alt={field.alt || field.label || runnerCopy.field.imageAlt}
             className={cn(
               'w-full h-auto object-cover',
               field.aspectRatio === 'square' && 'aspect-square object-cover',
@@ -258,7 +259,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             ...(field.border === false ? { border: 'none' as const } : {}),
           }}
         >
-          {field.content || field.label || 'Button'}
+          {field.content || field.label || runnerCopy.field.buttonLabel}
         </button>
       </div>
     );
@@ -356,7 +357,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             );
           })}
           <span className="ml-2 text-xs font-medium text-muted-foreground">
-            {currentVal > 0 ? `${currentVal}/5` : 'Tap to rate'}
+            {currentVal > 0 ? runnerCopy.field.ratingValue(currentVal, 5) : runnerCopy.field.tapToRate}
           </span>
         </div>
         {error && (
@@ -393,7 +394,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
               id={field.id}
               value={(value as string) ?? ''}
               onChange={handleChange}
-              placeholder={field.placeholder || 'email@example.com'}
+              placeholder={field.placeholder || runnerCopy.field.emailPlaceholder}
               className={cn(inputClasses, 'pl-9')}
               pattern={field.validation?.pattern}
               inputMode="email"
@@ -411,7 +412,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             id={field.id}
             value={(value as string) ?? ''}
             onChange={handleChange}
-            placeholder={field.placeholder || '+1 (555) 000-0000'}
+            placeholder={field.placeholder || runnerCopy.field.phonePlaceholder}
             className={inputClasses}
             pattern={field.validation?.pattern || '[+]?[0-9\\s\\-()]{7,20}'}
             inputMode="tel"
@@ -425,7 +426,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             id={field.id}
             value={(value as string) ?? ''}
             onChange={handleChange}
-            placeholder={field.placeholder || 'https://example.com'}
+            placeholder={field.placeholder || runnerCopy.field.urlPlaceholder}
             className={inputClasses}
             pattern={field.validation?.pattern}
             inputMode="url"
@@ -460,7 +461,7 @@ export default function RenderField({ field, value, error, onChange }: RenderFie
             )}
           >
             <option value="" disabled>
-              {field.placeholder || `Select ${field.label}...`}
+              {field.placeholder || runnerCopy.field.selectPlaceholder(field.label)}
             </option>
             {(field.options || []).map((opt) => (
               <option key={opt} value={opt}>

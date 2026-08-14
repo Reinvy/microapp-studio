@@ -48,7 +48,7 @@ function CopyValuePill({
   const display =
     typeof value === 'object'
       ? JSON.stringify(value)
-      : String(value ?? '-');
+      : String(value ?? runnerCopy.preview.emptyValue);
   return (
     <div className={cn('flex items-center gap-1.5 shrink-0', className)}>
       <span
@@ -89,7 +89,7 @@ function LivePreview({
     try {
       return JSON.stringify(values, null, 2);
     } catch {
-      return '{}';
+      return runnerCopy.preview.emptyJson;
     }
   }, [values]);
 

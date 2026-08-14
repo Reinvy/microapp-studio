@@ -34,6 +34,22 @@ export const runnerCopy = {
     valid: 'valid',
     errShort: (n: number) => `${n} err`,
     valsShort: (n: number) => `${n} vals`,
+    emptyJson: '{}',
+    emptyValue: '-',
+  },
+
+  /** Fallback copy for rendered fields (RenderField) when a field has no
+   *  label/content of its own — the field data is user-authored, so these are
+   *  only the last-resort defaults. */
+  field: {
+    imageAlt: 'Image',
+    buttonLabel: 'Button',
+    tapToRate: 'Tap to rate',
+    ratingValue: (n: number, max: number) => `${n}/${max}`,
+    selectPlaceholder: (label: string) => `Select ${label}...`,
+    emailPlaceholder: 'email@example.com',
+    phonePlaceholder: '+1 (555) 000-0000',
+    urlPlaceholder: 'https://example.com',
   },
 
   /** Runner form / results area */

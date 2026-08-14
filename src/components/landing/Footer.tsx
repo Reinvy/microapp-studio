@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AppWindow, Globe, MessageCircle } from 'lucide-react';
 import { contentService } from '@/services/contentService';
-import type { FooterColumn } from '@/db/contentRepo';
+import type { FooterColumn, FooterBrand } from '@/db/contentRepo';
 
 const fallbackFooterColumns: FooterColumn[] = [
   {
@@ -45,8 +45,27 @@ const fallbackFooterColumns: FooterColumn[] = [
   },
 ];
 
+// DB-driven footer brand copy ('footer-brand' via contentRepo) — fallback
+// keeps first paint intact and mirrors the seeded defaults exactly.
+const fallbackFooterBrand: FooterBrand = {
+  brandName: 'MicroApp Studio',
+  tagline:
+    'Build, run, and share custom micro-apps with AI-powered prompts and a visual drag-and-drop builder.',
+  socials: [
+    { label: 'GitHub', href: '#' },
+    { label: 'Twitter', href: '#' },
+  ],
+  copyright: '© {year} MicroApp Studio. All rights reserved. Built with care.',
+};
+
+/** Replace the `{year}` placeholder in a copyright line with the current year. */
+function formatCopyright(template: string): string {
+  return template.replace(/\{year\}/g, String(new Date().getFullYear()));
+}
+
 export default function Footer() {
   const [footerColumns, setFooterColumns] = useState<FooterColumn[]>(fallbackFooterColumns);
+  const [brand, setBrand] = useState<FooterBrand>(fallbackFooterBrand);
 
   useEffect(() => {
     // Read through the content service — when the landing page batched
@@ -54,6 +73,14 @@ export default function Footer() {
     contentService.getContent<FooterColumn[]>('footer-columns').then((columns) => {
       if (columns) {
         setFooterColumns(columns);
+      }
+    }).catch(() => {
+      // Fallback already set
+    });
+    // Footer identity copy is DB-driven too ('footer-brand').
+    contentService.getContent<FooterBrand>('footer-brand').then((brandContent) => {
+      if (brandContent) {
+        setBrand(brandContent);
       }
     }).catch(() => {
       // Fallback already set
@@ -70,28 +97,27 @@ export default function Footer() {
                 <AppWindow className="h-4 w-4" />
               </div>
               <span className="text-base font-bold tracking-tight gradient-text">
-                MicroApp Studio
+                {brand.brandName}
               </span>
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              Build, run, and share custom micro-apps with AI-powered prompts and a visual
-              drag-and-drop builder.
+              {brand.tagline}
             </p>
             <div className="mt-5 flex items-center gap-3">
-              <a
-                href="#"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-muted-foreground clay-sm transition-all hover:-translate-y-[1px]"
-                aria-label="GitHub"
-              >
-                <Globe className="h-4 w-4" />
-              </a>
-              <a
-                href="#"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-muted-foreground clay-sm transition-all hover:-translate-y-[1px]"
-                aria-label="Twitter"
-              >
-                <MessageCircle className="h-4 w-4" />
-              </a>
+              {brand.socials.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F5EDE5] text-muted-foreground clay-sm transition-all hover:-translate-y-[1px]"
+                  aria-label={social.label}
+                >
+                  {social.label === 'GitHub' ? (
+                    <Globe className="h-4 w-4" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4" />
+                  )}
+                </a>
+              ))}
             </div>
           </div>
 
@@ -118,7 +144,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 border-t border-[#E8E0D8]/40 pt-6">
           <p className="text-center text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} MicroApp Studio. All rights reserved. Built with care.
+            {formatCopyright(brand.copyright)}
           </p>
         </div>
       </div>
