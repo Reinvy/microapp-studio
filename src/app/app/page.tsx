@@ -17,6 +17,7 @@ import AppCard from '@/components/dashboard/AppCard';
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import RecentlyRun from '@/components/dashboard/RecentlyRun';
 import ProgressiveAppGrid from '@/components/dashboard/ProgressiveAppGrid';
+import { useIdleMaintenance } from '@/hooks/useIdleMaintenance';
 import {
   AppWindow,
   Plus,
@@ -73,6 +74,11 @@ export default function DashboardPage() {
   });
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // One background self-healing pass per session (search-index backfill,
+  // run-history retention prune, stats-cache warm) — scheduled for browser
+  // idle time so first paint and the initial data load are never blocked.
+  useIdleMaintenance();
 
   const loadApps = useCallback(async (q: string, p: number, ps: number, s: SortConfig) => {
     setLoading(true);
