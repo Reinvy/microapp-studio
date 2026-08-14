@@ -225,6 +225,38 @@ describe('Seed Data — SiteContent Navigation Integrity', () => {
     expect(typeof data.rightTile).toBe('string');
     expect(data.rightTile.length).toBeGreaterThan(0);
   });
+
+  it('seed includes footer-brand with tagline, socials, and year-templated copyright', () => {
+    const content = seedContent.find((c) => c.type === 'footer-brand');
+    expect(content).toBeTruthy();
+    const data = content!.data as {
+      brandName: string;
+      tagline: string;
+      socials: Array<{ label: string; href: string }>;
+      copyright: string;
+    };
+    expect(data.brandName.length).toBeGreaterThan(0);
+    expect(data.tagline.length).toBeGreaterThan(0);
+    expect(data.socials.length).toBeGreaterThan(0);
+    for (const s of data.socials) {
+      expect(s.label.length).toBeGreaterThan(0);
+      expect(typeof s.href).toBe('string');
+    }
+    // Copyright line is a template with a {year} placeholder, never a fixed year.
+    expect(data.copyright).toContain('{year}');
+    expect(data.copyright).not.toMatch(/©\s*\d{4}\b/);
+  });
+
+  it('sample apps cover at least 14 distinct apps with logic-node variety', () => {
+    expect(sampleApps.length).toBeGreaterThanOrEqual(14);
+    const withLogic = sampleApps.filter((a) => (a.logicNodes?.length || 0) > 0);
+    expect(withLogic.length).toBeGreaterThanOrEqual(4);
+    // Layout variety: vertical, grid, and tabs layouts are all represented.
+    const layouts = new Set(sampleApps.map((a) => a.settings?.layout));
+    expect(layouts.has('vertical')).toBe(true);
+    expect(layouts.has('grid')).toBe(true);
+    expect(layouts.has('tabs')).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

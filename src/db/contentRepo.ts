@@ -245,6 +245,23 @@ export interface NewAppDialogCopy {
 }
 
 /**
+ * FooterBrand — the footer brand column copy (tagline, social links,
+ * copyright line). Previously hardcoded in Footer.tsx; now seeded via
+ * contentRepo ('footer-brand') so the footer identity copy is editable
+ * without a redeploy.
+ */
+export interface FooterBrand {
+  /** Brand name shown in the footer logo row. */
+  brandName: string;
+  /** One-paragraph tagline under the logo. */
+  tagline: string;
+  /** Social icon links (aria-label + href). */
+  socials: Array<{ label: string; href: string }>;
+  /** Copyright line template — `{year}` is replaced with the current year. */
+  copyright: string;
+}
+
+/**
  * ImportDialog copy — headings, labels, mode descriptions and result copy
  * rendered by ImportDialog.tsx. Previously hardcoded in the component; now
  * seeded via contentRepo ('import-dialog-copy') so backup/restore dialog
@@ -313,6 +330,7 @@ export type SiteContentData =
   | AuthCopy
   | NewAppDialogCopy
   | ImportDialogCopy
+  | FooterBrand
   | DashboardConfig
   | PromptTemplate[];
 

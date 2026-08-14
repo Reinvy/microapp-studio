@@ -883,6 +883,83 @@ function createRestaurantReservationApp(index: number): AppSchema {
   };
 }
 
+function createPlantCareApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Plant Care Tracker',
+    description:
+      'Track watering, sunlight, and plant health with a photo, care sliders, and a growth rating — card layout.',
+    prompt:
+      'Create a plant care tracker with plant photo, name text, watering frequency select, sunlight slider, and health rating.',
+    fields: [
+      headingField('pc-heading', 'Heading', 'h2', 'Nurture your green friends 🌿'),
+      imageField('pc-image', 'Plant photo', pickFrom(imagePool, index, 7), 'Your plant'),
+      textField('pc-name', 'Plant Name', 'e.g. Monstera Deliciosa'),
+      selectField('pc-water', 'Watering', ['Daily', 'Every 2 days', 'Weekly', 'Bi-weekly']),
+      sliderField('pc-sunlight', 'Sunlight (1-10)', 1, 10),
+      sliderField('pc-humidity', 'Humidity (1-10)', 1, 10),
+      ratingField('pc-health', 'Health Rating'),
+      numberField('pc-age', 'Age (months)', 0, 120),
+      checkboxField('pc-fertilized', 'Fertilized this month'),
+      toggleField('pc-repot', 'Repot due'),
+      textareaField('pc-notes', 'Care Notes', 'Leaf color, pests, growth...'),
+      colorField('pc-pot', 'Pot Color', pickFrom(pastelColors, index, 36)),
+      cardField('pc-tip', 'Care Tip', 'Most houseplants enjoy bright, indirect light and consistent moisture.'),
+      buttonField('pc-save', 'Save Entry', pickFrom(buttonVariants, index, 37)),
+    ],
+    logicNodes: [
+      {
+        id: 'pc-care-node',
+        name: 'Compute Care Score',
+        code: 'return Math.round((sunlight + humidity + health) / 3 * 10) / 10',
+        inputs: ['sunlight', 'humidity', 'health'],
+        outputs: ['careScore'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1468800000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createGiftRegistryApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Gift Registry',
+    description:
+      'Curate a wishlist with gift name, price range slider, priority rating, and a reserved toggle — tabs layout.',
+    prompt:
+      'Create a gift registry with gift name, category select, price slider, priority rating, and reserved checkbox.',
+    fields: [
+      headingField('gr-heading', 'Heading', 'h2', 'Wishlist & Gift Registry 🎁'),
+      paragraphField('gr-intro', 'Intro', 'Add gifts you would love, and let friends claim them without spoiling surprises.'),
+      textField('gr-name', 'Gift Name', 'e.g. Ceramic Pour-Over Set'),
+      selectField('gr-category', 'Category', ['Home', 'Kitchen', 'Books', 'Tech', 'Hobby', 'Experience']),
+      sliderField('gr-price', 'Price Range (1-10)', 1, 10),
+      ratingField('gr-priority', 'Priority'),
+      checkboxField('gr-reserved', 'Reserved by someone'),
+      textField('gr-reserved-by', 'Reserved By', 'Optional — who claimed it?'),
+      urlField('gr-link', 'Product Link', 'https://...'),
+      textareaField('gr-notes', 'Notes', 'Size, color, or any details...'),
+      colorField('gr-color', 'Accent Color', pickFrom(pastelColors, index, 38)),
+      dividerField('gr-divider', 'Divider'),
+      buttonField('gr-save', 'Add Gift', pickFrom(buttonVariants, index, 39)),
+      buttonField('gr-clear', 'Clear', 'ghost'),
+    ],
+    logicNodes: [],
+    layout: [],
+    createdAt: now - 1555200000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'tabs', theme: 'clay' },
+  };
+}
+
 export const sampleApps: AppSchema[] = [
   createFeedbackApp(0),
   createPizzaOrderApp(1),
@@ -900,6 +977,8 @@ export const sampleApps: AppSchema[] = [
   createHabitTrackerApp(13),
   createNewsletterApp(14),
   createRestaurantReservationApp(15),
+  createPlantCareApp(16),
+  createGiftRegistryApp(17),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───
@@ -1197,6 +1276,20 @@ export const seedContent: SiteContent[] = [
         bottomCta: 'Sign in',
       },
     } satisfies AuthCopy,
+  },
+  {
+    id: 'footer-brand',
+    type: 'footer-brand',
+    data: {
+      brandName: 'MicroApp Studio',
+      tagline:
+        'Build, run, and share custom micro-apps with AI-powered prompts and a visual drag-and-drop builder.',
+      socials: [
+        { label: 'GitHub', href: '#' },
+        { label: 'Twitter', href: '#' },
+      ],
+      copyright: '© {year} MicroApp Studio. All rights reserved. Built with care.',
+    },
   },
   {
     id: 'prompt-templates',
