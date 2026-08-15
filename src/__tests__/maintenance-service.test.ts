@@ -38,9 +38,6 @@ import { createMaintenanceService } from '@/services/maintenanceService';
 import { microAppRepo } from '@/db/microAppRepo';
 import { runHistoryRepo } from '@/db/runHistoryRepo';
 import { dashboardStatsService } from '@/services/dashboardStatsService';
-import type { MaintenanceReport } from '@/services/maintenanceService';
-
-type Service = ReturnType<typeof createMaintenanceService>;
 
 /** Flush pending microtask chains so awaited promises settle. */
 async function flush(): Promise<void> {

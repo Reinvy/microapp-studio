@@ -35,7 +35,6 @@ function extractConst<T>(source: string, name: string, typeAnnot: string): T {
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = source.match(new RegExp(`const ${esc(name)}: ${esc(typeAnnot)} = ([\\s\\S]*?);`));
   expect(match, `const ${name} not found in Footer.tsx`).toBeTruthy();
-  // eslint-disable-next-line no-new-func
   return new Function(`return (${match![1]})`)() as T;
 }
 

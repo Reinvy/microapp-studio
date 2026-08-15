@@ -1,5 +1,33 @@
 # Changelog
 
+## [2026-08-15] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency updates (safe patch/minor only, no majors):
+  - `next` 16.3.0 → 16.3.1 and `eslint-config-next` 16.3.0 → 16.3.1 (patch)
+  - `dexie` 4.4.4 → 4.4.5 (patch)
+  - `jose` 6.2.8 → 6.2.9 (patch)
+- Code cleanup: removed dead code
+  - `src/__tests__/maintenance-service.test.ts`: removed unused `MaintenanceReport` import and unused `Service` type alias
+  - `src/__tests__/footer-content.test.ts`: removed unused `eslint-disable-next-line no-new-func` directive
+- Audited `src/` for TODO/FIXME/deprecated markers and orphaned modules — none found
+- Verified: `npm audit` clean, lint warnings reduced, unit tests pass (26/26)
+
+### 🌐 Deploy
+- Cron 5: Performance Optimization & Code Maintenance deployment to Vercel
+
+## [2026-08-14] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency update: `next` 16.3.0 → 16.3.1 and `eslint-config-next` 16.3.0 → 16.3.1 (safe patch releases, semver-compliant)
+- Code cleanup: audited `src/` for dead code — no unused imports, no unreferenced files, no unused exports, no TODO/FIXME/deprecated markers found
+- Verified: `npm audit` clean, dependency tree consistent
+
+### 🌐 Deploy
+- Cron 5: Performance Optimization & Code Maintenance deployment to Vercel
+
 ## [2026-08-13] — Feature & Scalability
 
 ### Added
