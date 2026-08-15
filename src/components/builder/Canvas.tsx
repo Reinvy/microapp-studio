@@ -172,6 +172,50 @@ export function FieldPreview({ field }: { field: FieldSchema }) {
   }
 }
 
+// ── Field Card Header ──
+
+/**
+ * Shared header row for field cards — type icon + label + type badge.
+ * SortableField (canvas) and CanvasFieldCard (drag overlay) previously
+ * duplicated this markup; `dragHandle` and `action` are optional slots so
+ * each context adds its own controls without re-declaring the layout.
+ */
+function FieldCardHeader({
+  field,
+  dragHandle,
+  action,
+  roundedTop = true,
+}: {
+  field: FieldSchema;
+  dragHandle?: React.ReactNode;
+  action?: React.ReactNode;
+  roundedTop?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20',
+        roundedTop && 'rounded-t-2xl'
+      )}
+    >
+      {dragHandle}
+      <div
+        className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm shrink-0"
+        style={{ backgroundColor: typeColors[field.type] || '#F5EDE5' }}
+      >
+        <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />
+      </div>
+      <span className="flex-1 text-sm font-medium truncate min-w-0" style={{ color: 'var(--clay-foreground)' }}>
+        {field.label}
+      </span>
+      <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: 'var(--clay-foreground)' }}>
+        {field.type}
+      </span>
+      {action}
+    </div>
+  );
+}
+
 // ── Sortable Field ──
 
 interface SortableFieldProps {
@@ -212,45 +256,32 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
       onClick={() => onSelect(field.id)}
     >
       {/* Top bar: drag handle + type icon + label + delete */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20 rounded-t-2xl">
-        {/* Drag handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="flex items-center justify-center h-7 w-6 rounded-full clay-sm bg-clay-peach/40 cursor-grab active:cursor-grabbing transition-all shrink-0"
-          onClick={(e) => e.stopPropagation()}
-          aria-label={builderCopy.canvas.dragHandleAria(field.label)}
-        >
-          <GripVertical className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
-        </button>
-
-        {/* Type icon */}
-        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm shrink-0" style={{ backgroundColor: typeColors[field.type] || '#F5EDE5' }}>
-          <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />
-        </div>
-
-        {/* Label */}
-        <span className="flex-1 text-sm font-medium truncate min-w-0" style={{ color: 'var(--clay-foreground)' }}>
-          {field.label}
-        </span>
-
-        {/* Type badge */}
-        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: 'var(--clay-foreground)' }}>
-          {field.type}
-        </span>
-
-        {/* Delete button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(field.id);
-          }}
-          className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-rose/30 opacity-0 group-hover:opacity-100 hover:bg-clay-rose/60 transition-all shrink-0"
-          aria-label={builderCopy.canvas.deleteAria(field.label)}
-        >
-          <Trash2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
-        </button>
-      </div>
+      <FieldCardHeader
+        field={field}
+        dragHandle={
+          <button
+            {...attributes}
+            {...listeners}
+            className="flex items-center justify-center h-7 w-6 rounded-full clay-sm bg-clay-peach/40 cursor-grab active:cursor-grabbing transition-all shrink-0"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={builderCopy.canvas.dragHandleAria(field.label)}
+          >
+            <GripVertical className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
+          </button>
+        }
+        action={
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(field.id);
+            }}
+            className="flex items-center justify-center h-7 w-7 rounded-xl clay-sm bg-clay-rose/30 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-clay-rose/60 transition-all shrink-0"
+            aria-label={builderCopy.canvas.deleteAria(field.label)}
+          >
+            <Trash2 className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
+          </button>
+        }
+      />
 
       {/* Visual preview area */}
       <div className="px-4 py-3">
@@ -265,15 +296,7 @@ function SortableField({ field, isSelected, onSelect, onRemove }: SortableFieldP
 export function CanvasFieldCard({ field }: { field: FieldSchema }) {
   return (
     <div className="w-72 clay-sm bg-card shadow-[8px_8px_16px_var(--clay-shadow-dark),-8px_-8px_16px_var(--clay-shadow-light)] overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-clay-cream/60 border-b border-clay-border/20">
-        <div className="flex items-center justify-center w-7 h-7 rounded-xl clay-sm" style={{ backgroundColor: typeColors[field.type] || '#F5EDE5' }}>
-          <FieldTypeIcon type={field.type} className="h-3.5 w-3.5" />
-        </div>
-        <span className="flex-1 text-sm font-medium truncate" style={{ color: 'var(--clay-foreground)' }}>{field.label}</span>
-        <span className="text-[9px] px-2 py-0.5 rounded-full font-normal uppercase shrink-0 clay-sm bg-clay-blue/30" style={{ color: 'var(--clay-foreground)' }}>
-          {field.type}
-        </span>
-      </div>
+      <FieldCardHeader field={field} roundedTop={false} />
       <div className="px-4 py-3">
         <FieldPreview field={field} />
       </div>

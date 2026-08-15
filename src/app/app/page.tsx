@@ -10,6 +10,7 @@ import type { AppSchema } from '@/types/schema';
 import type { SortConfig } from '@/services/dashboardSortService';
 import { DEFAULT_SORT, DEFAULT_PAGE_SIZE } from '@/services/dashboardSortService';
 import { DEFAULT_DASHBOARD_CONFIG, findSortLabel, type DashboardConfig } from '@/lib/dashboardConfig';
+import { dashboardCopy } from '@/lib/dashboardCopy';
 import { contentService } from '@/services/contentService';
 import type { EmptyStateCopy } from '@/db/contentRepo';
 import { clampPage, getPageRange } from '@/lib/pagination';
@@ -242,18 +243,19 @@ export default function DashboardPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl clay-sm bg-[#D5B8F5] text-foreground">
               <AppWindow className="h-5 w-5" />
             </div>
-            <span className="text-lg font-bold text-foreground">MicroApp Studio</span>
+            <span className="text-lg font-bold text-foreground">{dashboardCopy.header.appName}</span>
           </div>
           <div className="flex items-center gap-3">
             {user && (
               <span className="hidden text-sm text-muted-foreground sm:block">
-                Hi, <span className="font-medium text-foreground">{user.name}</span>
+                {dashboardCopy.header.greetingPrefix}{' '}
+                <span className="font-medium text-foreground">{user.name}</span>
               </span>
             )}
             <button onClick={handleLogout}
               className="clay-sm flex h-9 items-center gap-2 px-3 text-sm text-foreground bg-[#FFD5E5]">
               <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden sm:inline">{dashboardCopy.header.logout}</span>
             </button>
           </div>
         </div>
@@ -263,33 +265,33 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Your Micro Apps</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{dashboardCopy.page.title}</h1>
             <p className="mt-1 text-sm text-clay-muted">
-              {totalApps} {totalApps === 1 ? 'app' : 'apps'} created
-              {totalPages > 1 && ` — Page ${page} of ${totalPages}`}
+              {dashboardCopy.page.countLabel(totalApps)}
+              {totalPages > 1 && ` — ${dashboardCopy.page.pageInfo(page, totalPages)}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleExport}
-              title="Download a JSON backup of all your apps"
+              title={dashboardCopy.actions.exportTitle}
               className="clay-button flex h-10 items-center gap-2 px-3 text-sm font-medium text-foreground bg-[#C5F0D5] sm:px-4"
             >
               <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
+              <span className="hidden sm:inline">{dashboardCopy.actions.export}</span>
             </button>
             <button
               onClick={() => setShowImportDialog(true)}
-              title="Restore apps from a JSON backup"
+              title={dashboardCopy.actions.importTitle}
               className="clay-button flex h-10 items-center gap-2 px-3 text-sm font-medium text-foreground bg-[#FFF2C5] sm:px-4"
             >
               <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Import</span>
+              <span className="hidden sm:inline">{dashboardCopy.actions.import}</span>
             </button>
             <button onClick={() => setShowNewDialog(true)}
               className="clay-button h-10 flex items-center gap-2 px-4 text-sm font-medium text-foreground bg-[#D5B8F5]">
               <Plus className="h-4 w-4" />
-              New App
+              {dashboardCopy.actions.newApp}
             </button>
           </div>
         </div>
@@ -418,7 +420,7 @@ export default function DashboardPage() {
                   onClick={() => goToPage(page - 1)}
                   disabled={page === 1}
                   className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Previous page"
+                  aria-label={dashboardCopy.pagination.prevAria}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -437,7 +439,7 @@ export default function DashboardPage() {
                           ? 'bg-[#D5B8F5] text-foreground scale-105'
                           : 'bg-[#F5EDE5] text-foreground hover:scale-105'
                       }`}
-                      aria-label={`Page ${item}`}
+                      aria-label={dashboardCopy.pagination.pageAria(item)}
                       aria-current={item === page ? 'page' : undefined}
                     >
                       {item}
@@ -449,7 +451,7 @@ export default function DashboardPage() {
                   onClick={() => goToPage(page + 1)}
                   disabled={page === totalPages}
                   className="clay-sm flex h-9 w-9 items-center justify-center bg-[#F5EDE5] text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Next page"
+                  aria-label={dashboardCopy.pagination.nextAria}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -460,10 +462,10 @@ export default function DashboardPage() {
                   <form
                     onSubmit={handleJumpSubmit}
                     className="ml-2 flex items-center gap-1.5"
-                    aria-label="Jump to page"
+                    aria-label={dashboardCopy.pagination.jumpRegionAria}
                   >
                     <span className="hidden text-xs text-clay-muted sm:inline">
-                      Go to
+                      {dashboardCopy.pagination.goTo}
                     </span>
                     <input
                       type="number"
@@ -472,15 +474,15 @@ export default function DashboardPage() {
                       value={jumpInput}
                       onChange={(e) => setJumpInput(e.target.value)}
                       placeholder={String(page)}
-                      aria-label="Page number to jump to"
+                      aria-label={dashboardCopy.pagination.jumpInputAria}
                       className="clay-input h-9 w-14 rounded-xl px-2 text-center text-sm text-foreground"
                     />
                     <button
                       type="submit"
-                      aria-label={`Go to page ${jumpInput || page}`}
+                      aria-label={dashboardCopy.pagination.goAria(jumpInput || page)}
                       className="clay-sm h-9 px-3 text-xs font-medium text-foreground bg-[#C5E8F7] hover:scale-105 transition-all duration-200"
                     >
-                      Go
+                      {dashboardCopy.pagination.go}
                     </button>
                   </form>
                 )}

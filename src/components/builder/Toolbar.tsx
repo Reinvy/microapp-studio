@@ -130,6 +130,7 @@ export default function Toolbar() {
           <button
             onClick={handleSave}
             disabled={saving}
+            aria-label={builderCopy.toolbar.save}
             className={cn(
               'flex items-center gap-1.5 h-8 px-3 text-xs font-medium transition-all',
               'bg-clay-green clay-button',
@@ -147,6 +148,7 @@ export default function Toolbar() {
 
           <button
             onClick={handleRun}
+            aria-label={builderCopy.toolbar.run}
             className="flex items-center gap-1.5 h-8 px-3 sm:px-4 text-xs font-medium clay-button bg-clay-purple"
             style={{ color: 'var(--clay-foreground)' }}
           >
