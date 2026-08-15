@@ -632,3 +632,40 @@ describe('DB Seed Data Validation (sampleApps)', () => {
     }
   });
 });
+
+// ===========================================================================
+// Source-level anchor cross-reference — every "#anchor" nav/footer link must
+// have a matching id="anchor" in the landing page. Catches the silent
+// broken-anchor pattern (nav scrolls nowhere) that live HTTP checks never see.
+// ===========================================================================
+
+describe('Navigation anchor integrity — #anchor targets exist in page', () => {
+  const navSource = readFileSync(path.join(repoRoot, 'src', 'components', 'landing', 'Navbar.tsx'), 'utf8');
+  const footerSource = readFileSync(path.join(repoRoot, 'src', 'components', 'landing', 'Footer.tsx'), 'utf8');
+  const pageSource = readFileSync(path.join(repoRoot, 'src', 'app', 'page.tsx'), 'utf8');
+
+  const anchors = new Set<string>();
+  for (const src of [navSource, footerSource]) {
+    for (const m of src.matchAll(/href:\s*'(#[a-z0-9-]+)'/g)) {
+      anchors.add(m[1]);
+    }
+  }
+
+  it('finds at least one in-page anchor link in nav/footer', () => {
+    expect(anchors.size).toBeGreaterThan(0);
+  });
+
+  it('every "#anchor" href has a matching section id in the landing page', () => {
+    const missing = [...anchors].filter((a) => !pageSource.includes(`id="${a.slice(1)}"`));
+    expect(missing).toEqual([]);
+  });
+
+  it('landing sections define scroll-mt for anchored offset', () => {
+    // Anchored sections should use scroll-mt so the sticky navbar doesn't cover them
+    for (const a of anchors) {
+      const id = a.slice(1);
+      const re = new RegExp(`<section id="${id}"[^>]*scroll-mt-[^>]*>`);
+      expect(pageSource.match(re), `section #${id} should have scroll-mt-*`).not.toBeNull();
+    }
+  });
+});
