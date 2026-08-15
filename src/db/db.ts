@@ -51,6 +51,18 @@ export class MicroAppDB extends Dexie {
       content: 'id, type',
       runHistory: 'id, appId, ranAt',
     });
+    // v6 — add `[updatedAt+id]` compound index for KEYSET (cursor-based)
+    // pagination. Offset pagination (`offset(n).limit(k)`) degrades to O(n)
+    // on large datasets because IndexedDB skips every preceding record;
+    // keyset reads with this index touch only the page slice — O(log n + k)
+    // per page regardless of depth. `id` breaks `updatedAt` ties so cursors
+    // are unambiguous. Additive migration: no data rewrite for existing
+    // indexes, just the new index is built.
+    this.version(6).stores({
+      apps: 'id, name, nameLower, createdAt, updatedAt, [name+updatedAt], [updatedAt+id]',
+      content: 'id, type',
+      runHistory: 'id, appId, ranAt',
+    });
   }
 }
 
