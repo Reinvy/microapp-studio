@@ -332,7 +332,9 @@ export type SiteContentData =
   | ImportDialogCopy
   | FooterBrand
   | DashboardConfig
-  | PromptTemplate[];
+  | PromptTemplate[]
+  /** Pastel hex colors cycled per recently-run chip — DB-driven (previously hardcoded in RecentlyRun.tsx). */
+  | string[];
 
 export interface SiteContent {
   id: string;
