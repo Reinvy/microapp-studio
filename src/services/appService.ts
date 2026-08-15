@@ -3,6 +3,7 @@
 import { microAppRepo, type PaginatedResult } from '@/db/microAppRepo';
 import type { AppSchema } from '@/types/schema';
 import type { SortConfig } from './dashboardSortService';
+import type { Cursor, CursorPage } from '@/lib/cursorPagination';
 import { serializeBackup, parseBackup, type ImportSummary } from '@/lib/backup';
 
 /**
@@ -200,6 +201,13 @@ class AppService {
     return `search:${query}:${page}:${pageSize}:${sort?.field || 'updatedAt'}:${sort?.direction || 'desc'}`;
   }
 
+  /** Cache key for a keyset (cursor) apps query. */
+  private cursorKey(cursor: Cursor | null, pageSize: number): string {
+    return cursor
+      ? `apps:cursor:${cursor.updatedAt}:${cursor.id}:${pageSize}`
+      : `apps:cursor:start:${pageSize}`;
+  }
+
   // ── Public API ──
 
   /** Get paginated apps with SWR caching + query coalescing */
@@ -210,6 +218,24 @@ class AppService {
   ): Promise<PaginatedResult<AppSchema>> {
     const cacheKey = this.pageKey(page, pageSize, sort);
     return this.readThrough(cacheKey, () => microAppRepo.getPaginated(page, pageSize, sort));
+  }
+
+  /**
+   * Get apps via KEYSET (cursor-based) pagination with SWR caching + query
+   * coalescing — the scalable path for very large datasets.
+   *
+   * Pass `null` for the first page; each response's `nextCursor` feeds the
+   * next call. Unlike offset pagination (O(n) skip per page), every page is
+   * an O(log n + pageSize) indexed range read. Cache keys are per-cursor, so
+   * paging forward through a deep list reuses in-memory pages and concurrent
+   * "load more" taps coalesce into one IndexedDB round-trip.
+   */
+  async getAppsCursor(
+    cursor: Cursor | null,
+    pageSize: number = 12
+  ): Promise<CursorPage<AppSchema>> {
+    const cacheKey = this.cursorKey(cursor, pageSize);
+    return this.readThrough(cacheKey, () => microAppRepo.getPageAfter(cursor, pageSize));
   }
 
   /** Search apps with pagination */

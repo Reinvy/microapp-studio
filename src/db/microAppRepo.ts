@@ -11,6 +11,12 @@ import {
   appMatchesTokens,
 } from '@/lib/searchIndex';
 import { sanitizeAppRecord, type ImportSummary } from '@/lib/backup';
+import {
+  deriveNextCursor,
+  hasMoreItems,
+  type Cursor,
+  type CursorPage,
+} from '@/lib/cursorPagination';
 
 export interface PaginatedResult<T> {
   items: T[];
@@ -99,6 +105,70 @@ export const microAppRepo = {
       return { items, total, page: safePage, pageSize, totalPages };
     } catch {
       return { items: [], total: 0, page, pageSize, totalPages: 0 };
+    }
+  },
+
+  /**
+   * Keyset (cursor-based) pagination — the scalable alternative to
+   * `getPaginated` for very large datasets.
+   *
+   * Offset pagination forces IndexedDB to skip `offset` records on every
+   * page past the first (O(n) per page). Keyset pagination instead carries
+   * the sort position of the LAST item on the previous page (`cursor`) and
+   * reads ONLY the next slice through the `[updatedAt+id]` compound index —
+   * O(log n + pageSize) per page regardless of depth, with no skipped
+   * records and no duplicates.
+   *
+   * Ordering is `updatedAt` DESC, `id` DESC — the same "most recently
+   * updated first" order the dashboard grid uses. The `id` tiebreaker makes
+   * cursors unambiguous even when many apps share one `updatedAt` timestamp.
+   *
+   * Usage:
+   *   let cursor: Cursor | null = null;
+   *   do {
+   *     const page = await microAppRepo.getPageAfter(cursor, 12);
+   *     render(page.items);
+   *     cursor = page.nextCursor;
+   *   } while (cursor && page.items.length > 0);
+   */
+  async getPageAfter(
+    cursor: Cursor | null,
+    pageSize: number = 12
+  ): Promise<CursorPage<AppSchema>> {
+    try {
+      const safeSize = Math.max(1, Math.floor(pageSize));
+      const total = await db.apps.count();
+
+      let items: AppSchema[];
+      if (cursor) {
+        // Next slice strictly "below" the cursor in [updatedAt+id] order:
+        // updatedAt < cursor.updatedAt, or equal AND id < cursor.id. Reverse
+        // the ascending index range to restore DESC order, then take the page.
+        items = await db.apps
+          .where('[updatedAt+id]')
+          .below([cursor.updatedAt, cursor.id])
+          .reverse()
+          .limit(safeSize)
+          .toArray();
+      } else {
+        // First page — the most recent `pageSize` apps, straight off the
+        // reversed compound index (no full-table load).
+        items = await db.apps
+          .orderBy('[updatedAt+id]')
+          .reverse()
+          .limit(safeSize)
+          .toArray();
+      }
+
+      return {
+        items,
+        total,
+        nextCursor: deriveNextCursor(items, safeSize),
+        hasMore: hasMoreItems(items, safeSize),
+        pageSize: safeSize,
+      };
+    } catch {
+      return { items: [], total: 0, nextCursor: null, hasMore: false, pageSize };
     }
   },
 
