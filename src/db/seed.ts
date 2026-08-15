@@ -1233,6 +1233,14 @@ export const seedContent: SiteContent[] = [
     },
   },
   {
+    // Chip background palette for the Recently Run strip — previously
+    // hardcoded in RecentlyRun.tsx. Full claymorphism pastel palette,
+    // cycled per item; editable without a redeploy.
+    id: 'recently-run-chips',
+    type: 'recently-run-chips',
+    data: ['#FFD5E5', '#C5E8F7', '#D5B8F5', '#FFF2C5', '#C5F0D5', '#FFE5D0'],
+  },
+  {
     id: 'auth-copy',
     type: 'auth-copy',
     data: {
