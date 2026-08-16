@@ -2,13 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { History, Play } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { History, Play, ListTree } from 'lucide-react';
 import { runHistoryService } from '@/services/runHistoryService';
 import { contentService } from '@/services/contentService';
 import type { RunRecord } from '@/db/runHistoryRepo';
 import type { RecentlyRunCopy } from '@/db/contentRepo';
 import { pastelPalette } from '@/lib/claymorphism';
 import { formatRelativeTime } from '@/lib/relativeTime';
+
+// Lazy-load the full-trail browser dialog (only fetched when "View all"
+// is clicked — keeps the dashboard first paint and initial load light).
+const RunHistoryDialog = dynamic(
+  () => import('@/components/dashboard/RunHistoryDialog'),
+  { ssr: false }
+);
 
 interface RecentlyRunProps {
   /** Hide the strip entirely when the user has no apps yet. */
@@ -23,6 +31,7 @@ const defaultCopy: RecentlyRunCopy = {
   emptyText: 'No runs yet — hit Run on any app card to start your trail.',
   chipLabel: 'Open',
   regionLabel: 'Recently run apps',
+  viewAllLabel: 'View all',
 };
 
 // DB-driven chip palette ('recently-run-chips' via contentRepo) — previously
@@ -35,6 +44,7 @@ export default function RecentlyRun({ hasApps }: RecentlyRunProps) {
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [copy, setCopy] = useState<RecentlyRunCopy>(defaultCopy);
   const [chipColors, setChipColors] = useState<string[]>(DEFAULT_CHIP_COLORS);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     // Load the run trail through the cached service — repeated dashboard
@@ -61,12 +71,23 @@ export default function RecentlyRun({ hasApps }: RecentlyRunProps) {
 
   return (
     <section aria-label={copy.regionLabel} className="mb-5">
-      <div className="mb-2 flex items-baseline gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-xl clay-sm bg-[#FFE5D0]">
-          <History className="h-3.5 w-3.5 text-clay-foreground" />
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-xl clay-sm bg-[#FFE5D0]">
+            <History className="h-3.5 w-3.5 text-clay-foreground" />
+          </div>
+          <h2 className="text-sm font-semibold text-clay-foreground">{copy.title}</h2>
+          <span className="text-xs text-clay-muted">{copy.subtitle}</span>
         </div>
-        <h2 className="text-sm font-semibold text-clay-foreground">{copy.title}</h2>
-        <span className="text-xs text-clay-muted">{copy.subtitle}</span>
+        {runs.length > 0 && (
+          <button
+            onClick={() => setShowHistory(true)}
+            className="clay-sm flex h-7 items-center gap-1.5 px-2.5 text-xs font-medium text-foreground bg-[#C5E8F7] transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            <ListTree className="h-3.5 w-3.5" />
+            {copy.viewAllLabel}
+          </button>
+        )}
       </div>
 
       {runs.length === 0 ? (
@@ -95,6 +116,9 @@ export default function RecentlyRun({ hasApps }: RecentlyRunProps) {
           ))}
         </div>
       )}
+
+      {/* Full-trail browser — paginated, lazy-loaded, DB-driven copy */}
+      <RunHistoryDialog open={showHistory} onClose={() => setShowHistory(false)} />
     </section>
   );
 }

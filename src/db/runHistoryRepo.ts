@@ -44,6 +44,15 @@ export interface RunStats {
   runsThisWeek: number;
 }
 
+/** A paginated slice of the run-history trail (offset pagination over `ranAt`). */
+export interface PaginatedRunHistory {
+  items: RunRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 /** Retention cap — the trail never grows past this many records. */
 const MAX_RUNS = 500;
 
@@ -85,6 +94,40 @@ export const runHistoryRepo = {
       return await db.runHistory.orderBy('ranAt').reverse().limit(limit).toArray();
     } catch {
       return [];
+    }
+  },
+
+  /**
+   * Paginated run-history browse — the scalable way to explore the full
+   * (bounded) trail instead of only the top-N strip.
+   *
+   * Reads only the page slice through the `ranAt` index
+   * (`orderBy('ranAt').reverse().offset().limit()`), so a deep page never
+   * materializes the whole trail. Mirrors microAppRepo.getPaginated's
+   * clamping semantics (page is clamped into [1, totalPages]) so the caller
+   * can safely render whatever page number it holds in state.
+   */
+  async getHistoryPage(
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<PaginatedRunHistory> {
+    try {
+      const safeSize = Math.max(1, Math.floor(pageSize));
+      const total = await db.runHistory.count();
+      const totalPages = Math.max(1, Math.ceil(total / safeSize));
+      const safePage = Math.min(Math.max(1, Math.floor(page)), totalPages);
+      const offset = (safePage - 1) * safeSize;
+
+      const items = await db.runHistory
+        .orderBy('ranAt')
+        .reverse()
+        .offset(offset)
+        .limit(safeSize)
+        .toArray();
+
+      return { items, total, page: safePage, pageSize: safeSize, totalPages };
+    } catch {
+      return { items: [], total: 0, page, pageSize, totalPages: 0 };
     }
   },
 

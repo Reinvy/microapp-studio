@@ -1230,6 +1230,30 @@ export const seedContent: SiteContent[] = [
       emptyText: 'No runs yet — hit Run on any app card to start your trail.',
       chipLabel: 'Open',
       regionLabel: 'Recently run apps',
+      viewAllLabel: 'View all',
+    },
+  },
+  {
+    // Full-trail browser copy for RunHistoryDialog — the paginated dialog
+    // opened from the Recently Run strip's "View all" action. Editable
+    // without a redeploy, with a built-in fallback in the component.
+    id: 'run-history-dialog-copy',
+    type: 'run-history-dialog-copy',
+    data: {
+      title: 'Run History',
+      subtitle: 'Your full app-launch trail — newest first',
+      emptyText: 'No runs yet — hit Run on any app card to start your trail.',
+      openLabel: 'Open',
+      regionLabel: 'Run history list',
+      closeLabel: 'Close',
+      clearLabel: 'Clear history',
+      confirmClear: 'Clear the entire run history? This cannot be undone.',
+      clearingLabel: 'Clearing…',
+      prevAria: 'Previous page',
+      nextAria: 'Next page',
+      pageAria: 'Go to page {page}',
+      jumpInputAria: 'Jump to page',
+      goAria: 'Go to page {page}',
     },
   },
   {
