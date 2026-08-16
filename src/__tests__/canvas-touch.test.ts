@@ -52,3 +52,21 @@ describe('Builder canvas — touch delete + shared header (Cron 2)', () => {
     expect(headerRowDeclarations.length).toBe(1);
   });
 });
+
+describe('Builder canvas — mobile toolbar overflow (Cron 2)', () => {
+  it('toolbar row wraps on narrow screens (no horizontal clipping)', () => {
+    expect(canvas).toMatch(/flex flex-wrap items-center justify-between/);
+  });
+
+  it('drag hint is hidden on the smallest screens (shown \u2265sm)', () => {
+    expect(canvas).toMatch(/hidden sm:inline text-\[10px\]/);
+  });
+
+  it('zoom % label is hidden on the smallest screens (shown \u2265sm)', () => {
+    expect(canvas).toMatch(/hidden sm:block text-\[11px\] font-mono/);
+  });
+
+  it('clear-all button padding is compact on mobile (px-2, sm:px-3)', () => {
+    expect(canvas).toMatch(/h-8 px-2 sm:px-3 text-\[11px\] clay-sm/);
+  });
+});

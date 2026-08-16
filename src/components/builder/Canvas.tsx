@@ -375,14 +375,17 @@ export default function Canvas() {
         }}
       >
         <div className="max-w-3xl mx-auto p-6" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
-          {/* Canvas toolbar */}
-          <div className="flex items-center justify-between mb-4 clay-sm bg-white/80 px-3 py-2">
+          {/* Canvas toolbar — flex-wrap + sm-gated labels so the zoom
+              controls and clear-all never clip on narrow phones
+              (<360px); the drag hint and zoom % collapse to icon-only
+              controls and the tool row wraps instead of overflowing. */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4 clay-sm bg-white/80 px-3 py-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium" style={{ color: 'var(--clay-foreground)' }}>
                 {builderCopy.canvas.fieldCount(fields.length)}
               </span>
               {!isEmpty && (
-                <span className="text-[10px]" style={{ color: 'var(--clay-muted)' }}>
+                <span className="hidden sm:inline text-[10px]" style={{ color: 'var(--clay-muted)' }}>
                   &middot; {builderCopy.canvas.dragHint}
                 </span>
               )}
@@ -395,7 +398,7 @@ export default function Canvas() {
               >
                 <ZoomOut className="h-3.5 w-3.5" style={{ color: 'var(--clay-foreground)' }} />
               </button>
-              <span className="text-[11px] font-mono w-10 text-center" style={{ color: 'var(--clay-muted)' }}>
+              <span className="hidden sm:block text-[11px] font-mono w-10 text-center" style={{ color: 'var(--clay-muted)' }}>
                 {Math.round(zoom * 100)}%
               </span>
               <button
@@ -419,7 +422,7 @@ export default function Canvas() {
                   <button
                     onClick={handleClearClick}
                     className={cn(
-                      'flex items-center gap-1 h-8 px-3 text-[11px] clay-sm transition-all',
+                      'flex items-center gap-1 h-8 px-2 sm:px-3 text-[11px] clay-sm transition-all',
                       confirmClear
                         ? 'bg-clay-rose text-clay-foreground shadow-[inset_4px_4px_8px_var(--clay-shadow-dark),inset_-4px_-4px_8px_var(--clay-shadow-light)]'
                         : 'bg-clay-rose/40 hover:bg-clay-rose/60'
