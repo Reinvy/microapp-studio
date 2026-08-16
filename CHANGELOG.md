@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-08-17] — Feature & Scalability
+
+### Added
+- **Paginated Run History browser — unlock the full (bounded) run trail**:
+  - `src/db/runHistoryRepo.ts`: new `getHistoryPage(page, pageSize)` — indexed offset pagination over the `ranAt` index (`orderBy('ranAt').reverse().offset().limit()`), so a deep page never materializes the whole trail; page clamping mirrors `microAppRepo.getPaginated` semantics.
+  - `src/services/runHistoryService.ts`: new `getHistoryPage()` (TTL-cached per page × pageSize key — page turns within the window are instant) and `clearHistory()` (wipes the trail via `clearAll()` and drops every cached slice so the next read re-fetches from scratch).
+  - `src/components/dashboard/RunHistoryDialog.tsx`: new clay dialog browsed from the Recently Run strip — 8 rows/page with page-window navigation (`getPageRange` ellipsis bar), jump-to-page for deep trails, open-the-run action, and a confirm-gated "Clear history" action. All copy is DB-driven (`'run-history-dialog-copy'` seeded via contentRepo) with built-in fallbacks; chip palette reuses the DB-driven `'recently-run-chips'`.
+  - `src/components/dashboard/RecentlyRun.tsx`: new "View all" action (DB-driven `viewAllLabel`) opens the dialog; the dialog is lazy-loaded via `next/dynamic` so the dashboard first paint stays light.
+  - CSS/UX: claymorphism v3 (clay-card/sm/input tokens, pastel backgrounds, hover scale 1.05 / active 0.95, warm #4A3F35 text — no black).
+- **Unit tests**: `src/__tests__/run-history-pagination.test.ts` +12 tests — service TTL caching per (page, pageSize) key, clear-history invalidation, fail-safe stale fallback, seed ↔ fallback copy parity for the dialog + strip (incl. new `viewAllLabel`), and claymorphism-compliance source checks.
+
+### Verified
+- `npm run build` passes (compile + TypeScript), `vitest run` → 561 tests / 31 files pass.
+
+### 🌐 Deploy
+- Cron 1: Feature Expansion & Architecture Scalability deployment to Vercel
+
 ## [2026-08-16] — Maintenance
 
 ### Changed

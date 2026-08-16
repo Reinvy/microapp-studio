@@ -1,18 +1,25 @@
 'use client';
 
-import { runHistoryRepo, type RunRecord, type RunStats } from '@/db/runHistoryRepo';
+import {
+  runHistoryRepo,
+  type RunRecord,
+  type RunStats,
+  type PaginatedRunHistory,
+} from '@/db/runHistoryRepo';
 
 /**
  * RunHistoryService — cached service layer over runHistoryRepo.
  *
- * - **TTL cache per query**: recent-runs and run-stats reads within the fresh
- *   window (CACHE_TTL) are instant — the dashboard strip and stats cards never
- *   re-hit IndexedDB on every visit.
+ * - **TTL cache per query**: recent-runs, run-stats and paginated-history
+ *   reads within the fresh window (CACHE_TTL) are instant — the dashboard
+ *   strip, stats cards and the run-history dialog never re-hit IndexedDB on
+ *   every visit or page turn within the window.
  * - **Fail-safe reads**: any repo error falls back to the cached snapshot or
  *   an empty result, so a transient IndexedDB failure never breaks the strip.
  * - **Fire-and-forget writes**: `recordRun` never blocks the runner page; it
  *   writes in the background and invalidates the cache when it lands so the
- *   next dashboard read reflects the new run.
+ *   next dashboard read reflects the new run. `clearHistory` wipes the trail
+ *   and drops every cached slice so the next read re-fetches from scratch.
  */
 
 interface CacheEntry<T> {
@@ -51,6 +58,19 @@ class RunHistoryService {
     return this.readThrough(key, () => runHistoryRepo.getRecentRuns(limit));
   }
 
+  /**
+   * Paginated run-history browse (cached per page + pageSize key). Page turns
+   * within the TTL window are instant; every distinct (page, pageSize) combo
+   * gets its own entry so re-opening the dialog at the same page is a hit.
+   */
+  async getHistoryPage(
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<PaginatedRunHistory> {
+    const key = `history:${page}:${pageSize}`;
+    return this.readThrough(key, () => runHistoryRepo.getHistoryPage(page, pageSize));
+  }
+
   /** Run analytics (cached). */
   async getRunStats(): Promise<RunStats> {
     return this.readThrough('stats', () => runHistoryRepo.getRunStats());
@@ -67,6 +87,19 @@ class RunHistoryService {
       .catch(() => {
         // Best-effort — a failed write must never surface to the runner page.
       });
+  }
+
+  /**
+   * Wipe the whole trail (bounded by retention) and drop every cached slice.
+   * The next read of any history page re-fetches from an empty table.
+   */
+  async clearHistory(): Promise<void> {
+    try {
+      await runHistoryRepo.clearAll();
+    } catch (error) {
+      console.error('[RunHistoryService] clearHistory failed:', error);
+    }
+    this.invalidate();
   }
 
   /** Drop all cached entries (e.g. after a write or a manual reset). */

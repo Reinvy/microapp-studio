@@ -214,6 +214,45 @@ export interface RecentlyRunCopy {
   chipLabel: string;
   /** Accessible label for the strip. */
   regionLabel: string;
+  /** Label of the action that opens the full paginated run-history dialog. */
+  viewAllLabel: string;
+}
+
+/**
+ * RunHistoryDialog copy — headings, empty state, pagination and clear-history
+ * labels rendered by RunHistoryDialog.tsx. Seeded via contentRepo
+ * ('run-history-dialog-copy') so the full-trail browser microcopy is editable
+ * without a redeploy, with a built-in fallback in the component.
+ */
+export interface RunHistoryDialogCopy {
+  /** Dialog header title, e.g. "Run History". */
+  title: string;
+  /** Dialog description under the title. */
+  subtitle: string;
+  /** Shown when the trail is empty. */
+  emptyText: string;
+  /** Accessible label for each history row's open action (app name appended). */
+  openLabel: string;
+  /** Accessible label for the history list region. */
+  regionLabel: string;
+  /** Close button label. */
+  closeLabel: string;
+  /** Clear-history button label. */
+  clearLabel: string;
+  /** Confirmation prompt shown before clearing (window.confirm). */
+  confirmClear: string;
+  /** Clear button label while clearing. */
+  clearingLabel: string;
+  /** "Previous page" aria label for the pagination bar. */
+  prevAria: string;
+  /** "Next page" aria label for the pagination bar. */
+  nextAria: string;
+  /** Page-number aria label — `{page}` is replaced with the page number. */
+  pageAria: string;
+  /** Jump-to-page input aria label. */
+  jumpInputAria: string;
+  /** Jump-to-page submit aria label. */
+  goAria: string;
 }
 
 /**
@@ -327,6 +366,7 @@ export type SiteContentData =
   | DashboardStatsCopy
   | AppCardCopy
   | RecentlyRunCopy
+  | RunHistoryDialogCopy
   | AuthCopy
   | NewAppDialogCopy
   | ImportDialogCopy
