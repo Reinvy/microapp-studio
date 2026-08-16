@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-08-16] — Maintenance
+
+### Changed
+- Security audit: `npm audit` reports **0 vulnerabilities** (clean)
+- Dependency check: `npm outdated` — no safe patch/minor updates available; only major-only updates (`eslint` 9→10, `jsdom` 25→30, `typescript` 5→7, `@types/node` 20→26) skipped per no-major policy
+- Code cleanup:
+  - `eslint.config.mjs`: added `browsers/**` and `node_modules/**` to `globalIgnores` — the vendored Playwright Chromium binary (`browsers/chromium-*/.../main.js`) was being linted, producing **195 spurious warnings**. Lint output dropped from 213 → 18 problems. (Remaining 15 errors are pre-existing React 19 hooks/style rules in source, intentionally left untouched.)
+- Audited `src/` for dead code: no TODO/FIXME/deprecated markers, no unused imports (`tsc --noEmit --noUnusedLocals --noUnusedParameters` clean), no unused exports, no orphaned modules, no duplicate scripts
+- Verified: `npm audit` clean, lint warnings eliminated, `tsc --noEmit` passes
+
+### 🌐 Deploy
+- Cron 5: Performance Optimization & Code Maintenance deployment to Vercel
+
 ## [2026-08-15] — Maintenance
 
 ### Changed
