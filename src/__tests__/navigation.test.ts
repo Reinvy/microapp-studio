@@ -559,6 +559,20 @@ describe('Navigation UI Integration — Claymorphism v3', () => {
       const blackUses = css.match(/(?:color|--[\w-]+-foreground):\s*#0{3,6}\b/gi) || [];
       expect(blackUses).toEqual([]);
     });
+
+    it('full clay token set is defined — neutrals, canvas, emboss, rose (no missing design tokens)', () => {
+      // Canvas + neutrals
+      expect(css).toMatch(/--clay-cream:\s*#FFF5ED/i);
+      expect(css).toMatch(/--clay-card:\s*#FFFFFFF5/i);
+      expect(css).toMatch(/--clay-muted:\s*#A89888/i);
+      expect(css).toMatch(/--clay-border:\s*#E8E0D8/i);
+      // Raised/carved shadow system
+      expect(css).toMatch(/--clay-shadow-dark:\s*rgba\(174,\s*162,\s*146,/i);
+      expect(css).toMatch(/--clay-shadow-light:\s*rgba\(255,\s*255,\s*255,/i);
+      // Emboss surface (pressed well) + extra rose pastel
+      expect(css).toMatch(/--clay-emboss:\s*#F5EDE5/i);
+      expect(css).toMatch(/--clay-rose:\s*#FFD0D0/i);
+    });
   });
 });
 
