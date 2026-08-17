@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppWindow } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { authCopy } from '@/lib/authCopy';
 
 function ClaySpinner() {
   return (
@@ -14,7 +15,7 @@ function ClaySpinner() {
         </div>
         <div className="flex items-center gap-2 text-sm text-clay-muted">
           <div className="h-2 w-2 rounded-full bg-[#D5B8F5] animate-pulse" />
-          <span>Loading your workspace…</span>
+          <span>{authCopy.loading.workspace}</span>
         </div>
       </div>
     </div>

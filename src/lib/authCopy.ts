@@ -34,4 +34,9 @@ export const authCopy = {
     showPassword: 'Show password',
     hidePassword: 'Hide password',
   },
+
+  /** Loading copy for auth-gated shells (ProtectedRoute spinner). */
+  loading: {
+    workspace: 'Loading your workspace…',
+  },
 } as const;
