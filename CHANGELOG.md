@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-08-17] — Maintenance
+
+### Changed
+- Security audit: `npm audit` → 0 vulnerabilities (0 critical / 0 high) — overrides for `sharp`, `postcss`, `dompurify`, `nanoid` keep the tree clean
+- Dependency review: `npm outdated` — no safe patch/minor updates available; remaining diffs are all major bumps (eslint 10, typescript 7, jsdom 30, @types/node 26) intentionally skipped
+- Code cleanup: removed unused `debounce` helper from `src/lib/utils.ts` (no importers anywhere in the codebase); full unused-var scan (`eslint --rule no-unused-vars` + `tsc --noEmit`) → no real dead code remains
+
+### Verified
+- `npm run build` passes, `tsc --noEmit` 0 errors
+
+### 🌐 Deploy
+- Cron 5: Performance Optimization & Code Maintenance deployment to Vercel
+
 ## [2026-08-17] — Feature & Scalability
 
 ### Added
