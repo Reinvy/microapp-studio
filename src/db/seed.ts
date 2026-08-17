@@ -960,6 +960,171 @@ function createGiftRegistryApp(index: number): AppSchema {
   };
 }
 
+function createWaterIntakeApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Daily Water Intake Tracker',
+    description:
+      'Log your water intake with a cups counter, daily goal slider, hydration rating, and a reminder toggle — tabs layout.',
+    prompt:
+      'Create a daily water intake tracker with a cups number field, goal slider, hydration rating, and a reminder toggle.',
+    fields: [
+      headingField('wi-heading', 'Heading', 'h2', 'Hydration Station 💧'),
+      imageField('wi-image', 'Water bottle', pickFrom(imagePool, index, 8), 'Glass of fresh water'),
+      paragraphField('wi-intro', 'Intro', 'Small sips add up — log each glass and watch your streak grow.'),
+      numberField('wi-cups', 'Cups Today', 0, 20),
+      sliderField('wi-goal', 'Daily Goal (1-20)', 1, 20),
+      ratingField('wi-hydration', 'How hydrated do you feel?'),
+      toggleField('wi-reminder', 'Enable hourly reminder'),
+      checkboxField('wi-started', 'Drank a glass this morning'),
+      cardField('wi-tip', 'Hydration Tip', 'Aim for ~8 glasses a day. Your urine color is a great hydration gauge!'),
+      dividerField('wi-divider', 'Divider'),
+      colorField('wi-color', 'Bottle Color', pickFrom(pastelColors, index, 40)),
+      buttonField('wi-save', 'Log Today', pickFrom(buttonVariants, index, 41)),
+    ],
+    logicNodes: [
+      {
+        id: 'wi-progress-node',
+        name: 'Compute Daily Progress',
+        code: 'const c = Number(cups) || 0; const g = Number(goal) || 8; return Math.min(100, Math.round((c / g) * 100))',
+        inputs: ['wi-cups', 'wi-goal'],
+        outputs: ['progressPercent'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1641600000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'tabs', theme: 'clay' },
+  };
+}
+
+function createStudyPlannerApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Study Session Planner',
+    description:
+      'Plan focused study sessions with subject select, duration, focus slider, topic checklist, and notes — grid layout.',
+    prompt:
+      'Create a study session planner with date, subject select, duration number, focus slider, topic checkboxes, and notes textarea.',
+    fields: [
+      headingField('sp-heading', 'Heading', 'h2', 'Study Planner 📚'),
+      paragraphField('sp-intro', 'Intro', 'Plan one session at a time. Short, focused blocks beat marathon cramming.'),
+      dateField('sp-date', 'Session Date'),
+      selectField('sp-subject', 'Subject', ['Math', 'Physics', 'History', 'Biology', 'Languages', 'Computer Science']),
+      numberField('sp-duration', 'Duration (minutes)', 5, 240),
+      sliderField('sp-focus', 'Focus Level (1-10)', 1, 10),
+      checkboxField('sp-prep', 'Materials ready'),
+      checkboxField('sp-phone', 'Phone on silent'),
+      checkboxField('sp-water', 'Water on desk'),
+      textareaField('sp-notes', 'Session Notes', 'Goals, questions, or topics to revisit...'),
+      colorField('sp-color', 'Accent Color', pickFrom(pastelColors, index, 42)),
+      buttonField('sp-start', 'Start Session', pickFrom(buttonVariants, index, 43)),
+    ],
+    logicNodes: [
+      {
+        id: 'sp-focus-score-node',
+        name: 'Compute Focus Score',
+        code: 'const f = Number(focus) || 5; const d = Number(duration) || 25; return Math.min(100, Math.round(((f / 10) * 0.7 + (d >= 25 ? 0.3 : d / 25 * 0.3)) * 100))',
+        inputs: ['sp-focus', 'sp-duration'],
+        outputs: ['focusScore'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1728000000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'grid', theme: 'clay' },
+  };
+}
+
+function createCoffeeCustomizerApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Coffee Order Customizer',
+    description:
+      'Build your perfect cup with roast and size selects, shot count, sweetness slider, and extra toggles — live price via logic node.',
+    prompt:
+      'Create a coffee order customizer with roast select, size select, shot number, sweetness slider, extra toggles, and a price logic node.',
+    fields: [
+      headingField('co-heading', 'Heading', 'h2', 'Craft your coffee ☕'),
+      imageField('co-image', 'Coffee cup', pickFrom(imagePool, index, 9), 'Freshly brewed coffee'),
+      paragraphField('co-intro', 'Intro', 'Pick your roast, size, and extras — the total price updates live.'),
+      selectField('co-roast', 'Roast', ['Light', 'Medium', 'Dark', 'Decaf']),
+      selectField('co-size', 'Size', ['Small', 'Medium', 'Large', 'Extra Large']),
+      numberField('co-shots', 'Espresso Shots', 1, 4),
+      sliderField('co-sweet', 'Sweetness (1-10)', 1, 10),
+      toggleField('co-milk', 'Oat milk (+0.75)'),
+      toggleField('co-whip', 'Whipped cream (+0.50)'),
+      checkboxField('co-sleeve', 'Eco sleeve'),
+      colorField('co-color', 'Cup Color', pickFrom(pastelColors, index, 44)),
+      buttonField('co-order', 'Order Coffee', pickFrom(buttonVariants, index, 45)),
+    ],
+    logicNodes: [
+      {
+        id: 'co-price-node',
+        name: 'Compute Total Price',
+        code: 'const s = String(size || "Medium"); const sizePrice = s.includes("Small") ? 3 : s.includes("Large") ? 4.5 : s.includes("Extra") ? 5.5 : 4; return Math.round((sizePrice + (Number(shots) || 1) * 0.5 + (Number(sweet) || 0) * 0.1 + (milk ? 0.75 : 0) + (whip ? 0.5 : 0)) * 100) / 100',
+        inputs: ['co-size', 'co-shots', 'co-sweet', 'co-milk', 'co-whip'],
+        outputs: ['totalPrice'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1814400000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'vertical', theme: 'clay' },
+  };
+}
+
+function createGroceryListApp(index: number): AppSchema {
+  const now = Date.now();
+  return {
+    id: generateId(),
+    name: 'Grocery Shopping List',
+    description:
+      'Build a running grocery list with item name, quantity, essential toggles, a budget slider, and a live estimate logic node.',
+    prompt:
+      'Create a grocery shopping list with item text, quantity number, essential checkboxes, budget slider, and a cost estimate logic node.',
+    fields: [
+      headingField('gs-heading', 'Heading', 'h2', 'Grocery Run 🛒'),
+      paragraphField('gs-intro', 'Intro', 'Add items as you think of them. Essentials bubble to the top of the list.'),
+      textField('gs-item', 'Item', 'e.g. Almond milk'),
+      numberField('gs-qty', 'Quantity', 1, 50),
+      checkboxField('gs-essential', 'Essential item'),
+      checkboxField('gs-organic', 'Prefer organic'),
+      checkboxField('gs-discount', 'On sale this week'),
+      sliderField('gs-budget', 'Budget per item (1-10)', 1, 10),
+      ratingField('gs-priority', 'Priority'),
+      textareaField('gs-notes', 'Notes', 'Brand, size, or aisle details...'),
+      colorField('gs-color', 'Basket Color', pickFrom(pastelColors, index, 46)),
+      buttonField('gs-add', 'Add to List', pickFrom(buttonVariants, index, 47)),
+      buttonField('gs-clear', 'Clear List', 'ghost'),
+    ],
+    logicNodes: [
+      {
+        id: 'gs-estimate-node',
+        name: 'Compute Cost Estimate',
+        code: 'return Math.round((Number(qty) || 1) * (Number(budget) || 5) * 100) / 100',
+        inputs: ['gs-qty', 'gs-budget'],
+        outputs: ['estimatedCost'],
+        version: 1,
+      },
+    ],
+    layout: [],
+    createdAt: now - 1900800000,
+    updatedAt: now,
+    version: 1,
+    settings: { layout: 'grid', theme: 'clay' },
+  };
+}
+
 export const sampleApps: AppSchema[] = [
   createFeedbackApp(0),
   createPizzaOrderApp(1),
@@ -979,6 +1144,10 @@ export const sampleApps: AppSchema[] = [
   createRestaurantReservationApp(15),
   createPlantCareApp(16),
   createGiftRegistryApp(17),
+  createWaterIntakeApp(18),
+  createStudyPlannerApp(19),
+  createCoffeeCustomizerApp(20),
+  createGroceryListApp(21),
 ];
 
 // ─── Content seed data (migrated from hardcoded component data) ───

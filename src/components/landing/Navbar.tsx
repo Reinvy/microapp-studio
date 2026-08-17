@@ -6,6 +6,7 @@ import { Menu, X, AppWindow, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { contentService } from '@/services/contentService';
+import { landingCopy } from '@/lib/landingCopy';
 import type { NavLink } from '@/db/contentRepo';
 
 const fallbackNavLinks: NavLink[] = [
@@ -74,7 +75,7 @@ export default function Navbar() {
   // as the clay CTA button, not a plain link. Falls back to the hardcoded
   // defaults until the async read lands.
   const ctaLink = navLinks.find((l) => l.href === CTA_HREF);
-  const ctaLabel = ctaLink?.label ?? 'Get Started';
+  const ctaLabel = ctaLink?.label ?? landingCopy.ctaFallback;
   const ctaHref = ctaLink?.href ?? CTA_HREF;
   const regularLinks = navLinks.filter((l) => l.href !== CTA_HREF);
 
@@ -91,7 +92,7 @@ export default function Navbar() {
                 <AppWindow className="h-5 w-5" />
               </div>
               <span className="text-lg font-bold tracking-tight gradient-text">
-                MicroApp Studio
+                {landingCopy.brandName}
               </span>
             </Link>
 
@@ -114,7 +115,7 @@ export default function Navbar() {
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="flex h-10 w-10 items-center justify-center rounded-xl transition-all hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5] md:hidden"
-              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-label={mobileOpen ? landingCopy.closeMenuAria : landingCopy.openMenuAria}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -138,11 +139,11 @@ export default function Navbar() {
         )}
       >
         <div className="flex items-center justify-between border-b border-[#E8E0D8]/40 px-4 py-4">
-          <span className="text-sm font-semibold text-foreground">Menu</span>
+          <span className="text-sm font-semibold text-foreground">{landingCopy.menuHeading}</span>
           <button
             onClick={closeMenu}
             className="flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground hover:shadow-[inset_3px_3px_7px_var(--clay-shadow-dark),inset_-3px_-3px_7px_var(--clay-shadow-light)] hover:bg-[#F5EDE5]"
-            aria-label="Close menu"
+            aria-label={landingCopy.closeMenuAria}
           >
             <X className="h-4 w-4" />
           </button>
