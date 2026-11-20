@@ -1,7 +1,7 @@
 {
   "phase": 1,
-  "commit": "3491ff3d3d3e1536cdf7017ff6ad1461273844ef",
-  "generatedAt": "2026-11-20T17:35:58.121Z",
+  "commit": "18ab26dc8df3df4c11a9c952368842e2ef9b9545",
+  "generatedAt": "2026-11-20T17:39:47.459Z",
   "environment": {
     "node": "v24.19.0",
     "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
@@ -15,61 +15,61 @@
       "name": "docs",
       "command": "node scripts/check-docs.mjs --strict",
       "exitCode": 0,
-      "durationMs": 183
+      "durationMs": 187
     },
     {
       "name": "migrations",
       "command": "node scripts/test-migrations.mjs",
       "exitCode": 0,
-      "durationMs": 125
+      "durationMs": 127
     },
     {
       "name": "unit",
       "command": "npm test",
       "exitCode": 0,
-      "durationMs": 3293
+      "durationMs": 3386
     },
     {
       "name": "typecheck",
       "command": "npm run typecheck",
       "exitCode": 0,
-      "durationMs": 3012
+      "durationMs": 2961
     },
     {
       "name": "lint",
       "command": "npm run lint",
       "exitCode": 0,
-      "durationMs": 4481
+      "durationMs": 4536
     },
     {
       "name": "build",
       "command": "npm run build",
       "exitCode": 0,
-      "durationMs": 4569
+      "durationMs": 4442
     },
     {
       "name": "build:core",
       "command": "npm run build:core",
       "exitCode": 0,
-      "durationMs": 511
+      "durationMs": 361
     },
     {
       "name": "cargo-test",
       "command": "cargo test --manifest-path packages/core-rust/Cargo.toml",
       "exitCode": 0,
-      "durationMs": 8539
+      "durationMs": 10336
     },
     {
       "name": "cargo-clippy",
       "command": "cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings",
       "exitCode": 0,
-      "durationMs": 135
+      "durationMs": 255
     },
     {
       "name": "e2e",
       "command": "npm run e2e -w @microapp/studio-web",
       "exitCode": 0,
-      "durationMs": 12915
+      "durationMs": 12852
     }
   ],
   "requirements": [
@@ -95,23 +95,23 @@
     },
     {
       "id": "FR-HOST-005",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-006",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-007",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-008",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-009",
@@ -125,13 +125,13 @@
     },
     {
       "id": "FR-HOST-012",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-013",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-014",
@@ -155,8 +155,8 @@
     },
     {
       "id": "FR-HOST-018",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-020",
@@ -170,8 +170,8 @@
     },
     {
       "id": "FR-HOST-022",
-      "status": "implemented",
-      "evidence": "scripts/verify-phase-1.mjs"
+      "status": "partial",
+      "evidence": "gate otomatis fase 1 (lihat manualGates)"
     },
     {
       "id": "FR-HOST-023",
@@ -514,5 +514,5 @@
     }
   ],
   "result": "pass",
-  "startedAt": "2026-11-20T17:35:20.353Z"
+  "startedAt": "2026-11-20T17:39:08.009Z"
 }

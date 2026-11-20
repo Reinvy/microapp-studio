@@ -131,7 +131,19 @@ const secIds = range('SEC', 1, 20);
 
 const sbxPartial = sbxIds.slice();
 const requirements = [
-  ...requirementStatus(hostIds),
+  // UI gaps that remain in the web host (see implementation-status §2).
+  ...requirementStatus(hostIds, {
+    partial: [
+      'FR-HOST-005', // folder/dock UI not built (repositories only)
+      'FR-HOST-006', // widget board has no live DB query
+      'FR-HOST-007', // workspace switcher UI not built
+      'FR-HOST-008', // workspace rename/delete UI not built
+      'FR-HOST-012', // app switcher state restore not exercised in UI
+      'FR-HOST-013', // split-screen/tabbed/PiP not built
+      'FR-HOST-018', // scheduler tested, notification center UI missing
+      'FR-HOST-022', // pin-forever UI missing (repository only)
+    ],
+  }),
   // The sandbox contract is verified on the web engine; the native
   // QuickJS/Wasmtime host (P1.10) does not exist yet, so these stay partial.
   ...requirementStatus(sbxIds, { partial: sbxPartial }),
