@@ -1,248 +1,196 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-/* ─── MicroApp Studio — Claymorphism Theme ─── */
-
+/* Base layer only: design tokens and component styles come from @microapp/ui-kit. */
 :root {
-  /* Claymorphism Pastel Palette v3 */
-  --clay-pink: #FFD5E5;
-  --clay-blue: #C5E8F7;
-  --clay-purple: #D5B8F5;
-  --clay-yellow: #FFF2C5;
-  --clay-green: #C5F0D5;
-  --clay-peach: #FFE5D0;
-  --clay-rose: #FFD0D0;
-  --clay-cream: #FFF5ED;
-  --clay-card: #FFFFFFF5;
-  --clay-foreground: #4A3F35;
-  --clay-muted: #A89888;
-  --clay-border: #E8E0D8;
-  --clay-shadow-dark: rgba(174, 162, 146, 0.22);
-  --clay-shadow-light: rgba(255, 255, 255, 0.88);
-  --clay-emboss: #F5EDE5;
-  --background: #FFF5ED;
-  --foreground: #4A3F35;
-  --card: #FFFFFFF5;
-  --card-foreground: #4A3F35;
-  --popover: #FFFFFFF5;
-  --popover-foreground: #4A3F35;
-  --primary: #D5B8F5;
-  --primary-foreground: #4A3F35;
-  --secondary: #C5E8F7;
-  --secondary-foreground: #4A3F35;
-  --muted: #F5EDE5;
-  --muted-foreground: #A89888;
-  --accent: #FFD5E5;
-  --accent-foreground: #4A3F35;
-  --destructive: #FFD0D0;
-  --destructive-foreground: #4A3F35;
-  --border: #E8E0D8;
-  --input: #E8E0D8;
-  --ring: #D5B8F5;
-  --radius: 1rem;
+  color-scheme: light dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
-  --color-clay-foreground: #4A3F35;
-  --color-clay-muted: #A89888;
-  --color-clay-border: #E8E0D8;
-  --color-clay-emboss: #F5EDE5;
-  --color-clay-pink: #FFD5E5;
-  --color-clay-blue: #C5E8F7;
-  --color-clay-purple: #D5B8F5;
-  --color-clay-yellow: #FFF2C5;
-  --color-clay-green: #C5F0D5;
-  --color-clay-peach: #FFE5D0;
-  --color-clay-rose: #FFD0D0;
-}
-
-* {
-  border-color: var(--border);
+html {
+  font-family: var(--mads-font-sans, system-ui, -apple-system, 'Segoe UI', sans-serif);
+  background: var(--mads-color-bg, #f8fafc);
+  color: var(--mads-color-fg, #0f172a);
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  min-height: 100vh;
 }
 
-/* Claymorphism utility classes.
-   Wrapped in @layer components so Tailwind utilities (rounded-*, border-*,
-   scale-*, shadow-*) can override them. Unlayered CSS beats layered
-   utilities in the cascade, which previously made:
-     - `rounded-full clay-sm` render as a 16px squircle instead of a circle
-     - `rounded-full clay-sm` badge chips render 16px instead of 999px pills
-     - `.clay-button`'s `border: none` erase outline-variant button borders */
-@layer components {
-  .clay {
-    border-radius: 28px;
-    background: var(--clay-cream);
-    box-shadow: 8px 8px 16px var(--clay-shadow-dark), -8px -8px 16px var(--clay-shadow-light);
-  }
-  .clay-sm {
-    border-radius: 16px;
-    box-shadow: 5px 5px 10px var(--clay-shadow-dark), -5px -5px 10px var(--clay-shadow-light);
-  }
-  .clay-lg {
-    border-radius: 32px;
-    box-shadow: 12px 12px 24px var(--clay-shadow-dark), -12px -12px 24px var(--clay-shadow-light);
-  }
-  .clay-inset {
-    border-radius: 20px;
-    box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
-  }
-  .clay-card {
-    border-radius: 28px;
-    background: var(--clay-card);
-    box-shadow: 8px 8px 16px var(--clay-shadow-dark), -6px -6px 14px var(--clay-shadow-light);
-  }
-  .clay-button {
-    border-radius: 20px;
-    box-shadow: 6px 6px 12px var(--clay-shadow-dark), -5px -5px 10px var(--clay-shadow-light);
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border: none;
-  }
-  .clay-button:hover {
-    box-shadow: 4px 4px 8px var(--clay-shadow-dark), -3px -3px 8px var(--clay-shadow-light);
-    transform: scale(1.03);
-  }
-  .clay-button:active {
-    box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
-    transform: scale(0.96);
-  }
-  .clay-input {
-    border-radius: 18px;
-    background: #F5EDE5;
-    box-shadow: inset 3px 3px 7px var(--clay-shadow-dark), inset -3px -3px 7px var(--clay-shadow-light);
-    border: none;
-    transition: all 0.2s ease;
-  }
-  .clay-input:focus {
-    box-shadow: inset 4px 4px 8px var(--clay-shadow-dark), inset -4px -4px 8px var(--clay-shadow-light);
-    outline: none;
-  }
-  .clay-badge {
-    border-radius: 999px;
-    box-shadow: 4px 4px 8px var(--clay-shadow-dark), -4px -4px 8px var(--clay-shadow-light);
-  }
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  padding: 0.5rem 1rem;
+  background: var(--mads-color-surface, #fff);
+  color: var(--mads-color-fg, #0f172a);
+  z-index: 100;
 }
 
-/* Full-width app header bar (dashboard / runner / builder toolbar / dev) —
-   soft bottom shadow + hairline border instead of a heavy all-around card
-   shadow, so the bar reads as part of the page, not a floating card. */
-.clay-header {
-  background: var(--clay-card);
-  border-bottom: 1px solid var(--clay-border);
-  box-shadow: 0 2px 10px rgba(174, 162, 146, 0.12);
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
 }
 
-/* Edge-to-edge app sidebar (builder properties / dev test panel) —
-   flat against the viewport edge, separated by a hairline border. */
-.clay-sidebar {
-  background: #FFFFFFF0;
-  border-left: 1px solid var(--clay-border);
+.screen {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem;
 }
 
-/* Gradient text utility */
-.gradient-text {
-  background: linear-gradient(135deg, #D5B8F5 0%, #FFD5E5 50%, #C5E8F7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.screen-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: #D5C8B8;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover { background: #C0B0A0; }
-
-/* Smooth transitions */
-* {
-  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-/* Focus ring */
-:focus-visible {
-  outline: 2px solid var(--ring);
+.stack-md {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Component classes used by host screens; values come from MADS tokens with
+   neutral fallbacks so the UI renders before the token stylesheet loads. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: var(--mads-radius-8, 8px);
+  border: 1px solid var(--mads-color-border, #cbd5e1);
+  background: var(--mads-color-surface, #ffffff);
+  color: var(--mads-color-fg, #0f172a);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: var(--mads-color-surface-hover, #f1f5f9);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--mads-color-accent, #2563eb);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-@keyframes pulse-soft {
-  0%, 100% { box-shadow: 6px 6px 12px var(--clay-shadow-dark), -5px -5px 10px var(--clay-shadow-light); }
-  50% { box-shadow: 4px 4px 8px var(--clay-shadow-dark), -3px -3px 8px var(--clay-shadow-light); }
+.button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.animate-fade-in { animation: fadeIn 0.3s ease-out; }
-.animate-slide-up { animation: slideUp 0.4s ease-out; }
-.animate-scale-in { animation: scaleIn 0.3s ease-out; }
-.animate-float { animation: float 3s ease-in-out infinite; }
-.animate-pulse-soft { animation: pulse-soft 3s ease-in-out infinite; }
-
-/* Shimmer loading effect */
-.shimmer {
-  background: linear-gradient(90deg, #F5EDE5 25%, #EDE5D8 50%, #F5EDE5 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+.button-primary {
+  background: var(--mads-color-accent, #2563eb);
+  border-color: var(--mads-color-accent, #2563eb);
+  color: #ffffff;
 }
 
-/* Claymorphism background pattern */
-.hero-clay {
-  background-image: 
-    radial-gradient(circle at 20% 50%, rgba(213, 184, 245, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 213, 229, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 40% 80%, rgba(197, 232, 247, 0.08) 0%, transparent 50%);
+.file-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.field input,
+.field textarea,
+.field select {
+  border-radius: var(--mads-radius-8, 8px);
+  border: 1px solid var(--mads-color-border, #cbd5e1);
+  background: var(--mads-color-surface, #ffffff);
+  color: var(--mads-color-fg, #0f172a);
+  padding: 0.45rem 0.65rem;
+  font: inherit;
+}
+
+.card {
+  border: 1px solid var(--mads-color-border, #cbd5e1);
+  border-radius: var(--mads-radius-12, 12px);
+  background: var(--mads-color-surface, #ffffff);
+  padding: 1rem;
+}
+
+.app-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  list-style: none;
+  padding: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--mads-color-border, #cbd5e1);
+  padding: 0.1rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.alert {
+  border-radius: var(--mads-radius-8, 8px);
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--mads-color-border, #cbd5e1);
+  background: var(--mads-color-surface, #ffffff);
+}
+
+.alert-error {
+  border-color: var(--mads-color-error, #dc2626);
+  color: var(--mads-color-error, #dc2626);
+}
+
+.alert-warning {
+  border-color: var(--mads-color-warning, #d97706);
+}
+
+.empty-state {
+  border: 1px dashed var(--mads-color-border, #cbd5e1);
+  border-radius: var(--mads-radius-12, 12px);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.mnemonic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  font-family: var(--mads-font-mono, ui-monospace, monospace);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--mads-color-surface, #ffffff);
+  border: 1px solid var(--mads-color-border, #cbd5e1);
+  border-radius: var(--mads-radius-12, 12px);
+  padding: 1.25rem;
+  box-shadow: 0 20px 45px rgb(15 23 42 / 0.25);
 }

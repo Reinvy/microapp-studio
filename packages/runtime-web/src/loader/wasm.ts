@@ -10,6 +10,33 @@
 import { isRecord } from '../types/guards';
 import type { CoreMappApi, InstallSourceName } from './mapp';
 
+export interface DeviceCertRequest {
+  phrase: string;
+  passphrase: string;
+  hkdfSaltHex: string;
+  deviceSignPubkeyHex: string;
+  deviceEcdhPubkeyHex: string;
+  issuedAtMs: number;
+  expiresAtMs: number;
+  capabilities: string[];
+}
+
+export interface VaultSealRequest {
+  phrase: string;
+  passphrase: string;
+  hkdfSaltHex: string;
+  aadJson: string;
+  plaintext: Uint8Array;
+}
+
+export interface VaultOpenRequest {
+  phrase: string;
+  passphrase: string;
+  hkdfSaltHex: string;
+  aadJson: string;
+  envelope: Uint8Array;
+}
+
 export interface CoreClient extends CoreMappApi {
   manifestValidate(json: string): Promise<string>;
   identityCreate(): Promise<string>;
@@ -27,10 +54,21 @@ export interface CoreClient extends CoreMappApi {
   guardCheckPath(path: string): Promise<void>;
   guardCheckDomain(host: string): Promise<void>;
   sha256Hex(bytes: Uint8Array): Promise<string>;
+  mnemonicValidate(phrase: string): Promise<void>;
+  deviceCertCreate(request: DeviceCertRequest): Promise<Uint8Array>;
+  sealWithVaultKey(request: VaultSealRequest): Promise<Uint8Array>;
+  openWithVaultKey(request: VaultOpenRequest): Promise<Uint8Array>;
+  signWithSeed(seed: Uint8Array, digest: Uint8Array): Promise<Uint8Array>;
+  publicFromSeed(seedHex: string): Promise<string>;
+  vaultKeyWrap(request: { phrase: string; passphrase: string; hkdfSaltHex: string; pin: string }): Promise<Uint8Array>;
+  vaultVerifyWrap(pin: string, blob: Uint8Array): Promise<boolean>;
+  vaultSealWrapped(request: { pin: string; blob: Uint8Array; aadJson: string; plaintext: Uint8Array }): Promise<Uint8Array>;
+  vaultOpenWrapped(request: { pin: string; blob: Uint8Array; aadJson: string; envelope: Uint8Array }): Promise<Uint8Array>;
 }
 
 export interface CoreWasmModule {
-  init(input?: unknown): Promise<unknown>;
+  /** wasm-bindgen `--target web` default export: initializes the wasm instance. */
+  default(input?: unknown): Promise<unknown>;
   identity_create(): string;
   identity_recover(phrase: string, passphrase: string, salt: string, expected: string): string;
   envelope_seal_js(key: string, label: string, aad: string, plaintext: Uint8Array): Uint8Array;
@@ -44,15 +82,40 @@ export interface CoreWasmModule {
   guard_check_path(path: string): void;
   guard_check_domain(host: string): void;
   sha256_hex(bytes: Uint8Array): string;
+  mnemonic_validate(phrase: string): string;
+  device_cert_create(
+    phrase: string,
+    passphrase: string,
+    hkdfSaltHex: string,
+    deviceSignPubkeyHex: string,
+    deviceEcdhPubkeyHex: string,
+    issuedAtMs: number,
+    expiresAtMs: number,
+    capabilitiesJson: string,
+  ): Uint8Array;
+  vault_seal(phrase: string, passphrase: string, hkdfSaltHex: string, aadJson: string, plaintext: Uint8Array): Uint8Array;
+  vault_open(phrase: string, passphrase: string, hkdfSaltHex: string, aadJson: string, envelope: Uint8Array): Uint8Array;
+  ed25519_sign_seed(seedHex: string, digest: Uint8Array): Uint8Array;
+  ed25519_public_seed(seedHex: string): string;
+  vault_key_wrap(phrase: string, passphrase: string, hkdfSaltHex: string, pin: string): Uint8Array;
+  vault_verify_wrap(pin: string, blob: Uint8Array): boolean;
+  vault_seal_wrapped(pin: string, blob: Uint8Array, aadJson: string, plaintext: Uint8Array): Uint8Array;
+  vault_open_wrapped(pin: string, blob: Uint8Array, aadJson: string, envelope: Uint8Array): Uint8Array;
 }
 
-/** URL of the generated `microapp_core.js` loader (built by `npm run build:core`). */
-export function coreWasmUrl(): string {
-  return new URL('../wasm/microapp_core.js', import.meta.url).href;
+/**
+ * URL of the generated `microapp_core.js` loader.
+ *
+ * `npm run build:core` copies the wasm-bindgen output into the host's static
+ * directory, so hosts serve it from `/wasm/`. The path is a plain string (not a
+ * bundler-resolved `new URL`) because the artifacts do not exist at author time.
+ */
+export function coreWasmUrl(path = '/wasm/microapp_core.js'): string {
+  return path;
 }
 
 const REQUIRED_EXPORTS: Array<keyof CoreWasmModule> = [
-  'init',
+  'default',
   'identity_create',
   'identity_recover',
   'envelope_seal_js',
@@ -66,7 +129,21 @@ const REQUIRED_EXPORTS: Array<keyof CoreWasmModule> = [
   'guard_check_path',
   'guard_check_domain',
   'sha256_hex',
+  'mnemonic_validate',
+  'device_cert_create',
+  'vault_seal',
+  'vault_open',
+  'ed25519_sign_seed',
+  'ed25519_public_seed',
+  'vault_key_wrap',
+  'vault_verify_wrap',
+  'vault_seal_wrapped',
+  'vault_open_wrapped',
 ];
+
+function hexFromBytes(bytes: Uint8Array): string {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 function assertModule(module: unknown): CoreWasmModule {
   if (!isRecord(module)) {
@@ -93,9 +170,11 @@ export async function loadCoreWasm(
   const loaded =
     typeof specifier === 'function'
       ? await specifier()
-      : await import(/* @vite-ignore */ specifier);
+      : // Runtime-selected URL: the generated bindings are produced by
+        // `build:core`, so bundlers must leave this import alone.
+        await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ specifier);
   const module = assertModule(loaded);
-  await module.init(wasmInput);
+  await module.default(wasmInput);
   return module;
 }
 
@@ -140,6 +219,57 @@ export function createCoreClient(module: CoreWasmModule): CoreClient {
     },
     async sha256Hex(bytes) {
       return module.sha256_hex(bytes);
+    },
+    async mnemonicValidate(phrase) {
+      module.mnemonic_validate(phrase);
+    },
+    async deviceCertCreate(request) {
+      return module.device_cert_create(
+        request.phrase,
+        request.passphrase,
+        request.hkdfSaltHex,
+        request.deviceSignPubkeyHex,
+        request.deviceEcdhPubkeyHex,
+        request.issuedAtMs,
+        request.expiresAtMs,
+        JSON.stringify(request.capabilities),
+      );
+    },
+    async sealWithVaultKey(request) {
+      return module.vault_seal(
+        request.phrase,
+        request.passphrase,
+        request.hkdfSaltHex,
+        request.aadJson,
+        request.plaintext,
+      );
+    },
+    async openWithVaultKey(request) {
+      return module.vault_open(
+        request.phrase,
+        request.passphrase,
+        request.hkdfSaltHex,
+        request.aadJson,
+        request.envelope,
+      );
+    },
+    async signWithSeed(seed, digest) {
+      return module.ed25519_sign_seed(hexFromBytes(seed), digest);
+    },
+    async publicFromSeed(seedHex) {
+      return module.ed25519_public_seed(seedHex);
+    },
+    async vaultKeyWrap(request) {
+      return module.vault_key_wrap(request.phrase, request.passphrase, request.hkdfSaltHex, request.pin);
+    },
+    async vaultVerifyWrap(pin, blob) {
+      return module.vault_verify_wrap(pin, blob);
+    },
+    async vaultSealWrapped(request) {
+      return module.vault_seal_wrapped(request.pin, request.blob, request.aadJson, request.plaintext);
+    },
+    async vaultOpenWrapped(request) {
+      return module.vault_open_wrapped(request.pin, request.blob, request.aadJson, request.envelope);
     },
   };
 }

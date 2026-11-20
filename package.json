@@ -10,13 +10,16 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @microapp/studio-web",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build:sandbox && npm run build:sqlite && npm run build --workspaces --if-present",
     "start": "npm run start -w @microapp/studio-web",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "docs:check": "node scripts/check-docs.mjs --strict",
-    "build:core": "node scripts/build-core.mjs"
+    "build:core": "node scripts/build-core.mjs",
+    "build:sandbox": "node scripts/build-sandbox.mjs",
+    "build:sqlite": "node scripts/copy-sqlite-wasm.mjs",
+    "e2e": "npm run e2e -w @microapp/studio-web"
   },
   "overrides": {
     "monaco-editor": {
@@ -28,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "typescript-eslint": "^8.73.0"
   }

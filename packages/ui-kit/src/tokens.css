@@ -1,0 +1,175 @@
+/*
+ * MADS design tokens.
+ * Transcribed from docs/02-design/design-system.md (DESIGN-SYSTEM §4-§7).
+ *
+ * Layer 1 (primitive) and layer 2 (semantic) tokens live here; component
+ * tokens only exist where a semantic token cannot express a size. Component
+ * styles must reference semantic/component tokens, never raw values.
+ *
+ * `light-dark()` keeps the `studio` theme in sync with the OS colour scheme
+ * (design-system §9). `[data-mads-theme]` selects a complete alternative set.
+ */
+@import "./components.css";
+
+:root {
+  color-scheme: light dark;
+
+  /* Typography (§5) */
+  --mads-font-family-ui: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mads-font-family-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --mads-font-size-12: 12px;
+  --mads-font-size-14: 14px;
+  --mads-font-size-16: 16px;
+  --mads-font-size-20: 20px;
+  --mads-font-size-24: 24px;
+  --mads-font-size-28: 28px;
+  --mads-font-size-32: 32px;
+
+  --mads-line-12: 16px;
+  --mads-line-14: 20px;
+  --mads-line-16: 24px;
+  --mads-line-20: 28px;
+  --mads-line-24: 32px;
+  --mads-line-28: 36px;
+  --mads-line-32: 40px;
+
+  --mads-weight-400: 400;
+  --mads-weight-500: 500;
+  --mads-weight-600: 600;
+  --mads-weight-700: 700;
+
+  /* Spacing (§6) */
+  --mads-space-4: 4px;
+  --mads-space-8: 8px;
+  --mads-space-12: 12px;
+  --mads-space-16: 16px;
+  --mads-space-20: 20px;
+  --mads-space-24: 24px;
+  --mads-space-32: 32px;
+  --mads-space-40: 40px;
+  --mads-space-48: 48px;
+  --mads-space-64: 64px;
+
+  /* Radius (§6) */
+  --mads-radius-4: 4px;
+  --mads-radius-8: 8px;
+  --mads-radius-12: 12px;
+  --mads-radius-16: 16px;
+  --mads-radius-24: 24px;
+  --mads-radius-full: 9999px;
+
+  /* Shadow (§6) */
+  --mads-shadow-0: none;
+  --mads-shadow-1: 0 1px 2px rgba(28, 25, 23, 0.06);
+  --mads-shadow-2: 0 4px 12px rgba(28, 25, 23, 0.1);
+  --mads-shadow-3: 0 12px 32px rgba(28, 25, 23, 0.16);
+
+  /* Motion (§6) */
+  --mads-motion-120: 120ms;
+  --mads-motion-180: 180ms;
+  --mads-motion-240: 240ms;
+  --mads-motion-320: 320ms;
+  --mads-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout constants (§7) */
+  --mads-sidebar-width: 280px;
+  --mads-rail-width: 72px;
+  --mads-content-max: 1440px;
+  --mads-control-height: 32px;
+  --mads-touch-target: 44px;
+  --mads-touch-target-min: 24px;
+  --mads-dialog-sm: 480px;
+  --mads-dialog-md: 640px;
+  --mads-dialog-lg: 800px;
+
+  /* Component tokens (catalog §4) */
+  --mads-button-height-sm: 32px;
+  --mads-button-height-md: 40px;
+  --mads-button-height-lg: 48px;
+  --mads-field-height: 40px;
+  --mads-row-height-compact: 32px;
+  --mads-row-height-comfortable: 44px;
+
+  /* Semantic colours — studio theme, light / dark (§4.1) */
+  --mads-color-bg: light-dark(#f8f7f4, #0c0a09);
+  --mads-color-surface: light-dark(#ffffff, #1c1917);
+  --mads-color-surface-raised: light-dark(#ffffff, #292524);
+  --mads-color-fg: light-dark(#1c1917, #fafaf9);
+  --mads-color-muted: light-dark(#78716c, #a8a29e);
+  --mads-color-border: light-dark(#e7e5e4, #44403c);
+  --mads-color-border-strong: light-dark(#78716c, #a8a29e);
+  --mads-color-primary: light-dark(#0f766e, #2dd4bf);
+  --mads-color-on-primary: light-dark(#ffffff, #0c0a09);
+  --mads-color-accent: light-dark(#d97706, #f59e0b);
+  --mads-color-success: light-dark(#15803d, #4ade80);
+  --mads-color-warning: light-dark(#b45309, #fbbf24);
+  --mads-color-error: light-dark(#b91c1c, #f87171);
+  --mads-color-info: light-dark(#0369a1, #38bdf8);
+  --mads-color-focus: light-dark(#0f766e, #2dd4bf);
+
+  /* Status surfaces: 12% status colour mixed over the surface (§4.1) */
+  --mads-color-success-surface: light-dark(#e3f0e8, #223124);
+  --mads-color-warning-surface: light-dark(#f6eae1, #372d19);
+  --mads-color-error-surface: light-dark(#f7e4e4, #362422);
+  --mads-color-info-surface: light-dark(#e1edf4, #1f2d32);
+  --mads-color-neutral-surface: light-dark(#efeeed, #2d2927);
+}
+
+[data-mads-theme="light"] {
+  color-scheme: light;
+}
+
+[data-mads-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-mads-theme="amoled"] {
+  color-scheme: dark;
+
+  --mads-color-bg: #000000;
+  --mads-color-surface: #0a0a0a;
+  --mads-color-surface-raised: #141414;
+  --mads-color-fg: #fafaf9;
+  --mads-color-muted: #a8a29e;
+  --mads-color-border: #292524;
+  --mads-color-border-strong: #a8a29e;
+  --mads-color-primary: #2dd4bf;
+  --mads-color-on-primary: #0c0a09;
+  --mads-color-accent: #f59e0b;
+  --mads-color-success: #4ade80;
+  --mads-color-warning: #fbbf24;
+  --mads-color-error: #f87171;
+  --mads-color-info: #38bdf8;
+  --mads-color-focus: #2dd4bf;
+  --mads-color-success-surface: #122318;
+  --mads-color-warning-surface: #27200d;
+  --mads-color-error-surface: #271616;
+  --mads-color-info-surface: #101f27;
+  --mads-color-neutral-surface: #1d1c1c;
+}
+
+[data-mads-theme="high-contrast"] {
+  color-scheme: light;
+
+  --mads-color-bg: #ffffff;
+  --mads-color-surface: #ffffff;
+  --mads-color-surface-raised: #ffffff;
+  --mads-color-fg: #000000;
+  --mads-color-muted: #000000;
+  --mads-color-border: #000000;
+  --mads-color-border-strong: #000000;
+  --mads-color-primary: #0000ee;
+  --mads-color-on-primary: #ffffff;
+  --mads-color-accent: #000000;
+  --mads-color-success: #000000;
+  --mads-color-warning: #000000;
+  --mads-color-error: #000000;
+  --mads-color-info: #000000;
+  --mads-color-focus: #0000ee;
+  --mads-color-success-surface: #e0e0e0;
+  --mads-color-warning-surface: #e0e0e0;
+  --mads-color-error-surface: #e0e0e0;
+  --mads-color-info-surface: #e0e0e0;
+  --mads-color-neutral-surface: #e0e0e0;
+}

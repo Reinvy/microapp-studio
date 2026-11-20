@@ -14,6 +14,7 @@ export default tseslint.config(
       '**/build/**',
       '**/target/**',
       'packages/runtime-web/wasm/**',
+      'apps/studio-web/public/**',
       'packages/runtime-web/src/muip/catalog.generated.ts',
       '**/*.d.ts',
     ],

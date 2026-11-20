@@ -42,6 +42,8 @@ export interface VerifiedPackage {
   digestHex: string;
   entries: MappEntryData[];
   bundleBytes: Uint8Array;
+  authorSignature: Uint8Array | null;
+  registrySignature: Uint8Array | null;
 }
 
 export interface StorageWriter {
@@ -137,6 +139,9 @@ export async function verifyPackage(
     throw new BridgeError('E-REG-003', { reason: 'integrity_unsupported' });
   }
 
+  const signatureFrom = (value: unknown): Uint8Array | null =>
+    typeof value === 'string' && value.length > 0 ? decodeBase64(value) : null;
+
   return {
     manifest: {
       id: manifest.id,
@@ -162,6 +167,8 @@ export async function verifyPackage(
     digestHex: verified.digest,
     entries,
     bundleBytes,
+    authorSignature: signatureFrom(verified.authorSignatureBase64),
+    registrySignature: signatureFrom(verified.registrySignatureBase64),
   };
 }
 

@@ -11,20 +11,23 @@
 
 /// <reference lib="webworker" />
 
-import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { applyMigrations } from '../migrate';
 import { appDatabasePath, type HostDbRequest, type HostDbResponse } from './protocol';
 import type { HostDb, HostDbTransaction, SqlValue } from '../driver';
 import { isRecord } from '../../lib/guards';
 import { createCoreClient, coreWasmUrl, loadCoreWasm } from '@microapp/runtime-web';
 
+interface SqliteStatement {
+  bind: (params?: unknown[]) => boolean;
+  step: () => boolean;
+  get: (options?: Record<string, unknown>) => unknown;
+  finalize: () => void;
+}
+
 type SqliteDb = {
   exec: (sql: string, options?: Record<string, unknown>) => unknown;
-  prepare: (sql: string) => {
-    all: (params?: unknown[]) => unknown[];
-    run: (params?: unknown[]) => { changes?: number };
-    finalize: () => void;
-  };
+  prepare: (sql: string) => SqliteStatement;
+  changes: () => number;
   close: () => void;
 };
 
@@ -55,7 +58,12 @@ function wrap(sqlite: SqliteDb): HostDb {
     async select<T>(sql: string, params?: readonly SqlValue[]): Promise<T[]> {
       const statement = sqlite.prepare(sql);
       try {
-        return statement.all((params ?? []) as unknown[]) as T[];
+        if (params && params.length > 0) statement.bind(params as unknown[]);
+        const rows: T[] = [];
+        while (statement.step()) {
+          rows.push(statement.get({}) as T);
+        }
+        return rows;
       } finally {
         statement.finalize();
       }
@@ -64,7 +72,9 @@ function wrap(sqlite: SqliteDb): HostDb {
       if (params && params.length > 0) {
         const statement = sqlite.prepare(sql);
         try {
-          return statement.run(params as unknown[]).changes ?? 0;
+          statement.bind(params as unknown[]);
+          statement.step();
+          return sqlite.changes();
         } finally {
           statement.finalize();
         }
@@ -91,6 +101,25 @@ function wrap(sqlite: SqliteDb): HostDb {
       sqlite.close();
     },
   };
+}
+
+const SQLITE_WASM_URL = '/sqlite-wasm/index.mjs';
+
+interface SqliteInitModule {
+  default: (input?: unknown) => Promise<{
+    oo1: { OpfsDb?: new (filename: string, flags?: string) => SqliteDb; DB: new (filename?: string) => SqliteDb };
+  }>;
+}
+
+/**
+ * Load the SQLite WASM ESM at runtime from static assets. A bundler import would
+ * try to resolve the package's dynamic OPFS proxy worker URL and fail.
+ */
+async function sqlite3InitModule() {
+  const loaded = (await import(
+    /* webpackIgnore: true */ /* turbopackIgnore: true */ /* @vite-ignore */ SQLITE_WASM_URL
+  )) as unknown as SqliteInitModule;
+  return loaded.default();
 }
 
 async function initialize(): Promise<void> {

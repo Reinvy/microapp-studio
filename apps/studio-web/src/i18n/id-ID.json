@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "MicroApp Studio",
+    "tagline": "Host offline-first untuk micro-app"
+  },
+  "nav": {
+    "home": "Beranda",
+    "search": "Pencarian",
+    "settings": "Pengaturan",
+    "registry": "Registry",
+    "studio": "Studio",
+    "vault": "Vault"
+  },
+  "common": {
+    "retry": "Coba lagi",
+    "cancel": "Batal",
+    "save": "Simpan",
+    "close": "Tutup",
+    "search": "Cari",
+    "loading": "Memuat…",
+    "required": "Wajib",
+    "back": "Kembali",
+    "delete": "Hapus",
+    "confirm": "Konfirmasi"
+  },
+  "firstRun": {
+    "title": "Buat identitas lokal",
+    "intro": "Identitas dibuat di perangkat ini. Tidak ada akun, email, atau server. Frasa pemulihan 24 kata adalah satu-satunya cara memulihkan data.",
+    "create": "Buat identitas baru",
+    "recover": "Pulihkan dengan frasa",
+    "wordNotice": "Tulis 24 kata ini di tempat aman. Frasa tidak akan ditampilkan lagi dan tidak disimpan dalam bentuk terbaca.",
+    "confirmTitle": "Konfirmasi frasa",
+    "confirmHint": "Isi tiga kata berikut sesuai urutannya.",
+    "confirm": "Konfirmasi",
+    "mismatch": "Kata tidak cocok. Periksa kembali frasa Anda.",
+    "done": "Identitas siap",
+    "recoverTitle": "Pulihkan identitas",
+    "recoverHint": "Masukkan 24 kata dipisahkan spasi.",
+    "recoverMismatch": "Frasa tidak cocok dengan identitas di perangkat ini."
+  },
+  "home": {
+    "title": "Beranda",
+    "emptyTitle": "Belum ada micro-app",
+    "emptyBody": "Pasang paket .mapp bertanda tangan, atau buat draft di Studio.",
+    "install": "Pasang .mapp",
+    "searchPlaceholder": "Cari app, catatan, dan nilai form",
+    "offline": "Anda sedang offline. Semua fitur lokal tetap berjalan.",
+    "recent": "Terakhir dibuka",
+    "unlockVault": "Buka Vault"
+  },
+  "install": {
+    "verifying": "Memverifikasi paket…",
+    "verifyFailed": "Verifikasi paket gagal",
+    "consentTitle": "Izin yang diminta",
+    "consentBody": "Aplikasi meminta izin berikut. Anda dapat mencabutnya kapan saja di Pengaturan.",
+    "allow": "Izinkan",
+    "deny": "Tolak",
+    "success": "Paket terpasang",
+    "unsignedGit": "Paket dari Git tanpa signature. Lanjutkan hanya jika Anda memercayai sumbernya.",
+    "quotaWarning": "Paket meminta memori melebihi batas platform; kuota akan dibatasi."
+  },
+  "app": {
+    "run": "Jalankan",
+    "restart": "Mulai ulang",
+    "rollback": "Kembalikan versi sebelumnya",
+    "export": "Ekspor data",
+    "errorTitle": "Aplikasi berhenti",
+    "errorBody": "Runtime menghentikan aplikasi agar Host tetap aman.",
+    "notInstalled": "Aplikasi tidak ditemukan di workspace ini",
+    "loading": "Menyiapkan sandbox…"
+  },
+  "settings": {
+    "title": "Pengaturan",
+    "general": "Umum",
+    "language": "Bahasa",
+    "offlineCage": "Offline Cage",
+    "offlineCageHint": "Blokir seluruh jaringan untuk semua app.",
+    "storage": "Penyimpanan",
+    "storageUsed": "Terpakai",
+    "storagePinned": "Disematkan permanen",
+    "vault": "Vault",
+    "sync": "Sinkronisasi"
+  },
+  "permissions": {
+    "title": "Izin",
+    "none": "Belum ada izin diberikan",
+    "granted": "Diberikan",
+    "revoke": "Cabut",
+    "mock": "Gunakan data tiruan",
+    "mocked": "Data tiruan aktif"
+  },
+  "vault": {
+    "title": "Vault",
+    "empty": "Belum ada item",
+    "locked": "Vault terkunci",
+    "unlock": "Buka Vault",
+    "lock": "Kunci",
+    "passphrase": "PIN atau passphrase",
+    "create": "Buat Vault",
+    "label": "Nama item",
+    "secret": "Rahasia"
+  },
+  "backup": {
+    "title": "Backup terenkripsi",
+    "export": "Ekspor .mapp-backup",
+    "import": "Impor .mapp-backup",
+    "passphrase": "Passphrase backup",
+    "success": "Backup berhasil",
+    "fail": "Backup gagal diverifikasi",
+    "confirmOverwrite": "Workspace tujuan sudah berisi data. Timpa hanya setelah ekspor."
+  },
+  "search": {
+    "title": "Pencarian",
+    "empty": "Tidak ada hasil",
+    "results": "{count} hasil"
+  },
+  "errors": {
+    "generic": "Terjadi kesalahan",
+    "opfs": "Penyimpanan persisten tidak tersedia; data hanya ada selama sesi ini."
+  }
+}

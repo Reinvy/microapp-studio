@@ -50,3 +50,12 @@ browsers/
 
 # Deploy
 .vercel
+
+# Generated sandbox bootstrap (build:sandbox)
+public/sandbox-bootstrap.js
+
+# Generated core wasm published for the host (build:core)
+apps/studio-web/public/wasm/
+
+# sqlite-wasm runtime copies (build:sqlite)
+apps/studio-web/public/sqlite-wasm/

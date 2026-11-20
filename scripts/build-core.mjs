@@ -9,12 +9,13 @@
  * runtime MUST NOT fall back to a TypeScript crypto implementation.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, statSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CRATE = join(ROOT, 'packages', 'core-rust');
 const OUT_DIR = join(ROOT, 'packages', 'runtime-web', 'wasm');
+const PUBLIC_DIR = join(ROOT, 'apps', 'studio-web', 'public', 'wasm');
 const TARGET = 'wasm32-unknown-unknown';
 const WASM_NAME = 'microapp_core.wasm';
 
@@ -70,4 +71,9 @@ for (const name of ['microapp_core.js', 'microapp_core_bg.wasm', 'microapp_core.
   }
   process.stdout.write(`${name}: ${statSync(path).size} bytes\n`);
 }
-process.stdout.write(`core wasm ready in ${OUT_DIR} (${produced.length} files)\n`);
+// Publish the bindings for the host worker/iframe (static assets, gitignored).
+mkdirSync(PUBLIC_DIR, { recursive: true });
+for (const name of produced) {
+  copyFileSync(join(OUT_DIR, name), join(PUBLIC_DIR, name));
+}
+process.stdout.write(`core wasm ready in ${OUT_DIR} and ${PUBLIC_DIR} (${produced.length} files)\n`);

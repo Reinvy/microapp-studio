@@ -7,9 +7,9 @@
  * bootstrap itself.
  */
 
-export const SANDBOX_CSP = [
+export const SANDBOX_CSP_TEMPLATE = [
   "default-src 'none'",
-  "script-src blob: 'wasm-unsafe-eval'",
+  "script-src 'nonce-{nonce}' blob: 'wasm-unsafe-eval'",
   'worker-src blob:',
   "style-src blob: 'unsafe-inline'",
   'img-src blob: data:',
@@ -22,15 +22,18 @@ export const SANDBOX_CSP = [
   "form-action 'none'",
 ].join('; ');
 
+/** CSP without a nonce, for documentation/tests that assert base directives. */
+export const SANDBOX_CSP = SANDBOX_CSP_TEMPLATE.replace("'nonce-{nonce}' ", '');
+
 export const SANDBOX_IFRAME_ATTRIBUTES = {
   sandbox: 'allow-scripts',
   referrerpolicy: 'no-referrer',
   allow: '',
 } as const;
 
-export function assertBlobUrl(url: string): void {
-  if (!url.startsWith('blob:')) {
-    throw new Error('sandbox bootstrap must be a blob: URL');
+export function assertNonce(nonce: string): void {
+  if (!/^[A-Za-z0-9+/_-]{16,128}$/.test(nonce)) {
+    throw new Error('sandbox nonce is invalid');
   }
 }
 
@@ -43,7 +46,9 @@ function escapeAttribute(value: string): string {
 }
 
 export interface SandboxDocumentOptions {
-  bootstrapUrl: string;
+  /** Inline bootstrap source; executed with a CSP nonce inside the sandbox. */
+  bootstrapSource: string;
+  nonce: string;
   bridgeVersion?: number;
   muipVersion?: number;
   appId: string;
@@ -51,25 +56,33 @@ export interface SandboxDocumentOptions {
 }
 
 /**
- * Build the iframe `srcdoc`. The document contains no inline script and no
- * host markup: only the bootstrap blob, a mount root, and a status region.
+ * Build the iframe `srcdoc`.
+ *
+ * Opaque-origin iframes cannot load `blob:` URLs created by the parent origin,
+ * so the bootstrap is inlined and authorized with a per-mount CSP nonce. The app
+ * bundle arrives over `postMessage` and is turned into an iframe-local blob URL
+ * by the bootstrap itself.
  */
 export function buildSandboxDocument(options: SandboxDocumentOptions): string {
-  assertBlobUrl(options.bootstrapUrl);
+  assertNonce(options.nonce);
   const locale = options.locale ?? 'id-ID';
+  const csp = SANDBOX_CSP_TEMPLATE.replace('{nonce}', options.nonce);
+  // The bootstrap is a classic module body; a closing script tag inside it would
+  // terminate the inline element early, so escape any occurrence defensively.
+  const bootstrap = options.bootstrapSource.replaceAll('</script', '<\\/script');
   return [
     '<!doctype html>',
     `<html lang="${escapeAttribute(locale)}">`,
     '<head>',
     '<meta charset="utf-8">',
-    `<meta http-equiv="Content-Security-Policy" content="${escapeAttribute(SANDBOX_CSP)}">`,
+    `<meta http-equiv="Content-Security-Policy" content="${escapeAttribute(csp)}">`,
     '<meta name="referrer" content="no-referrer">',
     `<title>${escapeAttribute(options.appId)}</title>`,
     '</head>',
     '<body>',
     '<div id="muip-root" role="main"></div>',
     '<div id="muip-status" role="status" aria-live="polite"></div>',
-    `<script type="module" src="${escapeAttribute(options.bootstrapUrl)}" data-bridge-version="${options.bridgeVersion ?? 1}" data-muip-version="${options.muipVersion ?? 1}"></script>`,
+    `<script type="module" nonce="${escapeAttribute(options.nonce)}" data-bridge-version="${options.bridgeVersion ?? 1}" data-muip-version="${options.muipVersion ?? 1}">${bootstrap}</script>`,
     '</body>',
     '</html>',
   ].join('');

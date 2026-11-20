@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "MicroApp Studio",
+    "tagline": "Offline-first host for micro-apps"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "settings": "Settings",
+    "registry": "Registry",
+    "studio": "Studio",
+    "vault": "Vault"
+  },
+  "common": {
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "search": "Search",
+    "loading": "Loading…",
+    "required": "Required",
+    "back": "Back",
+    "delete": "Delete",
+    "confirm": "Confirm"
+  },
+  "firstRun": {
+    "title": "Create a local identity",
+    "intro": "This identity lives on this device. No account, email, or server. The 24-word recovery phrase is the only way to restore your data.",
+    "create": "Create new identity",
+    "recover": "Restore with a phrase",
+    "wordNotice": "Write these 24 words somewhere safe. The phrase is shown once and is never stored in readable form.",
+    "confirmTitle": "Confirm the phrase",
+    "confirmHint": "Fill in the three words below in order.",
+    "confirm": "Confirm",
+    "mismatch": "Words do not match. Check the phrase again.",
+    "done": "Identity ready",
+    "recoverTitle": "Restore identity",
+    "recoverHint": "Enter the 24 words separated by spaces.",
+    "recoverMismatch": "The phrase does not match the identity on this device."
+  },
+  "home": {
+    "title": "Home",
+    "emptyTitle": "No micro-apps yet",
+    "emptyBody": "Install a signed .mapp package, or create a draft in Studio.",
+    "install": "Install .mapp",
+    "searchPlaceholder": "Search apps, notes, and form values",
+    "offline": "You are offline. Every local feature keeps working.",
+    "recent": "Recently opened",
+    "unlockVault": "Unlock Vault"
+  },
+  "install": {
+    "verifying": "Verifying package…",
+    "verifyFailed": "Package verification failed",
+    "consentTitle": "Requested permissions",
+    "consentBody": "The app asks for the following permissions. You can revoke them at any time in Settings.",
+    "allow": "Allow",
+    "deny": "Deny",
+    "success": "Package installed",
+    "unsignedGit": "Unsigned package from Git. Continue only if you trust the source.",
+    "quotaWarning": "The package requests more memory than the platform cap; the quota will be clamped."
+  },
+  "app": {
+    "run": "Run",
+    "restart": "Restart",
+    "rollback": "Roll back to previous version",
+    "export": "Export data",
+    "errorTitle": "App stopped",
+    "errorBody": "The runtime stopped the app so the Host stays safe.",
+    "notInstalled": "App not found in this workspace",
+    "loading": "Preparing sandbox…"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "language": "Language",
+    "offlineCage": "Offline Cage",
+    "offlineCageHint": "Block all networking for every app.",
+    "storage": "Storage",
+    "storageUsed": "Used",
+    "storagePinned": "Pinned forever",
+    "vault": "Vault",
+    "sync": "Sync"
+  },
+  "permissions": {
+    "title": "Permissions",
+    "none": "No permissions granted yet",
+    "granted": "Granted",
+    "revoke": "Revoke",
+    "mock": "Use mock data",
+    "mocked": "Mock data active"
+  },
+  "vault": {
+    "title": "Vault",
+    "empty": "No items yet",
+    "locked": "Vault locked",
+    "unlock": "Unlock Vault",
+    "lock": "Lock",
+    "passphrase": "PIN or passphrase",
+    "create": "Create Vault",
+    "label": "Item name",
+    "secret": "Secret"
+  },
+  "backup": {
+    "title": "Encrypted backup",
+    "export": "Export .mapp-backup",
+    "import": "Import .mapp-backup",
+    "passphrase": "Backup passphrase",
+    "success": "Backup succeeded",
+    "fail": "Backup failed verification",
+    "confirmOverwrite": "The target workspace already has data. Overwrite only after exporting."
+  },
+  "search": {
+    "title": "Search",
+    "empty": "No results",
+    "results": "{count} results"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "opfs": "Persistent storage is unavailable; data lives only for this session."
+  }
+}

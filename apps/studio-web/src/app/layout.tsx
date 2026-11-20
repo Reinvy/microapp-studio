@@ -1,34 +1,38 @@
-import type { Metadata } from "next";
-import { Fredoka } from "next/font/google";
-import "./globals.css";
-
-const fredoka = Fredoka({
-  subsets: ["latin"],
-  variable: "--font-fredoka",
-});
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+import '@microapp/ui-kit/tokens.css';
+import type { ReactElement, ReactNode } from 'react';
+import { HostProvider } from '@/features/host/HostProvider';
+import { PwaRegistration } from '@/features/host/PwaRegistration';
 
 export const metadata: Metadata = {
-  title: "MicroApp Studio — Create Mini Apps with AI",
-  description:
-    "Build, run, and share custom micro-apps with AI-powered prompts and visual drag-and-drop builder.",
+  title: 'MicroApp Studio',
+  description: 'Offline-first host for signed micro-apps',
+  applicationName: 'MicroApp Studio',
+  manifest: '/manifest.webmanifest',
   icons: {
-    icon: "/favicon.ico",
+    icon: '/icons/icon-192.png',
+    apple: '/icons/icon-192.png',
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: '#0f172a',
+  width: 'device-width',
+  initialScale: 1,
+};
+
+export default function RootLayout({ children }: { children: ReactNode }): ReactElement {
   return (
-    <html
-      lang="en"
-      className={`${fredoka.variable} h-full antialiased`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        {children}
+    <html lang="id-ID">
+      <body>
+        <HostProvider>
+          <a className="skip-link" href="#mads-main">
+            Lewati ke konten
+          </a>
+          {children}
+          <PwaRegistration />
+        </HostProvider>
       </body>
     </html>
   );

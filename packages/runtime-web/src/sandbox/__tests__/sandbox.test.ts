@@ -8,6 +8,7 @@ import {
 import { LifecycleController } from '../lifecycle';
 import {
   SANDBOX_CSP,
+  SANDBOX_CSP_TEMPLATE,
   buildSandboxDocument,
   isTrustedMessage,
 } from '../iframe-doc';
@@ -99,35 +100,45 @@ describe('lifecycle sequencing', () => {
 });
 
 describe('sandbox document', () => {
-  it('declares the exact CSP with no unsafe-eval and no network', () => {
+  it('declares the exact CSP with a nonce and no unsafe-eval', () => {
     expect(SANDBOX_CSP).toContain("default-src 'none'");
     expect(SANDBOX_CSP).toContain("script-src blob: 'wasm-unsafe-eval'");
     expect(SANDBOX_CSP).toContain("connect-src 'none'");
     expect(SANDBOX_CSP).not.toContain("'unsafe-eval'");
+    expect(SANDBOX_CSP_TEMPLATE).toContain("'nonce-{nonce}'");
   });
 
-  it('loads the bootstrap only from a blob URL and emits no inline script', () => {
+  it('inlines the bootstrap with a nonce and never loads parent blob URLs', () => {
+    const nonce = 'abc123DEF456ghi789';
     const doc = buildSandboxDocument({
-      bootstrapUrl: 'blob:https://host.example/1234',
+      bootstrapSource: 'console.log("boot");',
+      nonce,
       appId: 'org.reinvy.kas',
     });
     expect(doc).toContain('Content-Security-Policy');
-    expect(doc).toContain('src="blob:https://host.example/1234"');
-    expect(doc).not.toMatch(/<script(?![^>]*src=)/i);
+    expect(doc).toContain(`nonce="${nonce}"`);
+    expect(doc).toContain("'nonce-abc123DEF456ghi789'");
+    expect(doc).toContain('console.log("boot");');
     expect(doc).not.toContain('javascript:');
-    expect(() => buildSandboxDocument({ bootstrapUrl: 'https://evil.example/boot.js', appId: 'x.y' })).toThrow(
-      /blob:/,
-    );
+    expect(() =>
+      buildSandboxDocument({ bootstrapSource: 'x', nonce: 'short', appId: 'x.y' }),
+    ).toThrow(/nonce/);
   });
 
   it('escapes app id and locale in the template', () => {
     const doc = buildSandboxDocument({
-      bootstrapUrl: 'blob:https://host.example/x',
+      bootstrapSource: 'void 0;',
+      nonce: 'abc123DEF456ghi789',
       appId: 'org.reinvy"kas<script>',
       locale: 'id-ID',
     });
-    expect(doc).not.toContain('<script>alert');
     expect(doc).toContain('&quot;');
+    const escaped = buildSandboxDocument({
+      bootstrapSource: 'const a = "</script>";',
+      nonce: 'abc123DEF456ghi789',
+      appId: 'org.x.y',
+    });
+    expect(escaped.match(/<\/script>/g)?.length).toBe(1);
   });
 
   it('accepts messages only from the expected window and app id', () => {

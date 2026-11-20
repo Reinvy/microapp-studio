@@ -249,6 +249,12 @@ pub fn mapp_verify(
         Some(parse_hex32(registry_pubkey_hex)?)
     };
     let verified = mapp::verify(bytes, source, author.as_ref(), registry.as_ref()).map_err(err_to_js)?;
+    use base64::Engine;
+    let encode = |signature: &Option<Vec<u8>>| -> Option<String> {
+        signature
+            .as_ref()
+            .map(|bytes| base64::engine::general_purpose::STANDARD.encode(bytes))
+    };
     Ok(serde_json::json!({
         "manifest": verified.manifest,
         "digest": hex_lower(&verified.digest),
@@ -256,6 +262,8 @@ pub fn mapp_verify(
         "decompressedBytes": verified.decompressed_bytes,
         "hasAuthorSignature": verified.author_signature.is_some(),
         "hasRegistrySignature": verified.registry_signature.is_some(),
+        "authorSignatureBase64": encode(&verified.author_signature),
+        "registrySignatureBase64": encode(&verified.registry_signature),
     })
     .to_string())
 }
@@ -390,4 +398,112 @@ pub fn ed25519_public_seed(seed_hex: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn sha256_hex(bytes: &[u8]) -> String {
     hex_lower(&crate::crypto::sha256(bytes))
+}
+
+/// Validate a 24-word recovery phrase (checksum + wordlist).
+#[wasm_bindgen]
+pub fn mnemonic_validate(phrase: &str) -> Result<String, JsValue> {
+    crate::crypto::validate_mnemonic(phrase).map_err(err_to_js)?;
+    Ok("ok".to_string())
+}
+
+/// Seal a plaintext with the identity's vault key (key never leaves Rust).
+#[wasm_bindgen]
+pub fn vault_seal(
+    phrase: &str,
+    passphrase: &str,
+    hkdf_salt_hex: &str,
+    aad_json: &str,
+    plaintext: &[u8],
+) -> Result<Vec<u8>, JsValue> {
+    let salt = parse_hex32(hkdf_salt_hex)?;
+    let identity = identity::identity_from_phrase(phrase, passphrase, Some(salt)).map_err(err_to_js)?;
+    let aad = aad_from_json(aad_json)?;
+    envelope_seal(&identity.vault_key(), crate::crypto::LABEL_VAULT, &aad, plaintext).map_err(err_to_js)
+}
+
+/// Open a vault envelope with the identity's vault key.
+#[wasm_bindgen]
+pub fn vault_open(
+    phrase: &str,
+    passphrase: &str,
+    hkdf_salt_hex: &str,
+    aad_json: &str,
+    envelope: &[u8],
+) -> Result<Vec<u8>, JsValue> {
+    let salt = parse_hex32(hkdf_salt_hex)?;
+    let identity = identity::identity_from_phrase(phrase, passphrase, Some(salt)).map_err(err_to_js)?;
+    let aad = aad_from_json(aad_json)?;
+    envelope_open(&identity.vault_key(), crate::crypto::LABEL_VAULT, &aad, envelope).map_err(err_to_js)
+}
+
+/// Wrap the identity vault key with an Argon2id-derived KEK from a user PIN.
+///
+/// Output layout: `salt(16) | nonce(12) | wrapped_key(48)`. The vault key never
+/// leaves Rust; callers persist the blob in `vault_key_wraps`.
+#[wasm_bindgen]
+pub fn vault_key_wrap(
+    phrase: &str,
+    passphrase: &str,
+    hkdf_salt_hex: &str,
+    pin: &str,
+) -> Result<Vec<u8>, JsValue> {
+    let salt = crate::crypto::random_16();
+    let hkdf_salt = parse_hex32(hkdf_salt_hex)?;
+    let identity = identity::identity_from_phrase(phrase, passphrase, Some(hkdf_salt)).map_err(err_to_js)?;
+    let (nonce, wrapped) = crate::crypto::wrap_key(&identity.vault_key(), pin, &salt).map_err(err_to_js)?;
+    let mut out = Vec::with_capacity(16 + 12 + wrapped.len());
+    out.extend_from_slice(&salt);
+    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&wrapped);
+    Ok(out)
+}
+
+fn split_wrap(blob: &[u8]) -> Result<([u8; 16], [u8; 12], &[u8]), JsValue> {
+    if blob.len() < 16 + 12 + 16 {
+        return Err(JsValue::from_str("E-CRYPTO-001 vault wrap blob too short"));
+    }
+    let mut salt = [0u8; 16];
+    salt.copy_from_slice(&blob[..16]);
+    let mut nonce = [0u8; 12];
+    nonce.copy_from_slice(&blob[16..28]);
+    Ok((salt, nonce, &blob[28..]))
+}
+
+/// Check that a PIN unlocks the stored wrap without returning key material.
+#[wasm_bindgen]
+pub fn vault_verify_wrap(pin: &str, blob: &[u8]) -> Result<bool, JsValue> {
+    let (salt, nonce, wrapped) = split_wrap(blob)?;
+    match crate::crypto::unwrap_key(wrapped, pin, &salt, &nonce) {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}
+
+/// Seal a plaintext using the wrapped vault key and a user PIN.
+#[wasm_bindgen]
+pub fn vault_seal_wrapped(
+    pin: &str,
+    blob: &[u8],
+    aad_json: &str,
+    plaintext: &[u8],
+) -> Result<Vec<u8>, JsValue> {
+    let (salt, nonce, wrapped) = split_wrap(blob)?;
+    let key = crate::crypto::unwrap_key(wrapped, pin, &salt, &nonce).map_err(err_to_js)?;
+    let aad = aad_from_json(aad_json)?;
+    envelope_seal(&key, crate::crypto::LABEL_VAULT, &aad, plaintext).map_err(err_to_js)
+}
+
+/// Open an envelope using the wrapped vault key and a user PIN.
+#[wasm_bindgen]
+pub fn vault_open_wrapped(
+    pin: &str,
+    blob: &[u8],
+    aad_json: &str,
+    envelope: &[u8],
+) -> Result<Vec<u8>, JsValue> {
+    let (salt, nonce, wrapped) = split_wrap(blob)?;
+    let key = crate::crypto::unwrap_key(wrapped, pin, &salt, &nonce).map_err(err_to_js)?;
+    let aad = aad_from_json(aad_json)?;
+    envelope_open(&key, crate::crypto::LABEL_VAULT, &aad, envelope).map_err(err_to_js)
 }

@@ -1,0 +1,20 @@
+{
+  "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+  "fixtures": [
+    {
+      "file": "escape.mapp",
+      "sha256": "48578b88f64ac25d239bfa9978471c2bdb02b38c3644b1fd42e76d833696cd3f",
+      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+    },
+    {
+      "file": "loop.mapp",
+      "sha256": "c9ed834c627b1c42e065c3c451c509f04f48e81420cda81f1c88779b11aaefcb",
+      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+    },
+    {
+      "file": "crash.mapp",
+      "sha256": "3ec45115d38b2eb438b1a0da84f4d0b29ebdf34f69317bf40a5760cd7800d6d7",
+      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+    }
+  ]
+}

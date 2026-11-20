@@ -9,13 +9,15 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@microapp/runtime-web": "^0.1.0",
+    "@microapp/ui-kit": "^0.1.0",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-dialog": "^1.1.20",
     "@radix-ui/react-label": "^2.1.12",
@@ -24,11 +26,9 @@
     "@radix-ui/react-slot": "^1.3.0",
     "@radix-ui/react-tabs": "^1.1.18",
     "@sqlite.org/sqlite-wasm": "^3.54.1-build1",
-    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dexie": "^4.4.5",
-    "jose": "^6.2.9",
     "lucide-react": "^1.31.0",
     "next": "^16.3.1",
     "react": "^19.2.8",

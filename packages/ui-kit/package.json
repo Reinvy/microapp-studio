@@ -1,0 +1,32 @@
+{
+  "name": "@microapp/ui-kit",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "scripts": {
+    "lint": "eslint src",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "axe-core": "^4.12.1",
+    "eslint": "^9.39.5",
+    "jsdom": "^25.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}
