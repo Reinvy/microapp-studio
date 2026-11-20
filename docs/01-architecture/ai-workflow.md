@@ -137,7 +137,7 @@ Workflow adalah graf asiklik berarah yang dieksekusi oleh runner lokal atau serv
 | Node aksi | `http.request`, `connector.call`, `transform`, `llm.generate`, `notify`, `branch`, `delay` | Node **MUST** punya skema input/output |
 | Node HITL | `approval` | Menahan eksekusi sampai keputusan pengguna |
 | Edge | Sukses, gagal, kondisional | Tanpa siklus tak terbatas |
-| State | `pending`, `running`, `waiting_network`, `waiting_approval`, `succeeded`, `failed`, `cancelled` | Transisi dicatat di `workflow_runs` |
+| State | `queued`, `running`, `waiting_network`, `waiting_hitl`, `done`, `failed`, `dead` | Transisi disimpan di `outbox.state`; label UI seperti "berhasil"/"menunggu persetujuan" bukan nilai DB |
 
 Node **MUST NOT** mengeksekusi kode arbitrer. Transformasi memakai operasi terdefinisi atau modul sandbox yang tervalidasi. LLM node **MUST** memakai aturan provider di bagian 4.
 
@@ -154,7 +154,7 @@ sequenceDiagram
     R->>C: eksekusi aksi
     alt sukses
         C-->>R: 2xx
-        R->>O: tandai succeeded
+        R->>O: tandai done
     else offline / 5xx / timeout
         C-->>R: gagal retryable
         R->>O: waiting_network + jadwal berikut
@@ -173,25 +173,26 @@ Ketentuan outbox:
 | Backoff | **1 detik × 2^n**, cap **1 jam** |
 | Jitter | **20%** |
 | Idempotency key | **UUIDv7**, dibuat saat enqueue dan tidak berubah saat retry |
-| Durabilitas | Outbox persisten di SQLite; bertahan setelah restart/crash |
+| Durabilitas | Outbox persisten di tabel `outbox`; bertahan setelah restart/crash |
 | Ordering | Per workflow dan per entitas; tidak ada eksekusi paralel untuk key yang sama |
 | Deduplikasi | Key yang sama dalam status aktif **MUST NOT** membuat run baru |
 
-Setelah 8 attempt, run berstatus `failed` dan **MUST** terlihat di UI bersama riwayat attempt. Pengguna dapat memicu ulang secara manual; percobaan manual memakai idempotency key baru.
+Setelah 8 attempt, run berstatus `dead` dan **MUST** terlihat di UI bersama riwayat attempt. Pengguna dapat memicu ulang secara manual; percobaan manual memakai idempotency key baru. Riwayat run dibaca dari deret `outbox.state` dan trace node di `diagnostic_log`, bukan dari tabel run terpisah.
 
 ## 10. Human-in-the-Loop
 
-- Node `approval` menahan run pada status `waiting_approval`.
+- Node `approval` menahan run pada status `waiting_hitl`.
 - Permintaan approval **MUST** menampilkan aksi, data yang dikirim, tujuan, dan risiko.
 - Keputusan **MUST** tercatat dengan aktor dan waktu.
-- Approval **MUST** kedaluwarsa setelah batas yang dikonfigurasi; setelah kedaluwarsa run berakhir `cancelled`.
+- Approval **MUST** kedaluwarsa setelah batas yang dikonfigurasi; setelah kedaluwarsa run berakhir `failed` dengan kode error timeout, bukan status di luar tujuh nilai kanonik.
 - Aksi destruktif **MUST** memiliki konfirmasi eksplisit dan opsi undo 10 detik bila memungkinkan.
 
 ## 11. Server Runner
 
 Server self-host **MAY** menjalankan workflow yang sama untuk trigger yang tidak dapat berjalan di perangkat (webhook, cron, cross-tenant event).
 
-- Skema workflow, node, dan connector **MUST** identik antara runner lokal dan server.
+- Skema workflow, node, dan connector **MUST** identik antara runner lokal dan server; node/connector server diimplementasikan di Go dan function pengguna dijalankan sebagai WASM (`wazero`) dengan kontrak input/output yang sama.
+- State, retry (8 attempt, backoff `1s × 2^n` cap 1 jam, jitter 20%), dan idempotency UUIDv7 **MUST** identik; fixture workflow yang sama menghasilkan output sama di kedua runner.
 - Payload yang melewati server **MUST** mengikuti kebijakan data organisasi; data E2EE tetap ciphertext kecuali pengguna secara eksplisit mengizinkan dekripsi untuk workflow tersebut.
 - Server runner **MUST** memakai outbox dan aturan retry yang sama.
 - Isolasi tenant **MUST** diterapkan pada eksekusi, kredensial, dan log.
@@ -235,7 +236,7 @@ Semua permintaan keluar dari node workflow dan connector **MUST** melewati guard
 | Provider BYOK menolak kredensial | Tampilkan error; kunci tidak dihapus otomatis |
 | Workflow offline | `waiting_network`; retry sesuai backoff |
 | Connector mengembalikan 4xx | `failed`, tanpa retry |
-| Approval kedaluwarsa | `cancelled` |
+| Approval kedaluwarsa | `failed` dengan kode timeout |
 | Server restart | Outbox dilanjutkan dari state persisten |
 
 Tidak ada fallback yang mengorbankan isolasi atau consent. Bila sandbox tidak tersedia, preview **MUST** gagal tertutup.

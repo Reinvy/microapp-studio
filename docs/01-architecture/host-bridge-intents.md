@@ -60,7 +60,7 @@ Respons gagal:
   "id": "0190f3a2-7c1e-7b3a-9d42-6f1b2c3d4e5f",
   "ok": false,
   "error": {
-    "code": "PERMISSION_DENIED",
+    "code": "E-SBX-005",
     "message": "Permission storage.local.sqlite belum diberikan",
     "details": { "permission": "storage.local.sqlite" },
     "retryable": false
@@ -77,15 +77,16 @@ Respons gagal:
 | `params` | Ya | Objek; divalidasi terhadap skema method |
 | `timeoutMs` | Tidak | Override timeout; tidak boleh melebihi batas kelas method |
 
-- `id` duplikat dalam satu sesi ditolak dengan `DUPLICATE_REQUEST`.
-- `params` yang tidak sesuai skema ditolak dengan `INVALID_PARAMS` sebelum permission diperiksa.
+- `id` duplikat dalam satu sesi ditolak `E-SBX-008`.
+- Urutan validasi mengikat: versi → ukuran frame → permission → parameter → rate limit → eksekusi. Karena itu `params` yang tidak sesuai skema pada method tanpa grant tetap menghasilkan `E-SBX-005`, bukan error parameter.
 - `message` pada error adalah kunci terjemahan atau teks yang aman; tidak memuat path, SQL, token, atau PII.
 
 ## 4. Namespace
 
 | Namespace | Contoh method | Permission | Timeout kelas |
 |---|---|---|---|
-| `ui` | `setTitle`, `openSheet`, `close`, `toast` | — | default |
+| `bridge` | `cancel` | — (level envelope) | default |
+| `vault` | `read` | grant per item Vault | default |
 | `db` | `query`, `exec`, `transaction`, `migrate` | `storage.local.sqlite` | default |
 | `storage` | `get`, `set`, `delete`, `list`, `quota` | `storage.local` | default |
 | `fs` | `pickFile`, `pickDirectory`, `readFile`, `writeFile` | `filesystem.picker` | file |
@@ -101,11 +102,14 @@ Respons gagal:
 Aturan namespace:
 
 - `device` dan `sync` hanya mengembalikan metadata; `sync` tidak mengizinkan micro-app memicu transfer data lintas app.
+- `ui.*` BUKAN namespace bridge; `render`/`patch`/`focus`/`toast` adalah API internal renderer MUIP di dalam iframe dan tidak pernah diterima Host.
+- `bridge.cancel` beroperasi pada level envelope, tanpa permission; `vault.read` memerlukan grant per item.
 - `db` hanya beroperasi pada file database milik `app_id`; `ATTACH` dan pragma sensitif ditolak.
 - `fs` mengembalikan handle per file yang dipilih, bukan path absolut; handle kedaluwarsa setelah sesi berakhir.
 - `network` tunduk pada allowlist dan tidak dapat memakai kredensial Host.
 - `log` dibatasi 1.000 baris per menit per app dan diredaksi sebelum ditulis.
-- Method yang tidak ada di skema MUST mengembalikan `METHOD_NOT_FOUND`; tidak ada method dinamis.
+- Method yang tidak ada di skema MUST mengembalikan `not_found`; tidak ada method dinamis dan tidak ada alias.
+- `ai.*` dan `workflow.run` mengembalikan `E-SBX-005` sampai fase 3; tidak ada no-op diam-diam.
 
 ## 5. Penamaan dan Versi
 
@@ -113,7 +117,7 @@ Aturan namespace:
 - Setiap perubahan breaking pada method (hapus field, ubah tipe, ubah semantik permission) memerlukan versi major baru dan RFC.
 - Host mendukung major saat ini dan major sebelumnya selama 12 bulan.
 - Versi dinegosiasikan pada pesan pertama: micro-app mengirim `v`; Host membalas `HELLO` berisi `v`, `minSupported`, dan `capabilities`.
-- `v` yang tidak didukung menghasilkan `UNSUPPORTED_VERSION` dan micro-app tidak dijalankan, bukan ditebak.
+- `v` yang tidak didukung menghasilkan `E-SBX-001` dan micro-app tidak dijalankan, bukan ditebak.
 - Penambahan field opsional adalah perubahan minor; penerima MUST mengabaikan field yang tidak dikenal.
 
 ## 6. Siklus Request
@@ -125,45 +129,47 @@ sequenceDiagram
     participant PERM as Permission store
     participant HOST as Host service
     APP->>BR: request(v, id, ns, method, params, timeoutMs)
-    BR->>BR: validasi versi + skema + ukuran
+    BR->>BR: validasi versi + ukuran frame
     BR->>PERM: cek permission
     PERM-->>BR: grant / deny
     alt ditolak
         BR-->>APP: error(code)
     else diizinkan
+        BR->>BR: validasi parameter + rate limit
         BR->>HOST: eksekusi
         HOST-->>BR: result
         BR-->>APP: response(ok, result)
     end
     APP->>BR: cancel(id)
-    BR-->>APP: error(CANCELLED) bila belum selesai
+    BR-->>APP: error(E-SBX-006) bila belum selesai
 ```
 
 - Setiap request berakhir dengan tepat satu respons; tidak ada respons ganda.
+- `id` duplikat dalam satu sesi ditolak `E-SBX-008` tanpa eksekusi.
 - `cancel` bersifat best-effort; operasi yang sudah tidak dapat dibatalkan menyelesaikan dengan `ok` lalu `cancel` diabaikan.
 - Cancellation otomatis terjadi saat micro-app masuk background, kecuali method `ai.infer` yang sedang menulis hasil ke storage app.
-- Streaming (contoh `ai.infer` token per token) memakai event `{ id, type: "chunk", data }` diikuti satu respons akhir.
-- Transfer biner memakai `transferId`, `seq`, `chunk`, dan `final`; urutan wajib, chunk hilang memicu `TRANSFER_INCOMPLETE`.
-- Rate limit default 100 request/detik dan 8 request konkuren per app; melebihi batas menghasilkan `RATE_LIMITED` dengan `retryable: true`.
+- Streaming (contoh `ai.infer` token per token) memakai event `{ id, seq, chunk }` monoton diikuti `{ id, done: true }` dan satu respons akhir.
+- Transfer biner memakai `transferId`, `seq`, `chunk`, dan `final`; urutan wajib, chunk hilang atau SHA-256 tidak cocok memicu `E-SBX-007`.
+- Rate limit default 100 request/detik dan 8 request konkuren per app; melebihi batas menghasilkan `E-SBX-005` dengan `retryable: true`.
 
 ## 7. Timeout
 
 | Kelas | Default | Method |
 |---|---|---|
-| Default | 10 detik | `ui`, `db`, `storage`, `notifications`, `device`, `sync`, `log`, `intents` |
+| Default | 10 detik | `db`, `storage`, `notifications`, `device`, `sync`, `log`, `intents`, `vault` |
 | File | 60 detik | `fs`, `camera.capture`, `network.download`, `network.upload` |
 | AI | 120 detik | `ai.infer`, `ai.embed` |
 
 - Timeout berjalan di Host, bukan hanya di micro-app; Host membatalkan pekerjaan dan membebaskan resource.
 - `timeoutMs` dari micro-app tidak dapat memperpanjang batas kelas; nilai lebih besar dipotong ke batas kelas.
-- Timeout menghasilkan `TIMEOUT` dengan `retryable` sesuai idempotensi method; method non-idempoten tidak di-retry otomatis.
+- Timeout menghasilkan `E-NET-003` dengan `retryable` sesuai idempotensi method; method non-idempoten tidak di-retry otomatis.
 - Timeout tidak membunuh isolate; micro-app menerima error dan dapat memilih strategi sendiri.
 
 ## 8. Pemeriksaan Permission
 
-- Permission diperiksa di broker sebelum method dijalankan, dengan urutan: versi → skema → ukuran → rate limit → permission → eksekusi.
+- Permission diperiksa di broker sebelum method dijalankan, dengan urutan mengikat: versi → ukuran frame → permission → parameter → rate limit → eksekusi. `SEC-014`/B-03 menang atas urutan lama.
 - Grant yang dicabut berlaku pada request berikutnya; request yang sedang berjalan dibatalkan bila method masih dapat dibatalkan.
-- `intents.dispatch` memerlukan consent per pasangan (app asal, app tujuan, route), bukan grant global.
+- `intents.dispatch` memerlukan consent per transfer yang menampilkan `(source, target, type, route)`, bukan grant persisten per pasangan.
 - Penolakan MUST NOT mengungkap apakah resource ada; pesan seragam untuk semua penolakan.
 - Setiap penolakan high risk dicatat di audit dengan `app_id`, permission, dan method.
 
@@ -175,6 +181,8 @@ Skema kanonik:
 microapp://<registry-or-local>/<app-id>/<route>?<params>
 ```
 
+`microapp://` juga menerima bentuk `?target=<encoded-uri>` untuk deep link yang membawa URI tujuan utuh; validator men-decode tepat satu kali dan menerapkan aturan yang sama pada URI hasil.
+
 | Bagian | Aturan | Contoh |
 |---|---|---|
 | `registry-or-local` | ID registry terdaftar atau literal `local` | `official`, `local` |
@@ -184,23 +192,23 @@ microapp://<registry-or-local>/<app-id>/<route>?<params>
 
 Aturan intent:
 
-- Intent divalidasi penuh sebelum dikirim: skema, ukuran, dan kepemilikan route. Route yang tidak dideklarasikan manifest ditolak.
+- Intent divalidasi penuh sebelum dikirim: skema, ukuran, kepemilikan route, dan deklarasi `capabilities.intentsIn` pada target. Route atau tipe intent yang tidak dideklarasikan target ditolak `E-SBX-009`.
 - `intents.canHandle` memeriksa ketersediaan tanpa efek samping; `dispatch` mengirim payload ke app tujuan.
 - Deep link eksternal (browser, QR, OS share) masuk lewat validator yang sama; URL tidak dikenal menampilkan pilihan, tidak pernah dieksekusi otomatis.
-- Intent lintas app memerlukan consent pengguna yang menampilkan app asal, app tujuan, dan data yang dikirim. Consent disimpan per pasangan dan dapat dicabut.
-- Payload intent maksimum 64 KiB; data lebih besar memakai referensi file lewat `fs`, bukan query string.
+- Intent lintas app memerlukan consent per transfer yang menampilkan `(source, target, type, route)`. Tidak ada grant intent persisten; consent tidak dapat dipakai ulang untuk transfer lain dan tidak menambah permission ID baru.
+- Payload intent maksimum 64 KiB; data lebih besar memakai referensi file lewat `fs`, bukan query string. Payload tidak disimpan setelah dikonsumsi.
 - Intent yang menargetkan app yang belum terpasang menawarkan instalasi dari registry; penolakan tidak memicu unduhan.
-- Intent tidak boleh memuat token, kunci, atau path filesystem; pelanggaran ditolak dengan `INVALID_INTENT`.
+- Intent tidak boleh memuat token, kunci, atau path filesystem; pelanggaran ditolak `E-SBX-009`.
 - Offline: intent lokal dan antar-app terpasang tetap berfungsi; intent yang memerlukan registry atau server antre atau ditolak dengan alasan eksplisit.
-- Setiap dispatch dicatat di audit (app asal, app tujuan, route, hasil) tanpa isi payload.
+- Setiap dispatch dan penolakan dicatat di audit (app asal, app tujuan, tipe, route, hasil) tanpa isi payload.
 
 ```mermaid
 flowchart LR
     SRC[App asal / OS] --> V{Validator intent}
-    V -->|invalid| R1[Tolak: INVALID_INTENT]
-    V -->|valid| C{Consent ada?}
+    V -->|invalid| R1[Tolak: E-SBX-009]
+    V -->|valid| C{Consent per transfer?}
     C -->|belum| P[Dialog consent]
-    P -->|deny| R2[Tolak: CONSENT_REQUIRED]
+    P -->|deny| R2[Tolak: E-SBX-005]
     P -->|allow| D[Dispatch]
     C -->|ya| D
     D --> T[App tujuan]

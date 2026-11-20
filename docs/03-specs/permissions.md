@@ -26,7 +26,7 @@ Di luar lingkup: mekanisme bridge (lihat [host-bridge.md](host-bridge.md)), thre
 
 | ID | Level | Requirement | Acceptance |
 |---|---|---|---|
-| SEC-001 | MUST | Permission `storage.local` (risk **low**) MUST mengizinkan baca/tulis key-value milik app sendiri, terbatas pada kuota yang dideklarasikan, tanpa akses ke database micro-app lain. | App hanya membaca key miliknya; key app lain tidak terlihat. |
+| SEC-001 | MUST | Permission `storage.local` (risk **low**) MUST mengizinkan baca/tulis key-value milik app sendiri, terbatas pada kuota `permissions.quotas.storageMb` (default 10 MB bila manifest tidak mengisi), tanpa akses ke database micro-app lain. Penulisan yang melewati kuota MUST ditolak dengan `E-DATA-006`. | App hanya membaca key miliknya; key app lain tidak terlihat; penulisan melewati kuota gagal `E-DATA-006`. |
 | SEC-002 | MUST | Permission `storage.local.sqlite` (risk **low**) MUST mengizinkan query pada database SQLite milik `app_id` di workspace aktif, tanpa ATTACH atau akses lintas app. | `ATTACH` ditolak; query ke DB app lain gagal. |
 | SEC-003 | MUST | Permission `camera` (risk **medium**) MUST mengizinkan pengambilan foto/video melalui kamera dengan indikator aktif dan tanpa akses ke galeri. | Kamera aktif menampilkan indikator; akses galeri tidak tersedia. |
 | SEC-004 | MUST | Permission `camera.qr` (risk **medium**) MUST mengizinkan pemindaian QR/barcode melalui kamera dan MUST NOT menyimpan frame mentah setelah hasil dikembalikan. | Frame tidak tersimpan; hanya hasil decode yang diterima app. |
@@ -42,8 +42,8 @@ Di luar lingkup: mekanisme bridge (lihat [host-bridge.md](host-bridge.md)), thre
 | SEC-014 | MUST | Permission broker MUST menerapkan zero-privilege default: tanpa grant aktif, seluruh panggilan yang membutuhkan permission MUST ditolak sebelum validasi parameter. | App tanpa grant tidak dapat memicu dialog maupun akses. |
 | SEC-015 | MUST | Dialog consent MUST menampilkan nama app, permission ID, risk tier, alasan yang diminta manifest, dan opsi `Allow once`, `Allow`, atau `Deny`; `Allow once` hanya berlaku untuk sesi berjalan. | Tiga opsi tampil; `Allow once` hilang setelah app ditutup. |
 | SEC-016 | MUST | Grant MUST berlaku sampai dicabut dan MUST dapat dicabut kapan saja dari Pengaturan dan dari detail app; pencabutan MUST berlaku segera tanpa restart. | Cabut grant saat app berjalan; panggilan berikutnya gagal. |
-| SEC-017 | SHOULD | Host MUST menyediakan mock/spoof untuk `camera`, `location`, `microphone`, dan `biometrics` yang mengembalikan data sintetis, ditandai di UI, dan dicatat di audit. | Mock aktif menampilkan badge; data sintetis diterima; audit mencatat mock. |
-| SEC-018 | MUST | Offline Cage MUST dapat diaktifkan per app dan MUST memblokir seluruh jaringan meskipun `network.allowlist` berisi domain, serta MUST menampilkan status permanen di UI app. | Cage aktif memblokir request ke domain allowlist; badge tampil. |
+| SEC-017 | SHOULD | Host MUST menyediakan mock/spoof untuk tepat `camera`, `camera.qr`, `microphone`, `location`, dan `biometrics` yang mengembalikan data sintetis, ditandai di UI, dan dicatat di audit; permission lain MUST NOT dapat di-mock. | Mock aktif menampilkan badge; data sintetis diterima; audit mencatat mock; permission di luar daftar tidak menyediakan opsi mock. |
+| SEC-018 | MUST | Offline Cage MUST aktif secara default per app (`app_policy.offline_cage = 1`), MUST memblokir seluruh jaringan meskipun `network.allowlist` berisi domain, MUST menampilkan status permanen di UI app, dan MUST dapat dimatikan pengguna secara eksplisit dari Pengaturan. | Cage default aktif memblokir request ke domain allowlist; badge tampil; mematikan cage mengembalikan akses allowlist. |
 | SEC-019 | MUST | Setiap grant, deny, revoke, mock, dan penolakan akses MUST dicatat di audit lokal dengan `app_id`, `permission`, `decision`, `actor`, dan timestamp, tanpa data sensitif. | Audit memuat kelima jenis kejadian; tidak ada isi payload. |
 | SEC-020 | MUST | Perubahan permission saat update MUST memerlukan consent ulang untuk permission baru atau naiknya risk tier; penurunan izin MUST mencabut grant yang tidak lagi dideklarasikan. | Update menambah `location` memunculkan consent baru; menghapus `camera` mencabut grant. |
 
@@ -53,7 +53,7 @@ Di luar lingkup: mekanisme bridge (lihat [host-bridge.md](host-bridge.md)), thre
 
 | Permission ID | Risk | Default | Dapat di-mock | Catatan |
 |---|---|---|---|---|
-| `storage.local` | low | deny | Tidak | Kuota dideklarasikan manifest |
+| `storage.local` | low | deny | Tidak | `permissions.quotas.storageMb`, default 10 MB |
 | `storage.local.sqlite` | low | deny | Tidak | Hanya DB milik app |
 | `camera` | medium | deny | Ya | Indikator wajib |
 | `camera.qr` | medium | deny | Ya | Tanpa penyimpanan frame |
@@ -66,6 +66,12 @@ Di luar lingkup: mekanisme bridge (lihat [host-bridge.md](host-bridge.md)), thre
 | `notifications.local` | low | deny | Tidak | Hanya milik app |
 | `local_ai.inference` | medium | deny | Tidak | Model lokal |
 | `network.allowlist` | high | deny | Tidak | Domain exact/wildcard |
+
+Kuota dan mock:
+
+- `permissions.quotas.storageMb` berlaku untuk `storage.local` dan default 10 MB bila manifest tidak mengisi; penulisan yang melewati kuota ditolak `E-DATA-006` dan app menerima saran pembersihan.
+- Himpunan permission yang dapat di-mock bersifat tertutup dan tepat: `camera`, `camera.qr`, `microphone`, `location`, `biometrics`. Permission lain tidak menampilkan opsi mock.
+- Offline Cage adalah kebijakan per app pada `app_policy.offline_cage` dengan default `1` (aktif); nilai `0` hanya tersimpan setelah pengguna mematikannya secara eksplisit.
 
 ### 4.2 Semantik allowlist
 
@@ -81,13 +87,27 @@ Di luar lingkup: mekanisme bridge (lihat [host-bridge.md](host-bridge.md)), thre
 
 ### 4.3 State grant
 
-`requested → granted → revoked`, `requested → denied`, `granted → mocked` (untuk permission yang dapat di-mock). `revoked` bersifat final untuk sesi tersebut; permintaan baru membuat state baru.
+State kanonik:
+
+```text
+requested → granted | denied
+granted   → revoked | mocked
+```
+
+- `requested` adalah state saat dialog consent ditampilkan; hasilnya hanya `granted` atau `denied`, tidak ada state antara.
+- `granted` dapat berpindah ke `revoked` (oleh pengguna, update manifest, atau pencabutan sesi) atau ke `mocked` untuk permission yang dapat di-mock.
+- `revoked` bersifat final untuk sesi tersebut; grant baru MUST membuat state baru, bukan menghidupkan kembali state `revoked`.
+- `denied` juga final untuk sesi tersebut; permintaan berikutnya MUST membuat state baru.
+- `Allow once` disimpan di `permission_sessions` dengan `expires_at_ms` = akhir sesi app; saat sesi ditutup, grant `once` berakhir dan tidak pernah menjadi grant persisten.
+- Grant persisten disimpan di `permission_grants` dengan partial unique index grant aktif per `(workspace_id, app_install_id, permission_id)`. `permission_grants_json` pada `installed_microapps` bukan sumber kebenaran.
 
 ## 5. Error dan Recovery
 
 | Kode | Kondisi | Recovery |
 |---|---|---|
 | E-SBX-005 | Permission tidak diberikan atau dicabut | Kembalikan error ke app; tawarkan buka Pengaturan |
+| E-DATA-006 | Kuota `permissions.quotas.storageMb` terlampaui | Tolak penulisan; tawarkan pembersihan cache app |
+| E-AUTH-006 | Frasa pemulihan tidak cocok saat membuka Vault | Kegagalan generik; batasi 10 percobaan/menit |
 | E-HOST-004 | Vault terkunci saat permission sensitif dibutuhkan | Minta unlock; jangan gunakan kredensial tersimpan |
 | E-CRYPTO-004 | Kunci tidak dapat didekripsi | Tolak akses; minta pemulihan |
 

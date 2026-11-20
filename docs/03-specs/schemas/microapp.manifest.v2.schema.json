@@ -41,7 +41,8 @@
       "required": ["keyId", "fingerprint"],
       "properties": {
         "keyId": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
-        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "source": { "enum": ["registry", "git", "local", "enterprise"], "default": "registry" }
       }
     },
     "minHostVersion": {
@@ -96,7 +97,8 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": { "enum": ["mobile", "tablet", "desktop", "widget"] }
-        }
+        },
+        "secureDisplay": { "type": "boolean", "default": false }
       }
     },
     "permissions": {
@@ -112,6 +114,13 @@
           "items": {
             "type": "string",
             "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+          }
+        },
+        "quotas": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "storageMb": { "type": "integer", "minimum": 1, "maximum": 1024, "default": 10 }
           }
         }
       }

@@ -84,6 +84,25 @@ flowchart LR
 | Tidak ada `new Function`/`eval` pada runtime produksi | ESLint rule + review |
 | Server Go tidak mengimpor kode TypeScript/Dart | Build terpisah |
 
+### 4.1 Kepemilikan Fitur
+
+Kepemilikan ditetapkan tanpa menambah paket baru:
+
+| Fitur | Lokasi implementasi | Kontrak |
+|---|---|---|
+| Workflow runner | `apps/studio-web/src/workers/workflow` + `apps/selfhost-server` | Skema workflow di `packages/sdk` |
+| Sync worker dan protokol | `packages/core-rust` + `packages/runtime-web` + `apps/studio-web` | Envelope dan handshake di spec 06 |
+| Registry client | `apps/studio-web/src/features/registry` dengan verifier di `packages/core-rust` | Index schema v1 |
+| Plugin host | `apps/studio-web` + `apps/selfhost-server` | API plugin di `packages/sdk` |
+
+Fitur yang dipakai bersama **MUST NOT** diduplikasi ke paket baru; bila kontrak berubah, perubahan dimulai dari `packages/sdk` atau skema JSON, bukan dari salah satu app.
+
+### 4.2 Siklus Hidup Paket
+
+- Paket **MUST** dibuat pada fase pemakaiannya, bukan di awal; tidak ada direktori kosong, paket placeholder, atau entry point stub.
+- Paket baru **MUST** memiliki implementasi nyata yang di-import test, `package.json`/`Cargo.toml` dengan lisensi benar, dan entri di dokumen ini sebelum dipakai.
+- Paket yang belum punya konsumen **MUST NOT** ditambahkan ke `workspaces`.
+
 ## 5. Urutan Build
 
 1. `packages/core-rust` → target `wasm32-unknown-unknown` dan native (cdylib).

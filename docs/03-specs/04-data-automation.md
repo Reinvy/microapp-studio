@@ -39,7 +39,7 @@ Di luar lingkup: transport sinkronisasi (spec 06), sandbox eksekusi (spec 03), s
 | FR-DATA-010 | MUST | Sebelum migrasi dijalankan, Host MUST membuat atomic snapshot database dan MUST mencatat hash-nya. | Snapshot ada sebelum migrasi; hash tercatat dan dapat diverifikasi. |
 | FR-DATA-011 | MUST | Bila migrasi gagal, Host MUST mengembalikan database ke snapshot dan micro-app ke versi sebelumnya secara otomatis, tanpa kehilangan data. | Migrasi rusak disimulasikan; database dan versi app kembali; jumlah record sama. |
 | FR-DATA-012 | MUST | Versi schema MUST dilacak dengan `PRAGMA user_version` dan ledger migrasi yang mencatat versi, waktu, dan hash migrasi. | Ledger berisi setiap migrasi yang diterapkan; `user_version` sama dengan versi terakhir. |
-| FR-DATA-013 | MUST | Setiap mutasi tabel yang disinkronkan MUST menulis entri mutation log dengan HLC, nama tabel, primary key hash, dan payload terenkripsi. | Insert/update/delete menghasilkan entri; HLC monoton naik per Site ID. |
+| FR-DATA-013 | MUST | Setiap mutasi tabel yang disinkronkan MUST menulis entri `crdt_change_log` dengan `row_id` UUIDv7 plaintext, `pk_hash` BLOB(32) berisi SHA-256 dari gabungan `table_name` dan `row_id`, `column_name`, HLC, dan nilai kolom; nilai sensitif MUST disimpan sebagai `value_ciphertext` per kolom. | Insert/update/delete menghasilkan entri; HLC monoton naik per Site ID; nilai sensitif tidak muncul plaintext di log. |
 | FR-DATA-014 | MUST | Penggabungan mutasi MUST bersifat column-level last-write-wins dengan HLC sebagai pembanding dan Site ID sebagai tie-breaker deterministik. | Dua perangkat mengubah kolom berbeda; keduanya bertahan; kolom sama dipilih deterministik. |
 | FR-DATA-015 | MUST | Nilai yang kalah pada konflik kolom identik MUST disimpan di `conflict_history` dengan nilai pemenang, nilai kalah, dan HLC, serta dapat ditinjau dan dipulihkan pengguna. | Konflik disimulasikan; kedua nilai tersedia; memulihkan nilai lama mengubah data dan mencatat mutasi baru. |
 | FR-DATA-016 | MUST | Mutasi dengan schema version lebih baru MUST disimpan di `crdt_schema_staging` sampai perangkat mendukung versi tersebut, dan MUST NOT diterapkan ke tabel aktif. | Perangkat lama menerima mutasi versi baru; tabel tidak berubah; staging bertambah. |
@@ -47,8 +47,8 @@ Di luar lingkup: transport sinkronisasi (spec 06), sandbox eksekusi (spec 03), s
 | FR-DATA-018 | MUST | Function yang sama MUST dapat dijalankan di server self-host dengan kontrak input/output dan perilaku identik. | Fixture yang sama menghasilkan output sama di lokal dan server. |
 | FR-DATA-019 | MUST | Workflow editor MUST menyediakan node graph dengan validasi koneksi, deteksi siklus tak sah, dan pratinjau data per node. | Graph dengan edge tidak valid ditolak; pratinjau menampilkan payload. |
 | FR-DATA-020 | MUST | Trigger MUST mencakup perubahan database, jadwal/cron, event lintas app, dan webhook (khusus self-host). | Keempat trigger memicu run; webhook tidak tersedia di mode lokal dan statusnya jelas. |
-| FR-DATA-021 | MUST | Setiap task eksternal MUST masuk ke outbox persisten dengan status `queued`, `waiting_network`, `running`, `failed`, atau `done`, dan MUST bertahan setelah restart. | Matikan app saat queued; restart; job tetap ada dan dieksekusi. |
-| FR-DATA-022 | MUST | Retry MUST maksimal 8 attempt dengan backoff eksponensial 1 detik × 2^n (cap 1 jam) dan jitter 20%. | Log retry menunjukkan 8 attempt dengan interval sesuai dan jitter dalam rentang. |
+| FR-DATA-021 | MUST | Setiap task eksternal MUST masuk ke outbox persisten (`outbox`) dengan status kanonik `queued`, `running`, `waiting_network`, `waiting_hitl`, `done`, `failed`, atau `dead`, dan MUST bertahan setelah restart. Nilai `succeeded`/`awaiting_hitl` adalah label UI, bukan nilai penyimpanan. | Matikan app saat queued; restart; job tetap ada dan dieksekusi; `SELECT DISTINCT state FROM outbox` hanya berisi tujuh nilai kanonik. |
+| FR-DATA-022 | MUST | Retry MUST maksimal 8 attempt dengan backoff eksponensial 1 detik × 2^n (cap 1 jam) dan jitter 20%; setelah attempt kedelapan gagal, job berstatus `dead`, bukan `failed` berulang. | Log retry menunjukkan 8 attempt dengan interval sesuai dan jitter dalam rentang; attempt tidak pernah melebihi 8. |
 | FR-DATA-023 | MUST | Setiap job MUST memiliki idempotency key UUIDv7 yang dikirim ke endpoint eksternal dan disimpan untuk deduplikasi. | Eksekusi ulang dengan key sama tidak menghasilkan efek ganda pada endpoint uji. |
 | FR-DATA-024 | MUST | Human-in-the-loop MUST dapat disyaratkan sebelum aksi berisiko, menggunakan notifikasi lokal dengan aksi setuju/tolak dan timeout yang eksplisit. | Job berhenti di approval; menolak menandai `failed` dengan alasan; timeout sesuai konfigurasi. |
 | FR-DATA-025 | MUST | Workflow MUST mendukung conditional branching dan node AI agent yang memakai provider eksplisit (lokal/BYOK) dengan output tervalidasi skema. | Cabang memilih path sesuai kondisi; output AI tidak valid ditolak dan run gagal terkontrol. |
@@ -63,12 +63,18 @@ Di luar lingkup: transport sinkronisasi (spec 06), sandbox eksekusi (spec 03), s
 | Entitas | Field kunci | Invariant |
 |---|---|---|
 | `app_databases` | `app_id`, `workspace_id`, `path`, `schema_version`, `encrypted`, `size_bytes` | Satu baris per app+workspace |
-| `crdt_change_log` | `site_id`, `hlc_timestamp`, `table_name`, `pk_hash`, `payload`, `synced_peers` | HLC unik per site; append-only |
-| `conflict_history` | `id`, `table_name`, `pk_hash`, `column`, `winner`, `loser`, `hlc` | Tidak dihapus sebelum retensi berakhir |
-| `workflow_outbox` | `job_id`, `app_id`, `workflow_id`, `status`, `retry_count`, `next_run_at`, `payload_json`, `idempotency_key` | `idempotency_key` unik |
-| `workflow_runs` | `run_id`, `workflow_id`, `state`, `checkpoint_json`, `started_at`, `finished_at` | Checkpoint ditulis sebelum aksi eksternal |
+| `crdt_change_log` | `mutation_id` UUIDv7, `app_install_id`, `table_name`, `row_id` UUIDv7 plaintext, `column_name`, `pk_hash` BLOB(32), `value_json`/`value_ciphertext`, `hlc` BLOB(24), `site_id` BLOB(16), `schema_version` | HLC unik per site; append-only; nilai sensitif hanya di `value_ciphertext` |
+| `conflict_history` | `conflict_id`, `table_name`, `row_id`, `column_name`, `losing_value`, `losing_hlc`, `winning_hlc`, `resolution`, `resolved_by` | Tidak dihapus sebelum retensi berakhir |
+| `crdt_schema_staging` | `id`, `app_install_id`, `from_version`, `to_version`, `migration_sql`, `status` | `to_version > from_version`; tidak diterapkan ke tabel aktif sebelum versi didukung |
+| `outbox` | `id`, `workspace_id`, `workflow_id`, `idempotency_key`, `payload_ciphertext`, `state`, `attempt`, `next_attempt_at_ms`, `last_error_code` | `idempotency_key` unik; `attempt ≤ 8`; `state` hanya tujuh nilai kanonik |
 
-State job: `queued → running → done`, `running → failed`, `queued/running → waiting_network → running`. Transisi mundur selain ke `waiting_network` dilarang.
+`outbox` adalah satu-satunya antrean durable untuk workflow dan sync. Riwayat run **MUST NOT** disimpan di tabel terpisah: riwayat adalah deret nilai `outbox.state` dari waktu ke waktu ditambah jejak node yang diredaksi di `diagnostic_log` (terhubung lewat `incident_id`).
+
+State job kanonik: `queued → running → done`, `running → failed`, `queued/running → waiting_network → running`, `queued/running → waiting_hitl → running`, `failed → dead` setelah attempt kedelapan. Transisi mundur selain ke `waiting_network` dan `waiting_hitl` dilarang; `done` dan `dead` bersifat terminal sampai pengguna memicu ulang dengan idempotency key baru.
+
+HLC direpresentasikan sebagai `{physical_ms, counter, site_id}` dan diserialisasi 24 byte big-endian (6+2+16). Nilai sensitif pada mutation log disimpan per kolom sebagai `value_ciphertext` dengan envelope `version | key_id | nonce | ciphertext | tag`; `pk_hash` adalah SHA-256 dari gabungan `table_name` dan `row_id` dan bukan pengganti `row_id` untuk operasi lokal.
+
+**Mesin CRDT.** Data micro-app memakai `cr-sqlite` bila ekstensi tersebut dapat dimuat di `@sqlite.org/sqlite-wasm`. Bila tidak dapat dimuat, implementasi mutation log kolom-level sesuai bagian ini berjalan di `packages/core-rust` dan ADR supersede terhadap [ADR-0004](../01-architecture/adr/0004-crdt-strategy.md) dibuat sebelum rilis fase 3; fase 3 **MUST NOT** ditunda karena ketergantungan ekstensi.
 
 ## 5. Error dan Recovery
 
@@ -77,8 +83,9 @@ State job: `queued → running → done`, `running → failed`, `queued/running 
 | E-DATA-001 | Database tidak dapat dibuka | Tampilkan error, tawarkan restore snapshot, jangan buat DB baru kosong |
 | E-DATA-002 | Migrasi gagal | Rollback ke snapshot dan versi sebelumnya, catat penyebab |
 | E-DATA-003 | Konflik skema tidak dapat diterapkan | Simpan di staging, beri tahu pengguna, lanjutkan operasi lain |
-| E-DATA-004 | Outbox gagal permanen setelah 8 attempt | Tandai `failed`, pertahankan payload, sediakan retry manual |
+| E-DATA-004 | Outbox gagal permanen setelah 8 attempt | Tandai `dead`, pertahankan payload, sediakan retry manual dengan idempotency key baru |
 | E-DATA-005 | Connector diblokir SSRF guard | Tolak request, catat audit, tampilkan alasan kebijakan |
+| E-DATA-006 | Kuota storage app (`permissions.quotas.storageMb`, default 10 MB) terlampaui | Tolak penulisan, tampilkan pemakaian per kategori, tawarkan pembersihan cache tanpa menyentuh database/Vault |
 
 ## 6. Keamanan dan Privasi
 
@@ -87,6 +94,8 @@ State job: `queued → running → done`, `running → failed`, `queued/running 
 - Kredensial connector hanya dari Vault dan tidak ditulis ke workflow definition.
 - SSRF guard default menolak CIDR privat, loopback, link-local, dan metadata endpoint.
 - Retensi `conflict_history` dan audit ditetapkan; penghapusan data pengguna hanya melalui aksi eksplisit.
+- Mutation log lokal dipertahankan minimal 90 hari dan salinan server 180 hari sebelum compaction; tombstone dipertahankan minimal 90 hari.
+- Kuota storage per app ditegakkan sebelum penulisan dan gagal tertutup dengan `E-DATA-006`; pembersihan hanya menyentuh cache yang dapat diunduh ulang.
 
 ## 7. Acceptance Criteria
 
@@ -95,6 +104,8 @@ State job: `queued → running → done`, `running → failed`, `queued/running 
 - **Given** perangkat offline **When** workflow memanggil HTTP **Then** job berstatus `waiting_network` dan dieksekusi saat online dengan idempotency key sama.
 - **Given** server menerima webhook ke alamat privat **When** node HTTP dijalankan **Then** request ditolak dan audit mencatat.
 - **Given** server restart saat run **When** server hidup **Then** run dilanjutkan dari checkpoint tanpa duplikasi.
+- **Given** app menulis melebihi kuota `permissions.quotas.storageMb` **When** penulisan dijalankan **Then** penulisan ditolak dengan `E-DATA-006` dan database/Vault tidak berubah.
+- **Given** `cr-sqlite` gagal dimuat di `@sqlite.org/sqlite-wasm` **When** sync berjalan **Then** mutation log kolom-level di `core-rust` dipakai dan ADR supersede tercatat, tanpa menunda fase 3.
 
 ## 8. Verifikasi
 
@@ -102,9 +113,11 @@ State job: `queued → running → done`, `running → failed`, `queued/running 
 |---|---|
 | Migrasi | Fixture DB versi lama; jalankan forward dan rollback; bandingkan hash data |
 | CRDT | Property test convergence dua site dengan urutan acak |
-| Outbox | Simulasi offline/restart; verifikasi attempt, backoff, idempotency |
+| Outbox | Simulasi offline/restart; verifikasi attempt, backoff, idempotency, dan hanya tujuh nilai `state` |
 | Connector | Smoke test tiap connector terhadap layanan lokal |
 | SSRF | Test CIDR privat dan metadata endpoint |
+| Kuota | Isi storage hingga melewati batas; verifikasi `E-DATA-006` dan cleanup cache |
+| CRDT fallback | Muat skema tanpa `cr-sqlite`; jalankan property test mutation log kolom-level |
 
 ## 9. Referensi
 

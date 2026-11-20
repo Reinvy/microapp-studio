@@ -47,22 +47,36 @@ Di luar lingkup: skema data per app (spec 04), server deployment (spec 07), kebi
 | FR-SYNC-018 | MUST | Status sync MUST menampilkan peer, transport aktif, cursor, antrean, dan error terakhir tanpa menampilkan isi data. | UI menampilkan transport dan antrean; tidak ada payload di UI. |
 | FR-SYNC-019 | MUST | Ekspor SQLite `.db` MUST menghasilkan berkas yang dapat dibuka alat SQLite standar, dengan opsi menyertakan atau mengecualikan kolom sensitif. | Berkas terbuka di `sqlite3`; kolom sensitif mengikuti pilihan. |
 | FR-SYNC-020 | MUST | Ekspor JSONL, CSV, dan Markdown MUST tersedia per micro-app dan untuk seluruh workspace, dengan skema terdokumentasi dan encoding UTF-8. | Ekspor dapat diimpor kembali; CSV lolos validasi parser standar. |
-| FR-SYNC-021 | MUST | Encrypted Snapshot Archive MUST memuat database, manifest, dan metadata, terenkripsi AES-256-GCM dengan passphrase atau master key, serta checksum per bagian. | Snapshot tidak dapat dibuka tanpa passphrase; checksum gagal pada berkas yang diubah. |
-| FR-SYNC-022 | MUST | Restore MUST dapat mengambil sumber dari peer, server, atau BYOS, dan MUST memverifikasi checksum serta signature manifest sebelum menerapkan data. | Restore dari ketiga sumber berhasil; snapshot rusak ditolak. |
+| FR-SYNC-021 | MUST | FR-HOST-021 dan FR-SYNC-021 MUST memakai satu format kontainer `.mapp-backup`: header ASCII `MAPPBK01`, `version` u16, parameter KDF (Argon2id `m = 64 MiB`, `t = 3`, `p = 1`, salt 16 byte) atau penanda kunci turunan master, `nonce` 12 byte, ciphertext AES-256-GCM, dan tag 16 byte. Plaintext MUST berupa JSON kanonik JCS `{workspace, hostDb, appDbs (base64), manifests, checksums per section, createdAt, formatVersion}`. | Snapshot tidak dapat dibuka tanpa passphrase/kunci yang benar; checksum gagal pada berkas yang diubah; berkas yang sama dapat dipulihkan host web, Flutter, dan server. |
+| FR-SYNC-022 | MUST | Restore MUST dapat mengambil sumber dari peer, server, atau BYOS, dan MUST memverifikasi checksum per section, jumlah record, serta signature manifest sebelum menulis apa pun. | Restore dari ketiga sumber berhasil; snapshot rusak, jumlah record tidak cocok, atau signature tidak valid ditolak tanpa mengubah data lokal. |
 | FR-SYNC-023 | MUST | Setelah restore, Host MUST memverifikasi jumlah record dan hash per tabel, lalu menampilkan ringkasan verifikasi kepada pengguna. | Ringkasan menunjukkan jumlah dan status cocok/tidak cocok per tabel. |
-| FR-SYNC-024 | MUST | Restore MUST NOT menghapus data lokal yang lebih baru tanpa konfirmasi; konflik digabung atau disimpan sebagai salinan. | Restore snapshot lama menyimpan data baru sebagai salinan/konflik, bukan menghapus. |
+| FR-SYNC-024 | MUST | Restore MUST NOT menimpa workspace yang sudah berisi data tanpa konfirmasi eksplisit; konflik digabung atau disimpan sebagai salinan, bukan dihapus. | Restore snapshot lama ke workspace berisi data meminta konfirmasi; menolak konfirmasi membiarkan data lokal utuh; menerima menyimpan data baru sebagai salinan/konflik. |
 | FR-SYNC-025 | MUST | Format ekspor dan snapshot MUST stabil serta terdokumentasi; perubahan format MUST menaikkan versi dan mempertahankan pembaca versi lama minimal 12 bulan. | Snapshot versi lama dapat dibaca host baru; dokumen format memuat versi. |
 
 ## 4. Model Data dan State
 
 | Entitas | Field kunci | Invariant |
 |---|---|---|
-| `sync_peers` | `peer_device_id`, `peer_name`, `peer_public_key`, `last_seen_lan_ip`, `sync_server_url`, `last_synced_hlc` | Satu baris per peer; kunci tidak berubah tanpa pairing ulang |
-| `sync_cursors` | `peer_id`, `transport`, `cursor`, `updated_at` | Cursor monoton naik per peer |
-| `conflict_history` | `id`, `table_name`, `pk_hash`, `column`, `winner`, `loser`, `hlc` | Tidak dihapus sebelum retensi |
-| `sync_sessions` | `session_id`, `peer_id`, `transport`, `state`, `started_at` | Satu sesi aktif per peer+transport |
+| `sync_peers` | `id`, `peer_site_id`, `peer_name`, `peer_identity_pubkey`, `device_cert`, `transport`, `last_seen_lan_ip`, `sync_server_url`, `trust_state`, `paired_at_ms`, `revoked_at_ms` | `peer_site_id` unik; kunci tidak berubah tanpa pairing ulang |
+| `sync_cursors` | `id`, `peer_id`, `app_install_id`, `last_acked_hlc`, `last_batch_id`, `updated_at_ms` | Cursor monoton naik per peer |
+| `conflict_history` | `conflict_id`, `table_name`, `row_id`, `column_name`, `losing_value_json`, `losing_hlc`, `losing_site`, `winning_hlc`, `resolution`, `resolved_by` | Tidak dihapus sebelum retensi |
+| `sync_sessions` | `session_id`, `peer_id`, `transport`, `state`, `started_at_ms` | Satu sesi aktif per peer+transport |
 
 State sesi: `idle → discovering → handshaking → syncing → idle`, dengan `syncing → backoff → syncing` dan `* → failed`. `failed` MUST menyimpan alasan dan tidak melakukan retry diam-diam.
+
+### 4.1 Kontainer `.mapp-backup`
+
+| Bagian | Ukuran/Nilai | Aturan |
+|---|---|---|
+| Header | 8 byte ASCII | `MAPPBK01`; header lain ditolak sebelum dekripsi |
+| `version` | u16 big-endian | Versi saat ini `1`; pembaca lama wajib dipertahankan minimal 12 bulan |
+| KDF | parameter atau penanda | Argon2id `m = 64 MiB`, `t = 3`, `p = 1`, salt 16 byte acak; atau penanda `master-key` bila kunci diturunkan dari master |
+| `nonce` | 12 byte | Unik per kunci; pengulangan nonce adalah kegagalan fatal |
+| Ciphertext | variabel | AES-256-GCM atas plaintext JSON kanonik |
+| `tag` | 16 byte | Verifikasi sebelum plaintext diparse |
+| Plaintext | JSON JCS | `{workspace, hostDb, appDbs, manifests, checksums, createdAt, formatVersion}` |
+
+`hostDb` memuat tabel host per nama kanonik; `appDbs` memuat database app dalam base64; `checksums` memuat SHA-256 per section. Restore membaca header dan KDF, mendekripsi, memverifikasi checksum dan jumlah record per section, lalu meminta konfirmasi sebelum menulis. Retensi dan revokasi perangkat mengikuti `sync_peers` serta kebijakan pengguna; pencabutan perangkat tidak menghapus backup yang sudah diekspor.
 
 ## 5. Error dan Recovery
 
@@ -100,6 +114,8 @@ State sesi: `idle → discovering → handshaking → syncing → idle`, dengan 
 - **Given** batch 600 mutation **When** dikirim **Then** dipecah menjadi batch ≤ 500 tanpa duplikasi.
 - **Given** snapshot diubah satu byte **When** restore **Then** verifikasi gagal dan data lokal tidak berubah.
 - **Given** perangkat dicabut **When** mencoba sync **Then** sesi ditolak dan kunci sesi dihapus.
+- **Given** `.mapp-backup` dengan jumlah record tidak cocok **When** restore **Then** restore dibatalkan sebelum menulis dan data lokal utuh.
+- **Given** passphrase salah **When** membuka `.mapp-backup` **Then** dekripsi gagal dengan kegagalan generik dan rate limit percobaan.
 
 ## 8. Verifikasi
 
@@ -108,7 +124,8 @@ State sesi: `idle → discovering → handshaking → syncing → idle`, dengan 
 | Convergence | Property test dua site, urutan acak, 10.000 mutasi |
 | Transport | Test LAN, WebRTC, server, BYOS dengan jaringan disimulasikan |
 | Batch | Test batas 500/8 MiB dan resumability |
-| Restore | Test snapshot valid, rusak, dan versi lama |
+| Restore | Test snapshot valid, rusak, versi lama, dan jumlah record tidak cocok |
+| Format backup | Golden fixture `.mapp-backup` dibuka host web, Flutter, dan server; uji tamper header/KDF/nonce/tag |
 | Crypto | Test vector envelope dan deteksi nonce reuse |
 
 ## 9. Referensi

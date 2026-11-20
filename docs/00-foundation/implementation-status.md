@@ -15,13 +15,14 @@ Dokumen ini mencatat **fakta kode saat ini** dan jaraknya terhadap target PRD. S
 | Aspek | Fakta terverifikasi |
 |---|---|
 | Repo | `microapp-studio`, branch `development`, prototipe Phase 0 |
+| Kontrak target | Sudah direkonsiliasi lewat ADR-0011…ADR-0016 (database host, identitas/Vault, manifest/signature, sandbox/bridge, backup/workflow/CRDT/server, fase dan bukti). Rekonsiliasi ini hanya menetapkan kontrak dokumen; status implementasi tetap Phase 0 dan tidak ada fitur target yang boleh diklaim sudah ada. |
 | Framework | Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4 |
 | Route halaman | 7 halaman: `/`, `/app`, `/builder`, `/dev`, `/login`, `/register`, `/run/[id]`; ditambah 2 layout (`app/layout.tsx`, `app/app/layout.tsx`) |
 | State | Zustand store tunggal (`src/store/appStore.ts`) |
 | Editor kode | Monaco via `@monaco-editor/react` |
 | Drag and drop | `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` |
 | Persistence | Dexie/IndexedDB `MicroAppStudio` versi skema 6, tabel `apps`, `content`, `runHistory` |
-| Test | Vitest, 33 berkas test; 581 test lulus pada verifikasi paket |
+| Test | Vitest, 33 berkas test; 581 test lulus (`npx vitest run`, 2026-11-20: 33/33 berkas, 581/581 test) |
 | Backup | JSON format `microapp-studio-backup` versi 1 (`src/lib/backup.ts`) |
 | Auth | localStorage `microapp_users` + JWT `jose` dengan secret hardcoded (`src/lib/auth.ts`) |
 | Eksekusi logika | `new Function` pada `src/engine/evaluator.ts` |
@@ -37,7 +38,7 @@ Status: `implemented` (acceptance verifikasi lulus), `partial` (sebagian ada, be
 | Modul PRD | Target | Current | Gap | Blocking | Phase |
 |---|---|---|---|---|---|
 | **§3 Modul 1** Host Shell | Local Identity, PWA offline, home grid/folder/dock/widget, omni-search FTS5, multitasking, intent bus, vault, notifikasi lokal, storage manager | Dashboard grid sederhana, pencarian nama di memori, tanpa identity, tanpa vault, tanpa notifikasi | Seluruh kapabilitas Host Shell | Core Rust, SQLite WASM, sandbox | 1 |
-| **§3 Modul 2** Studio IDE | Canvas Flexbox/Grid, 120 komponen, token/theme, Monaco + LSP, two-way AST sync, AI lokal/BYOK, Git, Yjs multiplayer, QR LAN | Canvas drag-and-drop 9 tipe field, properties panel, Monaco tanpa LSP, prompt parser pola terbatas | Komponen, layout engine, AST sync, AI, Git, multiplayer, hot reload | Schema v2, MADS, AI bridge | 2–3 |
+| **§3 Modul 2** Studio IDE | Canvas Flexbox/Grid, 120 komponen, token/theme, Monaco + LSP, two-way AST sync, AI lokal/BYOK, Git, Yjs multiplayer, QR LAN | Canvas drag-and-drop 21 tipe field (14 input + 4 layout + 3 konten) sesuai `FieldType` di `src/types/schema.ts`, properties panel, Monaco tanpa LSP, prompt parser pola terbatas | Komponen, layout engine, AST sync, AI, Git, multiplayer, hot reload | Schema v2, MADS, AI bridge | 2–3 |
 | **§3 Modul 3** Sandbox Runtime | Iframe opaque origin + Worker + WASM, QuickJS/Wasmtime native, capability broker, offline cage, kuota, watchdog 5 detik, lifecycle | Eksekusi `new Function` di konteks Host; tanpa isolasi, tanpa permission, tanpa watchdog | Seluruh runtime dan broker | Core Rust, runtime-web, runtime-native | 1 |
 | **§3 Modul 4** Data & Automation | SQLite per micro-app, FTS5, sqlite-vec, SQLCipher, schema designer, migrasi, CRDT HLC, functions, workflow graph, outbox, connector | IndexedDB global, tanpa SQL, tanpa migrasi, tanpa workflow, tanpa connector | Seluruh data layer dan automation | Core Rust, SQLite WASM/OPFS, cr-sqlite | 2–3 |
 | **§3 Modul 5** Registry | Multi-source registry, cache offline, 4 cara install, reproducible build, scanner, signature, TOFU, delta, pin, rollback | Tidak ada | Seluruh registry dan supply chain | Manifest v2, core verify, registry index | 4 |
@@ -60,6 +61,8 @@ Daftar berikut wajib dipakai reviewer untuk menolak klaim palsu pada README, dok
 - Server self-hosted, SSO, RBAC, audit chain, branding.
 - CLI `microapp`, SDK, plugin API.
 - Multiplayer, Git integration, LAN hot reload.
+
+Tidak ada requirement target PRD v2.0 yang berstatus `implemented` pada dokumen ini. Rekonsiliasi ADR-0011…ADR-0016 hanya menetapkan kontrak dokumen; tabel, route, dan perilaku target baru diimplementasikan mengikuti [refactor-roadmap.md](refactor-roadmap.md) dan matriks hanya dinaikkan dari evidence fase.
 
 ## 4. Utang Keamanan Phase 0 yang Wajib Dihapus
 

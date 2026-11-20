@@ -34,11 +34,11 @@ Di luar lingkup: runtime sandbox (spec 03), registry server (spec 05/07), manife
 | FR-DEV-005 | MUST | DevTools MUST menampilkan panggilan Host Bridge (namespace, method, durasi, hasil) dan mengizinkan filter per app. | Panggilan tampil; filter app bekerja; payload sensitif diredaksi. |
 | FR-DEV-006 | MUST | DevTools MUST menampilkan console log micro-app yang terisolasi per app, dengan level, timestamp, dan ekspor lokal. | Log app A tidak bercampur dengan app B; ekspor menghasilkan berkas lokal. |
 | FR-DEV-007 | SHOULD | Analytics self-host MUST opt-in, menampilkan jumlah pengguna aktif dan error rate, disimpan di instance sendiri, dan MUST dapat dimatikan total tanpa memengaruhi fitur. | Instance tanpa opt-in tidak mengumpulkan data; opt-in menampilkan dashboard; mematikan menghentikan pengumpulan. |
-| FR-DEV-008 | MUST | CLI MUST menyediakan `microapp init <template> [--dir] [--no-install]` dengan template React, Svelte, Vue, Solid, Flutter-Schema, dan Vanilla TS/WASM. | Setiap template menghasilkan project yang lolos `microapp test`. |
+| FR-DEV-008 | MUST | CLI MUST menyediakan `microapp init <use-case> [--framework react\|svelte\|vue\|solid\|vanilla\|wasm] [--dir] [--no-install]` dengan template use-case (CRUD, POS, Notes, AI Chat, IoT) dan adapter framework; tidak ada direktori template per framework. | Setiap kombinasi use-case dan framework menghasilkan project yang lolos `microapp test`; `templates/` hanya berisi use-case. |
 | FR-DEV-009 | MUST | CLI MUST menyediakan `microapp dev [--lan] [--port 5173]` yang menjalankan dev server lokal dan, dengan `--lan`, menampilkan QR hot reload. | `--lan` menampilkan QR; port dapat diubah; tanpa jaringan tetap berjalan lokal. |
 | FR-DEV-010 | MUST | CLI MUST menyediakan `microapp test [--sandbox] [--watch] [--coverage]` yang menjalankan unit test, simulasi offline, dan audit kepatuhan permission. | `--sandbox` menjalankan audit permission; `--coverage` menghasilkan laporan; `--watch` memantau perubahan. |
-| FR-DEV-011 | MUST | CLI MUST menyediakan `microapp pack [--sign <key>] [--out <file>] [--reproducible]` yang menghasilkan `.mapp` deterministik dan signature detached. | Dua pack dari commit sama menghasilkan hash identik; signature terverifikasi. |
-| FR-DEV-012 | MUST | CLI MUST menyediakan `microapp publish [--registry <url\|git>] [--tag] [--dry-run]` yang memverifikasi signature dan hash sebelum publikasi. | `--dry-run` tidak mengubah registry; publish menolak artefak tanpa signature. |
+| FR-DEV-011 | MUST | CLI MUST menyediakan `microapp pack [--sign <key>] [--out <file>] [--reproducible]` dan `microapp sign <file> --key <key>` yang menghasilkan `.mapp` deterministik serta signature detached; dua pack dari commit yang sama MUST menghasilkan `contentHash` identik. | Dua pack dari commit sama menghasilkan hash identik; signature terverifikasi; `sign` menolak kunci tidak valid. |
+| FR-DEV-012 | MUST | CLI MUST menyediakan `microapp publish [--registry <url\|git>] [--tag] [--dry-run]` yang memverifikasi signature dan hash sebelum publikasi; paket tanpa signature MUST ditolak dengan exit 3. | `--dry-run` tidak mengubah registry; publish menolak artefak tanpa signature dengan exit 3. |
 | FR-DEV-013 | MUST | CLI MUST memakai exit code `0` sukses, `1` validasi, `2` jaringan, `3` signature/permission, dan MUST mendokumentasikannya. | Setiap kondisi menghasilkan exit code yang dijanjikan pada test. |
 | FR-DEV-014 | MUST | Semua perintah CLI MUST mendukung `--json` dengan output terstruktur stabil dan tanpa warna/ANSI. | Output `--json` dapat diparse; tidak ada escape ANSI. |
 | FR-DEV-015 | MUST | Host Plugin API MUST memungkinkan penambahan sync connector dengan kontrak transport, test, dan izin eksplisit. | Plugin connector uji tersambung dan lulus test kontrak. |
@@ -48,12 +48,19 @@ Di luar lingkup: runtime sandbox (spec 03), registry server (spec 05/07), manife
 | FR-DEV-019 | MUST | SDK MUST menyediakan API TypeScript/WASM untuk data, bridge, intent, dan UI MUIP dengan tipe lengkap dan versi yang eksplisit. | Project contoh dikompilasi tanpa `any`; versi SDK tercatat di manifest. |
 | FR-DEV-020 | MUST | SDK MUST menyertakan dokumentasi API, contoh, dan compatibility matrix; perubahan breaking MUST menaikkan major dan melalui RFC. | Docs API lengkap; breaking change memiliki catatan migrasi. |
 
+### 3.1 Kontrak Plugin dan Template
+
+- Kontrak plugin FR-DEV-015…020 **MUST** berada di `packages/sdk` dan dipakai bersama oleh host `apps/studio-web` dan `apps/selfhost-server`; plugin **MUST** mendeklarasikan capability dan menandatangani manifest plugin.
+- Plugin tanpa capability yang disetujui **MUST** ditolak, dan crash plugin **MUST** diisolasi tanpa menjatuhkan host.
+- `templates/` berisi starter use-case (CRUD, POS, Notes, AI Chat, IoT); `microapp init --framework react|svelte|vue|solid|vanilla|wasm` menggabungkan template use-case dengan adapter framework, bukan memilih direktori per framework.
+- `microapp pack` **MUST** reproducible: entry ZIP terurut, timestamp `1980-01-01`, deflate level 9, tanpa extra/comment; `--reproducible` gagal dengan exit 1 bila hash berbeda.
+
 ## 4. Model Data dan State
 
 | Entitas | Field kunci | Invariant |
 |---|---|---|
 | `devtools_session` | `id`, `started_at`, `app_filter`, `state` | Hanya aktif saat mode developer |
-| `plugin_manifest` | `id`, `version`, `capabilities`, `permissions`, `entry` | Capability ⊆ daftar resmi |
+| `plugin_manifest` | `id`, `version`, `capabilities`, `permissions`, `entry`, `signature` | Capability ⊆ daftar resmi; signature wajib valid |
 | `cli_run` | `command`, `exit_code`, `duration_ms`, `json_output` | Tidak menyimpan kredensial |
 
 State CLI: `parse → validate → execute → report`. `validate` MUST berjalan sebelum aksi destruktif (`publish`, `pack`).
@@ -85,8 +92,9 @@ State CLI: `parse → validate → execute → report`. `validate` MUST berjalan
 
 - **Given** mode developer aktif **When** dua micro-app berjalan **Then** RAM dan FPS ditampilkan terpisah tanpa request keluar.
 - **Given** project dengan permission berisiko **When** `microapp test --sandbox` **Then** audit menampilkan temuan dan exit code sesuai.
-- **Given** dua kali `microapp pack --reproducible` **When** dibandingkan **Then** hash identik.
 - **Given** `microapp publish` tanpa signature **When** dijalankan **Then** exit 3 dan registry tidak berubah.
+- **Given** `microapp init pos --framework svelte` **When** dijalankan **Then** project memakai template use-case POS dengan adapter Svelte dan lolos `microapp test`.
+- **Given** `microapp pack --reproducible` dua kali **When** dibandingkan **Then** `contentHash` identik.
 - **Given** output `--json` **When** diparse **Then** tidak ada ANSI dan field stabil.
 
 ## 8. Verifikasi

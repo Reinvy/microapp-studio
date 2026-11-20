@@ -34,6 +34,17 @@ Ruang lingkup mencakup penemuan paket, pengambilan index, verifikasi signature, 
 
 Trust level **MUST** ditampilkan di UI sebelum instalasi dan **MUST NOT** dinaikkan otomatis oleh klien. Level `community` tidak boleh dipromosikan menjadi `official` hanya karena banyak diunduh.
 
+### 3.1 Matriks kepercayaan instalasi
+
+| Jalur instalasi | Signature author | Signature registry | Syarat lain |
+|---|---|---|---|
+| Registry publik/internal | Wajib valid | Wajib valid dan kunci berbeda | `keyId`/`fingerprint`, `contentHash`, revocation, consent |
+| `.mapp` lokal | Wajib valid | Opsional; wajib valid bila ada | Boleh offline penuh; trust `local` |
+| Git tanpa signature | Tidak ada | Tidak ada | Hanya dengan peringatan eksplisit dan trust `community`/`local`; tidak boleh diam-diam |
+| Enterprise push | Wajib valid | Wajib valid | Kebijakan organisasi; consent tetap berlaku |
+
+Sumber registry dan enterprise **MUST NOT** menerima paket tanpa signature author. Satu-satunya jalur tanpa signature adalah Git, dan jalur itu tetap menampilkan peringatan, memilih trust `community` atau `local`, serta melewati consent permission.
+
 ## 4. Registry Index
 
 Index adalah dokumen JSON statis dengan field minimum: `schemaVersion`, `name`, `url`, `publicKey`, `updatedAt`, dan `apps[]`. Setiap entri `apps[]` memuat `id`, `version`, `name`, `summary`, `icon`, `downloadUrl`, `size`, `sha256`, `signature`, `minHostVersion`, dan `permissions`. Skema resmi ada di [03-specs/schemas/registry-index.v1.schema.json](../03-specs/schemas/registry-index.v1.schema.json).
@@ -62,7 +73,7 @@ Contoh index valid:
       "downloadUrl": "https://registry.microapp.dev/apps/org.reinvy.kas-offline/1.3.0.mapp",
       "size": 1843200,
       "sha256": "3f7a1c9d2e4b6a8c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c",
-      "signature": { "keyId": "9f2c1d4e8a7b3c50", "value": "ed25519:MEUCIQ..." },
+      "signature": "ed25519-9f2c1d4e8a7b3c50",
       "minHostVersion": "2.0.0",
       "permissions": ["storage.local.sqlite"],
       "trustLevel": "official",
@@ -127,6 +138,8 @@ Klien **MUST NOT** menghapus cache secara otomatis hanya karena jaringan tidak t
 Aturan:
 
 - Kunci registry **MUST NOT** menandatangani paket individual; kunci author **MUST NOT** menandatangani index.
+- `publisher.keyId` adalah **16 hex pertama** SHA-256 public key author; `publisher.fingerprint` adalah **64 hex** SHA-256 penuh. `entry.signature` memakai bentuk `ed25519-<keyId>`.
+- File `signatures/author.ed25519` dan `signatures/registry.ed25519` berisi 64 byte signature mentah atas 32 byte digest, bukan string terenkode.
 - Klien **MUST** menyimpan pemetaan author → fingerprint (TOFU) dan membandingkan pada setiap versi baru.
 - Perubahan kunci author **MUST** memicu peringatan keras yang menyebut fingerprint lama dan baru serta meminta konfirmasi eksplisit.
 - Signature **MUST** detached dan memakai Ed25519; verifikasi dilakukan di `packages/core-rust`, bukan di TypeScript atau Dart.
@@ -166,6 +179,17 @@ flowchart TD
 
 Verifikasi **MUST** terjadi sebelum konten paket disentuh oleh renderer atau runtime. Snapshot database **MUST** dibuat sebelum migrasi agar rollback tersedia.
 
+Urutan verifikasi bersifat tetap dan berhenti pada kegagalan pertama:
+
+1. **Ukuran** — compressed ≤ 64 MiB, decompressed ≤ 256 MiB, ≤ 10.000 entry.
+2. **Hash ZIP** — `sha256` byte `.mapp` dibandingkan dengan nilai indeks atau berkas yang dipilih.
+3. **Author + registry** — `signatures/author.ed25519` wajib valid; untuk sumber registry `signatures/registry.ed25519` juga wajib valid, dengan kunci berbeda.
+4. **`keyId`/`fingerprint`** — 16 hex pertama dan 64 hex penuh SHA-256 public key author; `entry.signature` = `ed25519-<keyId>`; TOFU pin diperiksa.
+5. **`contentHash`** — field `manifest.json.contentHash` diganti placeholder `sha256-` + 64 nol, JCS diserialisasi ulang, ZIP kanonik dibangun ulang, lalu digest 32 byte dibandingkan dengan signature.
+6. **Pencabutan** — kunci/versi pada `revokedKeys` atau delisting registry ditolak meski signature valid.
+
+`contentHash` **MUST NOT** memuat `signatures/` dan **MUST** dihitung atas ZIP kanonik deterministik (entry terurut, timestamp `1980-01-01`, deflate level 9).
+
 ## 9. Reproducible Build
 
 Pipeline publish yang mengikat:
@@ -180,6 +204,8 @@ Pipeline publish yang mengikat:
 8. Klien dapat membangun ulang dari commit yang dinyatakan dan membandingkan hash.
 
 Bila hash hasil build ulang berbeda, klien **MUST** menandai paket sebagai tidak terverifikasi dan menampilkan peringatan; paket tidak boleh dianggap setara dengan build resmi. Wrapper Zstd hanya untuk transport dan **MUST NOT** mengubah format kanonik.
+
+Setiap rilis fase **MUST** menerbitkan SBOM CycloneDX dan checksum SHA-256 untuk setiap artefak. SLSA provenance baru wajib pada fase 5. Rilis tanpa SBOM atau checksum **MUST NOT** diberi tag.
 
 ## 10. Scanner Supply Chain
 

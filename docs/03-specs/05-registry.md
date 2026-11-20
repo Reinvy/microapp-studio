@@ -33,9 +33,9 @@ Di luar lingkup: pembangunan paket (spec 02/08), sinkronisasi data (spec 06), ke
 | FR-REG-004 | MUST | Setiap indeks MUST menyertakan `schemaVersion`, `name`, `url`, `publicKey`, `updatedAt`, dan `apps[]` sesuai JSON Schema registry index v1. | Indeks yang tidak sesuai schema ditolak dengan daftar field bermasalah. |
 | FR-REG-005 | MUST | Trust level MUST dibedakan menjadi `official`, `community`, `internal`, dan `local`, dan UI MUST menampilkan level serta sumber sebelum instalasi. | Badge trust tampil pada detail app; app lokal tidak diberi label official. |
 | FR-REG-006 | MUST | Pencarian MUST mencakup seluruh registry aktif dan cache lokal, dengan filter kategori, trust level, dan status terpasang. | Query lintas tiga registry menampilkan hasil gabungan tanpa duplikat id. |
-| FR-REG-007 | MUST | Instalasi dari registry MUST memverifikasi manifest, signature author, signature registry, dan `contentHash` sebelum menampilkan consent permission. | Artefak yang diubah gagal sebelum dialog consent muncul. |
-| FR-REG-008 | MUST | Pengguna MUST dapat memasang langsung dari URL repositori Git atau Git tag, dengan verifikasi manifest dan signature bila tersedia. | Instal dari tag menghasilkan versi yang sama dengan registry; repo tanpa signature menampilkan peringatan. |
-| FR-REG-009 | MUST | Pengguna MUST dapat memasang berkas `.mapp` lokal sepenuhnya offline melalui file picker, dengan verifikasi signature dan hash yang sama seperti registry. | Mode pesawat: `.mapp` valid terpasang; berkas rusak ditolak. |
+| FR-REG-007 | MUST | Instalasi dari registry MUST memverifikasi ukuran, hash ZIP, signature author, signature registry, `keyId`/`fingerprint`, `contentHash`, dan status pencabutan sebelum menampilkan consent permission; kunci author dan registry MUST berbeda. | Artefak yang diubah, signature registry hilang, atau kunci sama gagal sebelum dialog consent muncul. |
+| FR-REG-008 | MUST | Pengguna MUST dapat memasang langsung dari URL repositori Git atau Git tag, dengan verifikasi manifest dan signature bila tersedia; instalasi Git tanpa signature hanya boleh dengan peringatan eksplisit dan trust `community`/`local`, tidak boleh diam-diam. | Instal dari tag menghasilkan versi yang sama dengan registry; repo tanpa signature menampilkan peringatan eksplisit dan badge trust `community` atau `local`. |
+| FR-REG-009 | MUST | Pengguna MUST dapat memasang berkas `.mapp` lokal sepenuhnya offline melalui file picker; signature author wajib valid, signature registry opsional dan wajib valid bila ada, dengan verifikasi hash yang sama seperti registry. | Mode pesawat: `.mapp` bertanda tangan author terpasang; `.mapp` tanpa signature author atau dengan signature registry rusak ditolak. |
 | FR-REG-010 | SHOULD | Admin organisasi MUST dapat mengonfigurasi auto-install paket internal ke perangkat tim saat terhubung ke server kantor, dengan opt-out perangkat. | Kebijakan push memasang app internal; perangkat dengan opt-out tidak memasang. |
 | FR-REG-011 | MUST | Manifest MUST divalidasi terhadap JSON Schema dan aturan `manifest-v2.md` sebelum instalasi, termasuk regex `id`, semver, dan path relatif tanpa `..`. | Manifest dengan `id` invalid atau path traversal ditolak. |
 | FR-REG-012 | MUST | Registry key dan author key MUST terpisah; keduanya MUST diverifikasi dan tidak boleh berasal dari kunci yang sama. | Indeks dengan kunci registry sama dengan author ditolak. |
@@ -44,7 +44,7 @@ Di luar lingkup: pembangunan paket (spec 02/08), sinkronisasi data (spec 06), ke
 | FR-REG-015 | MUST | Scanner MUST menjalankan SAST, SCA/CVE, deteksi obfuscation, dan audit permission sebelum instalasi, serta MUST menampilkan temuan dengan severity. | Artefak dengan pola `eval` atau permission berisiko tinggi menampilkan temuan dan memerlukan konfirmasi tambahan. |
 | FR-REG-016 | MUST | Dialog consent MUST menampilkan permission required/optional, risk tier, ukuran unduhan, sumber, trust level, dan konsekuensi Offline Cage. | Consent memuat semua field; menolak membatalkan instalasi tanpa efek samping. |
 | FR-REG-017 | MUST | Update MUST menggunakan delta diff bila tersedia, dengan verifikasi hash artefak akhir setelah patch. | Update delta menghasilkan hash sama dengan unduhan penuh; patch rusak ditolak. |
-| FR-REG-018 | MUST | Pengguna MUST dapat memilih mode update `auto`, `notify`, atau `pin`, dan pilihan MUST bertahan per app. | Mode `pin` tidak mengubah versi meski ada rilis baru; `notify` hanya memberi tahu. |
+| FR-REG-018 | MUST | Pengguna MUST dapat memilih mode update `auto`, `notify`, atau `manual` (pin) dan pilihan MUST bertahan per app pada `installed_microapps.update_mode`. | Mode `manual` dengan `pinned_version` tidak mengubah versi meski ada rilis baru; `notify` hanya memberi tahu. |
 | FR-REG-019 | MUST | Pin versi MUST mengunci versi tertentu dan mencegah update otomatis maupun delta, sampai pengguna melepas pin. | Pin aktif menahan update; melepas pin mengizinkan update berikutnya. |
 | FR-REG-020 | MUST | Rollback satu klik MUST tersedia ke versi sebelumnya yang masih diarsipkan, dengan snapshot database sebelum rollback dan verifikasi signature versi lama. | Rollback mengembalikan bundle dan skema; snapshot dibuat; signature diverifikasi. |
 | FR-REG-021 | MUST | Host MUST menyimpan arsip minimal satu versi sebelumnya per app selama batas penyimpanan belum terlampaui, dan MUST memberi tahu sebelum menghapus arsip. | Setelah update, versi lama tersedia untuk rollback; penghapusan arsip memerlukan konfirmasi. |
@@ -57,11 +57,39 @@ Di luar lingkup: pembangunan paket (spec 02/08), sinkronisasi data (spec 06), ke
 
 | Entitas | Field kunci | Invariant |
 |---|---|---|
-| `registries` | `id`, `name`, `url`, `public_signing_key`, `cached_index_json`, `last_fetched_at`, `trust_level`, `priority` | `url` unik; `trust_level` ∈ empat nilai |
-| `installed_microapps` | `app_id`, `version`, `previous_version`, `bundle_path`, `manifest_json`, `granted_permissions`, `offline_cage_enabled`, `pinned_version`, `update_mode` | Satu baris per app per workspace |
-| `registry_pins` | `author_key_id`, `app_id`, `first_seen_at`, `approved_at` | Pin unik per author+app |
+| `registry_sources` | `id`, `workspace_id`, `name`, `url`, `kind`, `trust_level`, `public_signing_key`, `key_fingerprint`, `cached_index_json`, `last_fetched_at_ms`, `priority`, `enabled` | `url` unik per workspace; `trust_level` ∈ empat nilai; fingerprint unik per workspace |
+| `installed_microapps` | `id`, `workspace_id`, `app_id`, `version`, `content_hash`, `signature`, `author_key_fingerprint`, `registry_id`, `install_source`, `bundle_path`, `state`, `pinned_version`, `update_mode`, `previous_version` | Satu baris per app per workspace; grant permission hanya di `permission_grants` |
+| `registry_pins` | `id`, `workspace_id`, `scope`, `key_fingerprint`, `app_id`, `registry_id`, `first_seen_at_ms`, `approved_at_ms`, `approved_by` | Unik per workspace+scope+fingerprint+app |
 
 State instalasi: `available → verifying → consent → downloading → migrating → installed`, dan `installed → updating → installed` atau `updating → rolled_back`. Kegagalan pada `verifying` MUST NOT membuat app terpasang.
+
+### 4.1 Matriks kepercayaan instalasi
+
+| Sumber | Signature author | Signature registry | Syarat tambahan |
+|---|---|---|---|
+| Registry publik/internal | Wajib valid | Wajib valid, kunci berbeda dari author | `keyId`/`fingerprint` cocok, `contentHash` cocok, tidak dicabut |
+| Berkas `.mapp` lokal | Wajib valid | Opsional; wajib valid bila ada | Boleh sepenuhnya offline; trust `local` |
+| Git tanpa signature | Tidak ada | Tidak ada | Hanya dengan peringatan eksplisit dan trust `community`/`local`; consent permission tetap wajib |
+| Enterprise push | Wajib valid | Wajib valid | Kebijakan organisasi; consent tetap berlaku |
+
+Instalasi **MUST NOT** diam-diam menurunkan syarat signature. Bila signature author tidak ada pada sumber registry atau enterprise, instalasi ditolak, bukan diberi peringatan.
+
+### 4.2 Urutan verifikasi
+
+Verifikasi **MUST** berjalan berurutan dan berhenti pada kegagalan pertama:
+
+1. **Ukuran** — batas compressed 64 MiB, decompressed 256 MiB, dan 10.000 entry.
+2. **Hash ZIP** — `sha256` byte `.mapp` dibandingkan dengan indeks atau berkas yang dipilih.
+3. **Author + registry** — signature `signatures/author.ed25519` dan, bila sumber registry, `signatures/registry.ed25519`; kunci keduanya berbeda.
+4. **`keyId`/`fingerprint`** — `publisher.keyId` adalah 16 hex pertama SHA-256 public key author, `publisher.fingerprint` adalah 64 hex penuh; `entry.signature` berbentuk `ed25519-<keyId>`.
+5. **`contentHash`** — digest manifest dihitung ulang dengan placeholder `sha256-` + 64 nol, ZIP kanonik dibangun ulang, lalu dibandingkan; TOFU pin author diperiksa pada tahap ini.
+6. **Pencabutan** — kunci atau versi yang tercantum di `revokedKeys`/delisting ditolak meski signature valid.
+
+Snapshot database dan consent permission baru dijalankan setelah keenam tahap lulus.
+
+### 4.3 Supply chain
+
+Setiap rilis fase MUST mengirim SBOM CycloneDX dan checksum SHA-256 untuk setiap artefak; SLSA provenance baru wajib pada fase 5. Rilis tanpa SBOM MUST NOT diberi tag.
 
 ## 5. Error dan Recovery
 
@@ -88,6 +116,9 @@ State instalasi: `available → verifying → consent → downloading → migrat
 - **Given** perangkat offline dengan `.mapp` **When** pengguna memasang **Then** verifikasi dan instalasi berhasil tanpa jaringan.
 - **Given** versi baru rusak **When** pengguna rollback **Then** versi lama berjalan dan snapshot database tersedia.
 - **Given** app dengan `network.allowlist` kosong **When** detail ditampilkan **Then** badge 100% Offline Verified muncul sebelum instalasi.
+- **Given** berkas `.mapp` lokal tanpa signature author **When** dipasang **Then** instalasi ditolak; bila signature registry ada tetapi rusak, instalasi juga ditolak.
+- **Given** paket dari registry tanpa signature registry atau memakai kunci yang sama dengan author **When** diverifikasi **Then** paket ditolak sebelum consent.
+- **Given** rilis fase tanpa SBOM CycloneDX atau checksum SHA-256 **When** diberi tag **Then** rilis ditolak.
 
 ## 8. Verifikasi
 
@@ -98,6 +129,8 @@ State instalasi: `available → verifying → consent → downloading → migrat
 | Reproducible | Build dua kali dari commit sama; bandingkan `contentHash` |
 | Delta | Terapkan patch pada versi lama; bandingkan hash hasil |
 | Offline | Install dari `.mapp` dengan seluruh jaringan diblokir |
+| Matriks signature | Fixture `.mapp` lokal, registry, Git, dan enterprise; verifikasi urutan ukuran → hash → signature → keyId → contentHash → revocation |
+| SBOM | Periksa SBOM CycloneDX dan SHA-256 tiap artefak rilis |
 
 ## 9. Referensi
 

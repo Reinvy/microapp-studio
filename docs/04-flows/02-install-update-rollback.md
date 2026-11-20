@@ -38,6 +38,7 @@ Alur ini menjelaskan perpindahan artefak dari sumber tepercaya ke micro-app yang
 - `minHostVersion` sudah dibandingkan dengan versi Host sebelum unduhan dimulai.
 - Ruang penyimpanan cukup untuk paket, arsip versi sebelumnya, dan snapshot database.
 - Kunci registry dan kunci author tersedia untuk verifikasi; pin TOFU author sudah ada atau akan dibuat pada instalasi pertama.
+- Matriks kepercayaan instalasi: `.mapp` lokal wajib signature author valid dan signature registry opsional (bila ada wajib valid); registry wajib author + registry dengan kunci berbeda; Git tanpa signature hanya diizinkan dengan peringatan eksplisit dan trust `community`/`local`.
 - Batas ukuran total, jumlah entry, dan rasio dekompresi `.mapp` diketahui sebelum ekstraksi.
 
 ## Alur Utama
@@ -92,8 +93,20 @@ sequenceDiagram
 7. Migrasi MUST dijalankan sebagai forward migration bernomor dari `db/migrations/`; kegagalan MUST mengembalikan database dan versi app sebelumnya tanpa kehilangan data (FR-DATA-011).
 8. Update dengan mode `pin` MUST NOT mengubah versi, delta MUST NOT diterapkan, dan hanya notifikasi yang boleh muncul (FR-REG-019).
 9. Update dengan delta MUST memverifikasi hash artefak final terhadap hash versi target penuh; kegagalan MUST jatuh ke unduhan penuh atau pembatalan (FR-REG-017).
-10. Rollback MUST memverifikasi signature versi lama, membuat snapshot sebelum menerapkan, dan memulihkan skema sesuai snapshot (FR-REG-020).
+10. Rollback MUST memverifikasi signature versi lama, membuat snapshot sebelum menerapkan, dan memulihkan skema serta bundle dari `db_snapshot` dan versi paket sebelumnya (FR-REG-020).
 11. Setiap operasi fetch, verifikasi, install, update, rollback, dan penolakan MUST dicatat di audit lokal tanpa payload sensitif (FR-REG-025).
+
+### 5.1 Jalur Instalasi `.mapp` Lokal
+
+1. Pengguna memilih berkas melalui file picker; Host MUST NOT menerima path arbitrer dari micro-app.
+2. Host memverifikasi `contentHash`, signature author, dan signature registry bila ada sebelum consent; signature author yang tidak valid MUST menolak instalasi dengan `E-REG-001`.
+3. Dialog consent permission, ukuran, dan sumber `local` MUST dirender; penolakan pengguna menghentikan instalasi tanpa menulis apa pun.
+4. Setelah consent, Host mengekstrak paket ke OPFS, mencatat baris `installed_microapps` (dengan `install_source = 'local'`) dan `app_databases`, lalu menjalankan lifecycle `onInstall` sebelum mount.
+5. Instalasi lokal MUST berjalan penuh offline dan tidak memerlukan sumber registry aktif.
+
+### 5.2 Jalur Git
+
+Instalasi dari URL repository atau tag hanya boleh berjalan setelah commit diunduh. Tanpa signature, Host MUST menampilkan peringatan eksplisit yang menyebut ketiadaan signature dan menetapkan trust `community` atau `local`; instalasi tanpa peringatan ini MUST ditolak. Commit yang tidak dapat diverifikasi hash-nya MUST NOT dieksekusi.
 
 ## Cabang Gagal
 
@@ -111,23 +124,27 @@ sequenceDiagram
 | Registry tidak terjangkau | DNS atau timeout | E-NET-003 | Gunakan indeks cache; tampilkan status offline dan antrekan percobaan |
 | Rate limit atau kuota sumber terlampaui | HTTP 429 atau kuota terlampaui | E-NET-005 | Backoff, kecilkan permintaan, catat audit |
 | Isolate tidak dapat dibuat saat launch | Inisialisasi sandbox gagal | E-SBX-001 | Fail closed, tampilkan error boundary; app terpasang tetapi tidak dijalankan |
+| Permission wajib tidak diberikan saat install | Consent ditolak atau grant dicabut | E-SBX-005 | Instalasi selesai tanpa mount; app menampilkan status izin kurang dan meminta Pengaturan |
+| Git tanpa signature tanpa peringatan eksplisit | Manifest atau paket tidak membawa `signatures/author.ed25519` | E-REG-001 | Instalasi diblokir; pengguna harus mengaktifkan trust `community`/`local` dengan peringatan |
 | Startup micro-app melewati watchdog | Watchdog 5 detik | E-SBX-004 | Batalkan mount, tawarkan restart atau rollback |
 
 ## Data dan State
 
 | Entitas | Field kunci | Invariant |
 |---|---|---|
-| `registries` | `id`, `url`, `trust_level`, `priority`, `public_key` | Satu `public_key` aktif per sumber |
-| `registry_pins` | `app_id`, `author_key_id`, `fingerprint`, `approved_at_ms` | Pin unik per app dan author; berubah hanya lewat persetujuan |
-| `installed_microapps` | `id`, `app_id`, `version`, `content_hash`, `update_mode`, `source_id`, `pinned`, `installed_at_ms` | `content_hash` sama dengan indeks saat instalasi |
-| `app_databases` | `id`, `app_install_id`, `schema_version`, `snapshot_hash` | Snapshot terakhir dapat diverifikasi |
+| `registry_sources` | `id`, `workspace_id`, `url`, `kind`, `trust_level`, `priority`, `public_signing_key` | Satu `public_signing_key` aktif per sumber; sumber milik workspace |
+| `registry_pins` | `scope`, `key_fingerprint`, `app_id`, `registry_id`, `approved_at_ms` | Pin unik per scope/app/author; berubah hanya lewat persetujuan |
+| `installed_microapps` | `id`, `workspace_id`, `app_id`, `version`, `content_hash`, `author_key_fingerprint`, `install_source`, `bundle_path`, `state`, `update_mode`, `pinned_version`, `previous_version`, `previous_content_hash` | `content_hash` sama dengan digest ZIP kanonik saat instalasi; grant dibaca dari `permission_grants`, bukan kolom JSON |
+| `app_databases` | `id`, `workspace_id`, `app_install_id`, `relative_path`, `schema_version` | Satu database per app per workspace |
+| `db_snapshot` | `snapshot_id`, `workspace_id`, `app_install_id`, `relative_path`, `hash`, `created_at_ms`, `reason` | Snapshot rollback terverifikasi hash; tidak menimpa snapshot lama tanpa alasan baru |
 | `schema_migrations` | `version`, `name`, `checksum`, `applied_at_ms` | Ledger sesuai `PRAGMA user_version` |
-| `audit_log_chain` | `seq_id`, `action`, `target`, `metadata_json` | Setiap operasi registry tercatat |
+| `audit_log_chain` | `seq_id`, `action`, `target`, `metadata`, `prev_hash`, `entry_hash` | Setiap operasi registry tercatat dalam satu rantai append-only |
 
-State instalasi: `fetched → verified → consented → snapshotted → extracted → migrated → mounted`.
+State instalasi: `fetched → verified → consented → snapshotted → extracted → migrated → mounted`. Instalasi lokal melewati `fetched` dari registry tetapi tetap menjalankan `verified → consented → extracted → migrated → mounted`.
 
 - Mode update MUST salah satu dari `auto`, `notify`, atau `pin` dan MUST bertahan per app setelah restart.
 - Host MUST menyimpan arsip minimal satu versi sebelumnya per app selama batas penyimpanan belum terlampaui.
+- Rollback MUST memakai snapshot `db_snapshot` terbaru yang cocok dengan versi target dan `previous_content_hash` untuk memverifikasi bundle; bila snapshot tidak ada, rollback MUST membuat snapshot baru lebih dulu dan meminta konfirmasi.
 - Artefak yang gagal verifikasi MUST NOT masuk direktori eksekusi, meskipun sudah diunduh penuh.
 
 ## Izin dan Keamanan
@@ -158,6 +175,9 @@ State instalasi: `fetched → verified → consented → snapshotted → extract
 - **Given** patch delta korup **When** diterapkan **Then** unduhan penuh ditawarkan atau update dibatalkan tanpa merusak instalasi berjalan.
 - **Given** pengguna menolak consent **When** dialog ditutup **Then** tidak ada berkas paket yang dieksekusi dan tidak ada perubahan pada database.
 - **Given** rollback dipilih **When** dijalankan **Then** signature versi lama diverifikasi, snapshot dibuat, dan bundle serta skema kembali ke versi tersebut.
+- **Given** berkas `.mapp` lokal tanpa `signatures/registry.ed25519` dengan author signature valid **When** diinstal offline **Then** verifikasi lulus, consent muncul, dan baris `installed_microapps` + `app_databases` dibuat.
+- **Given** paket dari Git tanpa signature **When** pengguna belum menerima peringatan trust `community`/`local` **Then** instalasi ditolak `E-REG-001`.
+- **Given** permission wajib ditolak saat consent **When** instalasi selesai **Then** app terpasang tanpa mount dan menampilkan status izin kurang (`E-SBX-005`).
 
 ## Verifikasi
 
@@ -169,6 +189,8 @@ State instalasi: `fetched → verified → consented → snapshotted → extract
 | Delta | Terapkan patch valid dan patch korup; pastikan hash final sama dengan unduhan penuh atau update dibatalkan |
 | Pin dan rollback | Uji mode `auto`, `notify`, `pin`, lalu rollback satu klik dan verifikasi snapshot |
 | Offline | Instal dari `.mapp` lokal dengan jaringan dimatikan, termasuk verifikasi signature |
+| Matriks signature | Uji `.mapp` lokal tanpa signature registry, registry dengan kunci author/registry sama, dan Git tanpa signature tanpa peringatan (`E-REG-001`) |
+| Rollback snapshot | Hapus versi terpasang lalu rollback; pastikan `db_snapshot` dan `previous_content_hash` dipakai dan jumlah record pulih |
 | Sandbox | Pastikan app yang gagal mount menampilkan `E-SBX-001` dan tidak dieksekusi di luar sandbox |
 
 ## Referensi

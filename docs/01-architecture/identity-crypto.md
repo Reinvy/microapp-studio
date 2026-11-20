@@ -46,10 +46,35 @@ master key 32 byte
 | Device signing key | Ed25519 | Dibuat acak di perangkat | Sampai rotasi/revokasi | Secure storage perangkat |
 | Device agreement key | X25519 | Dibuat acak di perangkat | Sampai rotasi/revokasi | Secure storage perangkat |
 | Sync key | AES-256-GCM | HKDF `sync` | Sampai rotasi | Secure storage, dibuka saat sync aktif |
-| Vault key | AES-256-GCM | HKDF `vault` | Sampai rotasi | Secure storage, dibuka setelah biometrik/PIN |
+| Vault key | AES-256-GCM | HKDF `vault` | Sampai rotasi | Dibuka setelah biometrik/PIN; dibungkus KEK di `vault_key_wraps` |
+| Vault KEK | Argon2id + AES-256-GCM | PIN/passphrase pengguna, `m = 64 MiB`, `t = 3`, `p = 1`, salt 16 byte acak | Sampai PIN/passphrase berubah | Diturunkan saat unlock, hanya di memori Worker |
 | Backup key | AES-256-GCM | HKDF `backup` | Sampai rotasi | Diturunkan saat ekspor, tidak disimpan permanen |
 
+`Vault key` = `HKDF-SHA256(master, salt = hkdf_salt, info = "microapp/v1/vault")` berukuran 32 byte. Saat Vault pertama kali dibuat, vault key MUST dibungkus KEK yang diturunkan dari PIN/passphrase pengguna dengan Argon2id (`m = 64 MiB`, `t = 3`, `p = 1`, salt 16 byte acak) dan AES-256-GCM (`nonce` 12 byte), lalu disimpan di `vault_key_wraps(id, workspace_id, kdf, salt, memory_kib, iterations, parallelism, nonce, wrapped_key, created_at_ms, retired_at_ms)`. Tepat satu pembungkus aktif per workspace; pembungkus lama ditandai `retired_at_ms` saat PIN/passphrase berubah. Item Vault tidak dienkripsi ulang karena vault key tidak berubah. Status lock Vault hanya di memori dan auto-lock MUST 300.000 ms idle.
+
 `hkdf_salt` adalah 32 byte acak yang dibuat bersama identitas dan disimpan sebagai nilai non-rahasia di `local_identity`; salt mencegah pemakaian ulang material kunci yang sama pada konteks berbeda. Passphrase BIP39 bersifat opsional dan tidak pernah disimpan; bila kosong, salt adalah `"mnemonic"` sesuai BIP39.
+
+### 2.1 Kolom Kanonik `local_identity` dan Nama Acceptance
+
+Tabel `local_identity` MUST memakai kolom kanonik berikut. Tidak ada kolom hash mnemonic, `recovery_key_hash`, atau turunannya.
+
+| Kolom kanonik | Tipe | Keterangan | Nama pada acceptance criteria |
+|---|---|---|---|
+| `id` | TEXT | PK UUIDv7 | — |
+| `site_id` | BLOB(16) | UNIQUE; Site ID perangkat | `device_id` (ditampilkan base32) |
+| `identity_pubkey` | BLOB(32) | Ed25519 identity key | `public_key_ed25519` |
+| `key_agreement_pubkey` | BLOB(32) | X25519 identity agreement key | `enc_key_x25519` |
+| `hkdf_salt` | BLOB(32) | Salt HKDF-SHA256 untuk seluruh subkey | — |
+| `device_sign_pubkey` | BLOB(32) | Ed25519 perangkat | — |
+| `device_ecdh_pubkey` | BLOB(32) | X25519 perangkat | — |
+| `device_cert` | BLOB | Sertifikat CBOR yang ditandatangani identity key | — |
+| `device_cert_expires_ms` | INTEGER | Masa berlaku sertifikat | — |
+| `display_name` | TEXT | Nama tampilan opsional | — |
+| `recovery_hint` | TEXT | Pengingat non-rahasia; dilarang memuat kata wordlist BIP39 | — |
+| `created_at_ms` | INTEGER | Waktu pembuatan | — |
+| `rotated_at_ms` | INTEGER | Waktu rotasi identitas | — |
+
+Pemetaan nama acceptance bersifat tetap: Site ID = `site_id`, `public_key_ed25519` = `identity_pubkey`, `enc_key_x25519` = `key_agreement_pubkey`, dan `device_id` adalah Site ID yang ditampilkan base32. `device_sign_pubkey`/`device_ecdh_pubkey` adalah kunci perangkat yang disertifikasi oleh identity key, bukan kunci identitas.
 
 Catatan keamanan: 2048 iterasi PBKDF2 adalah ketetapan BIP39 dan bukan penguat passphrase. Kekuatan berasal dari entropy 24 kata (256 bit). Passphrase tambahan hanya berguna bila dipilih dengan entropy tinggi; UI wajib menyatakan ini dan tidak menyebut passphrase sebagai "lapisan enkripsi tambahan yang kuat".
 
@@ -160,21 +185,25 @@ Identity key tidak dapat dirotasi tanpa mnemonic baru karena berasal dari seed. 
 - Pemulihan utama: 24 kata + passphrase (bila dipakai) di perangkat baru, lalu derivasi ulang seluruh subkey.
 - Alternatif: passkey dengan ekstensi WebAuthn PRF; output PRF menjadi input HKDF untuk kunci pembungkus backup. Passkey tidak menggantikan mnemonic dan tidak disimpan server.
 - Tidak ada escrow: server, registry, dan host lain tidak pernah menerima mnemonic atau kunci privat, sehingga tidak dapat memulihkan akun atas permintaan.
-- Frasa salah, urutan salah, atau checksum salah menghasilkan kegagalan yang sama tanpa membocorkan bagian mana yang salah.
-- Percobaan pemulihan dibatasi (maksimal 10 per menit per perangkat) dan tidak menulis petunjuk apa pun ke disk.
+- Verifikasi frasa MUST dilakukan dengan menurunkan ulang `identity_pubkey` dari frasa yang dimasukkan lalu membandingkannya dengan `local_identity.identity_pubkey`; Host MUST NOT menyimpan hash mnemonic, `recovery_key_hash`, atau verifier offline lain di disk.
+- Frasa salah, urutan salah, atau checksum salah menghasilkan kegagalan generik `E-AUTH-006` yang sama tanpa membocorkan kata mana yang salah.
+- Percobaan pemulihan dibatasi maksimal 10 per menit per perangkat; kegagalan tidak menulis petunjuk apa pun ke disk.
+- `recovery_hint` hanya teks pengingat buatan pengguna dan MUST NOT memuat kata dari wordlist BIP39; validasi menolak lebih dari tiga kata wordlist.
 - Bila ciphertext lama tidak dapat didekripsi setelah pemulihan yang benar, data ditandai `unreadable` dan diekspor sebagai byte mentah untuk diagnosis; tidak ada penghapusan otomatis.
 
 ## 10. Verifikasi Signature
 
 | Artefak | Yang ditandatangani | Kunci | Urutan Verifikasi |
 |---|---|---|---|
-| Paket `.mapp` | Digest SHA-256 ZIP kanonik; dua signature detached di `signatures/author.ed25519` dan `signatures/registry.ed25519` | Author key dan registry key (wajib berbeda) | Batas ukuran → hash ZIP → verifikasi kedua signature → cek `publisher.keyId` dan `publisher.fingerprint` → cek `contentHash` → cek revocation |
+| Paket `.mapp` | 32 byte digest mentah SHA-256 ZIP kanonik (bukan string hex); dua signature detached di `signatures/author.ed25519` dan `signatures/registry.ed25519`, masing-masing 64 byte | Author key dan registry key (wajib berbeda) | Batas ukuran → hash ZIP → verifikasi signature atas digest mentah → cek `publisher.keyId` (16 hex pertama SHA-256 public key) dan `publisher.fingerprint` (64 hex penuh) → cek `contentHash` → cek revocation |
 | Index registry | JSON kanonik index tanpa field signature (signature detached) | Registry key (Ed25519) | Verifikasi signature index → cek `schemaVersion` → cek `revokedKeys` → baca entri |
 | Entri registry per app | `id`, `version`, `sha256`, `minHostVersion`, `signature.value` | Author key | Verifikasi sebelum unduh artefak |
 | Sertifikat perangkat | CBOR sertifikat | Identity key | Verifikasi sebelum handshake sync |
 | Rekaman revokasi | CBOR revokasi | Identity key | Verifikasi sebelum memperbarui trust state |
 
-Kunci author dan kunci registry **tidak boleh** dianggap setara: registry yang sah tidak dapat menandatangani ulang kode author, signature kedua-duanya wajib ada, dan signature author tetap diverifikasi meskipun registry bertanda tangan sah. Verifikasi dilakukan di Rust sebelum konten tidak tepercaya diekstrak atau diparse lebih jauh; kegagalan signature menghentikan instalasi dan tidak menyisakan state parsial. Kontrak field, layout `signatures/`, dan contoh ada di [../03-specs/manifest-v2.md](../03-specs/manifest-v2.md).
+Kunci author dan kunci registry **tidak boleh** dianggap setara: registry yang sah tidak dapat menandatangani ulang kode author, signature kedua-duanya wajib ada, dan signature author tetap diverifikasi meskipun registry bertanda tangan sah. Verifikasi dilakukan di Rust sebelum konten tidak tepercaya diekstrak atau diparse lebih jauh; kegagalan signature menghentikan instalasi dan tidak menyisakan state parsial.
+
+`contentHash` dihitung atas ZIP kanonik tanpa `signatures/`, dengan field `manifest.json.contentHash` diganti sementara placeholder `sha256-` + 64 nol; setelah hash dihitung, manifest final ditulis dengan nilai asli. Verifier mengganti field dengan placeholder yang sama, men-serialisasi ulang JCS, membangun ulang ZIP kanonik, lalu membandingkan hash. Signature menandatangani 32 byte digest mentah hasil SHA-256, bukan representasi hex. `publisher.keyId` adalah 16 hex pertama `SHA-256(public key author)`, `publisher.fingerprint` adalah 64 hex penuh hash yang sama, dan `entry.signature` berbentuk `ed25519-<keyId>`. Kontrak field, layout `signatures/`, dan contoh ada di [../03-specs/manifest-v2.md](../03-specs/manifest-v2.md); keputusan lengkap ada di [adr/0013-manifest-digest-signature.md](adr/0013-manifest-digest-signature.md).
 
 ## 11. Penanganan Ketidakcocokan Kunci
 

@@ -20,15 +20,16 @@
         },
         "events": {
           "type": "object",
+          "propertyNames": { "pattern": "^on[A-Z][A-Za-z0-9]*$" },
           "additionalProperties": { "$ref": "#/$defs/action" }
         },
-        "style": { "$ref": "#/$defs/style" }
+        "style": { "$ref": "#/$defs/style" },
+        "a11y": { "$ref": "#/$defs/a11y" }
       }
     },
     "action": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["action"],
       "properties": {
         "action": {
           "enum": [
@@ -43,7 +44,24 @@
             "close"
           ]
         },
+        "intent": { "type": "string", "pattern": "^intent\\.[a-z][a-z0-9-]*$" },
         "params": { "type": "object", "additionalProperties": true }
+      },
+      "anyOf": [
+        { "required": ["action"] },
+        { "required": ["intent"] }
+      ]
+    },
+    "a11y": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "maxLength": 4096 },
+        "description": { "type": "string", "maxLength": 4096 },
+        "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "live": { "enum": ["off", "polite", "assertive"] },
+        "disabled": { "type": "boolean" },
+        "required": { "type": "boolean" }
       }
     },
     "style": {

@@ -28,7 +28,7 @@ Di luar lingkup: transport fisik (lihat [host-bridge-intents.md](../01-architect
 |---|---|---|---|
 | B-01 | MUST | Request berbentuk `{v, id, ns, method, params, timeoutMs}`; `v` adalah versi bridge (`1`), `id` unik per sesi, `ns` dan `method` terdaftar. | Request tanpa `id` atau dengan `ns` tak dikenal ditolak. |
 | B-02 | MUST | Respons sukses berbentuk `{id, ok: true, result}`; error berbentuk `{id, ok: false, error: {code, message, details, retryable}}` dengan `code` dari katalog error. | Respons selalu memuat `id` yang sama; error memuat `retryable`. |
-| B-03 | MUST | Setiap method MUST memeriksa permission yang dipetakan sebelum validasi parameter; penolakan permission tidak boleh membocorkan detail resource. | Tanpa grant, respons `E-SBX-005` dan audit denial. |
+| B-03 | MUST | Urutan validasi broker MUST mengikat: versi → ukuran frame → permission → parameter → rate limit → eksekusi. Permission MUST diperiksa sebelum validasi parameter dan penolakan tidak boleh membocorkan detail resource. Urutan ini menang atas urutan arsitektur lama (`SEC-014` dan B-03 adalah kontrak). | Tanpa grant, respons `E-SBX-005` dan audit denial; parameter invalid pada method tanpa grant tetap menghasilkan `E-SBX-005`, bukan error parameter. |
 | B-04 | MUST | Parameter divalidasi terhadap skema per method; field tak dikenal ditolak. | `camera.capture` dengan `facing: "sideways"` ditolak. |
 | B-05 | MUST | Timeout default 10 detik; transfer berkas 60 detik; AI inference 120 detik. Timeout menghasilkan error `retryable: true` bila operasi idempoten. | Operasi lambat dihentikan dan mengembalikan timeout. |
 | B-06 | MUST | Pembatalan MUST didukung melalui `bridge.cancel(id)`; Host MUST menghentikan operasi dan membebaskan resource, dan MUST NOT mengirim hasil setelah pembatalan. | Cancel saat kamera aktif menutup kamera; tidak ada respons terlambat. |
@@ -78,7 +78,8 @@ Di luar lingkup: transport fisik (lihat [host-bridge-intents.md](../01-architect
 
 | Namespace | Method | Permission | Timeout | Result |
 |---|---|---|---|---|
-| `ui` | `render`, `patch`, `focus`, `toast` | — | 10 s | `{applied, nodeCount}` |
+| `bridge` | `cancel` | — (level envelope) | 10 s | `{cancelled}` |
+| `vault` | `read` | grant per item Vault | 10 s | `{itemId, plaintextBlobId}` |
 | `db` | `query`, `exec`, `transaction`, `migrate` | `storage.local.sqlite` | 10 s | `{rows, changes}` |
 | `storage` | `get`, `set`, `remove`, `keys` | `storage.local` | 10 s | `{value}` |
 | `fs` | `pick`, `read`, `write`, `stat` | `filesystem.picker` | 60 s | `{handle, size, sha256}` |
@@ -91,16 +92,33 @@ Di luar lingkup: transport fisik (lihat [host-bridge-intents.md](../01-architect
 | `sync` | `status`, `request`, `cancel` | — | 10 s | `{state, cursor}` |
 | `log` | `write`, `flush` | — | 10 s | `{accepted}` |
 
+Catatan permukaan bridge:
+
+- `ui.render`, `ui.patch`, `ui.focus`, dan `ui.toast` BUKAN method Host Bridge. Keempatnya adalah API internal renderer MUIP di dalam iframe sandbox; Host tidak menerima node MUIP dan tidak menyisipkan node ke dokumen induk.
+- `bridge.cancel` beroperasi pada level envelope: memakai `id` request yang sedang berjalan, tidak membutuhkan permission, dan tidak boleh mengubah hasil request lain.
+- `vault.read` MUST memerlukan grant per item (`vault_grants`) untuk `app_install_id` pemanggil; tidak ada grant level Vault atau level app. Item tanpa grant ditolak `E-SBX-005` sebelum parameter diperiksa.
+- `ai.*` dan `workflow.run` (aksi MUIP) MUST gagal tertutup dengan `E-SBX-005` sampai fase 3 diaktifkan; renderer menampilkan placeholder aksi, bukan no-op, dan micro-app tidak menerima hasil palsu.
+- Rate limit tetap 100 panggilan/detik per app; chunk biner maksimum 256 KiB dengan SHA-256 per berkas dan total.
+
 ### 4.3 Matriks Error Umum
 
 | Kondisi | Kode | Retryable |
 |---|---|---|
 | Permission tidak diberikan | `E-SBX-005` | Tidak |
 | Parameter invalid | `E-SBX-005` | Tidak |
-| Timeout operasi idempoten | `E-NET-003` | Ya |
+| Waktu operasi habis | `E-NET-003` | Ya |
 | Rate limit | `E-SBX-005` | Ya |
 | Resource tidak tersedia | `E-SBX-001` | Ya |
 | Versi bridge tidak didukung | `E-SBX-001` | Tidak |
+| Operasi dibatalkan `bridge.cancel` atau app ke background | `E-SBX-006` | Tidak |
+| Transfer biner tidak lengkap atau SHA-256 tidak cocok | `E-SBX-007` | Ya |
+| `id` request dipakai ulang dalam satu sesi | `E-SBX-008` | Tidak |
+| Intent tidak dideklarasikan target atau payload > 64 KiB | `E-SBX-009` | Tidak |
+| `workspace_id` pada request melintasi isolasi workspace | `E-HOST-007` | Tidak |
+| Rantai audit tidak valid saat penulisan event bridge | `E-HOST-006` | Tidak |
+
+Pemetaan ini mengikat. `E-SBX-006` dikirim untuk request yang berjalan ketika `bridge.cancel` diterima atau sandbox masuk background; tidak ada respons sukses setelah pembatalan. `E-SBX-007` dikirim setelah Host membuang seluruh chunk yang diterima. `E-SBX-008` dicatat di audit tanpa menjalankan method. `E-SBX-009` dikirim sebelum target menerima payload apa pun. `E-HOST-007` dan `E-HOST-006` adalah kegagalan kritis: operasi ditolak dan aksi sensitif dihentikan.
+
 
 ## 5. Error dan Recovery
 
@@ -108,12 +126,18 @@ Di luar lingkup: transport fisik (lihat [host-bridge-intents.md](../01-architect
 |---|---|---|
 | E-SBX-005 | Permission/parameter/rate limit ditolak | Kembalikan error terstruktur; micro-app menampilkan pesan; audit |
 | E-SBX-001 | Runtime/bridge tidak tersedia | Fail closed; micro-app tidak dijalankan |
+| E-SBX-006 | Operasi dibatalkan | Hentikan operasi dan lepaskan resource; jangan kirim hasil |
+| E-SBX-007 | Transfer tidak lengkap/hash gagal | Buang chunk; minta ulang seluruh berkas |
+| E-SBX-008 | Request duplikat | Tolak request; audit; app memakai `id` baru |
+| E-SBX-009 | Intent invalid | Tolak transfer sebelum payload dikirim; audit |
+| E-HOST-006 | Audit chain invalid | Hentikan aksi sensitif; tawarkan ekspor audit |
+| E-HOST-007 | Isolasi workspace dilanggar | Tolak dan audit; tampilkan error generik |
 | E-NET-003 | Timeout jaringan | Retry dengan backoff bila idempoten |
 | E-DATA-001 | Database tidak dapat dibuka | Tampilkan error; tawarkan restore snapshot |
 
 ## 6. Keamanan dan Privasi
 
-- Broker memeriksa permission, parameter, rate limit, dan konteks app sebelum eksekusi.
+- Broker memeriksa dalam urutan mengikat: versi → ukuran frame → permission → parameter → rate limit → konteks app, baru eksekusi. Permission selalu diperiksa sebelum parameter.
 - Tidak ada objek Host yang menyeberang ke sandbox; hanya data terstruktur (JSON, blob terverifikasi).
 - Path filesystem dinormalisasi dan dibatasi pada root yang diberikan picker.
 - Network allowlist dan Offline Cage diperiksa sebelum koneksi; DNS rebinding dicegah dengan resolve-then-connect ke IP yang tervalidasi.
@@ -126,6 +150,9 @@ Di luar lingkup: transport fisik (lihat [host-bridge-intents.md](../01-architect
 - **Given** `bridge.cancel` **When** operasi berjalan **Then** operasi berhenti dan tidak ada hasil terlambat.
 - **Given** 150 panggilan dalam 1 detik **When** melewati 100 **Then** sisanya ditolak dengan `retryable: true`.
 - **Given** `fs.read` ke path absolut **When** dipanggil **Then** ditolak dan diaudit.
+- **Given** method tanpa grant **When** parameter juga invalid **Then** respons `E-SBX-005` (permission lebih dulu), bukan error parameter.
+- **Given** app memanggil `ai.infer` pada fase 1 **When** diproses **Then** respons `E-SBX-005` dan renderer menampilkan placeholder aksi.
+- **Given** `vault.read` pada item tanpa grant **When** dipanggil **Then** ditolak tanpa mengungkap keberadaan item.
 
 ## 8. Verifikasi
 

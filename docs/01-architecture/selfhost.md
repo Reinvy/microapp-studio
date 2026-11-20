@@ -151,15 +151,16 @@ Identitas pengguna akhir pada perangkat tetap Local Identity; akun server hanya 
 | Role bawaan | Kemampuan |
 |---|---|
 | `owner` | Semua konfigurasi, termasuk kunci signing dan penghapusan tenant |
-| `admin` | Kelola pengguna, registry internal, kebijakan, audit |
-| `operator` | Operasi harian, backup, melihat health; tanpa perubahan keamanan |
-| `auditor` | Baca audit dan konfigurasi; tanpa perubahan data |
+| `admin` | Kelola pengguna, registry internal, kebijakan, audit, operasi harian, dan backup |
+| `maintainer` | Kelola konten dan workflow organisasi, publish ke registry internal; tanpa perubahan keamanan |
 | `member` | Sync, workflow, dan registry internal sesuai kebijakan |
-| `guest` | Akses terbatas yang ditetapkan kebijakan |
+| `viewer` | Baca data dan status yang diizinkan; tanpa perubahan |
+
+Role kanonik **MUST** tepat lima nilai di atas; role di luar daftar itu **MUST NOT** dipakai. Kewajiban operasional (backup, health) melekat pada `admin`/`maintainer`, dan pembacaan audit melekat pada `owner`/`admin`/`viewer` sesuai policy ABAC.
 
 Aturan:
 
-- RBAC menentukan aksi; ABAC menentukan cakupan resource (tenant, workspace, tag, sensitivitas).
+- RBAC menentukan aksi; ABAC menentukan cakupan resource (tenant, workspace, tag, sensitivitas) melalui atribut JSON.
 - Setiap endpoint **MUST** memeriksa role dan atribut resource sebelum eksekusi.
 - Prinsip least privilege **MUST** berlaku; role default anggota **MUST NOT** memiliki akses admin.
 - Perubahan role **MUST** dicatat di audit dan **MUST** mencabut sesi yang tidak lagi memenuhi syarat bila perlu.
@@ -168,7 +169,8 @@ Aturan:
 ## 9. Audit Hash Chain
 
 - Setiap aksi sensitif **MUST** menghasilkan event audit: login, perubahan role, perubahan konfigurasi, akses registry, publish, workflow manual, pencabutan device, dan perubahan kunci.
-- Event **MUST** dirantai dengan hash: `entry_hash = H(prev_hash || canonical_event)`.
+- Event **MUST** dirantai dengan algoritma identik host: `entry_hash = SHA-256(prev_hash || u64_be(seq_id) || JCS(payload))` dengan `payload = {actor, action, target, metadata, created_at_ms}` dan `prev_hash` 32 byte nol untuk genesis. `seq_id` dialokasikan dalam transaksi yang setara `BEGIN IMMEDIATE`.
+- Rantai server **MUST** dapat diverifikasi dengan tool yang sama seperti rantai host; celah, urutan salah, atau hash tidak cocok menghasilkan kegagalan verifikasi.
 - Penghapusan atau perubahan event lama **MUST** terdeteksi saat verifikasi rantai.
 - Audit **MUST** append-only dari sudut pandang API; tidak ada endpoint edit/hapus.
 - Ekspor SIEM **MAY** disediakan melalui syslog/OTLP; ekspor **MUST NOT** menyertakan rahasia atau payload pengguna.
@@ -249,7 +251,17 @@ Anggaran Lite adalah gate rilis: server **MUST** tetap sehat pada 1 vCPU/512 MB 
 
 Server **MUST NOT** memiliki tabel billing, meter penggunaan berbayar, paywall, atau pembatasan seat. Tidak ada fitur yang dikunci di balik lisensi berbayar. Biaya operasional sepenuhnya milik operator; proyek tidak mengumpulkan pembayaran.
 
-## 16. Referensi
+## 16. Plugin Host dan Workflow Runner
+
+- Plugin host berjalan di `wazero` dengan capability yang dideklarasikan di manifest plugin; instalasi plugin **MUST** memerlukan consent admin dan setiap pemakaian capability dicatat di audit.
+- Crash atau panic plugin **MUST** diisolasi per instance; server tetap melayani permintaan lain dan menonaktifkan plugin yang gagal berulang.
+- Workflow runner server mengimplementasikan node dan connector dalam Go, sedangkan function pengguna dijalankan sebagai WASM (`wazero`) tanpa akses jaringan atau filesystem kecuali capability eksplisit.
+- Kontrak input/output, status kanonik `queued|running|waiting_network|waiting_hitl|done|failed|dead`, retry 8 attempt, backoff `1s × 2^n` cap 1 jam dengan jitter 20%, dan idempotency UUIDv7 **MUST** identik dengan runner web.
+- Riwayat run server adalah deret `outbox.state` plus trace node pada log diagnostik; retensi trace minimal 180 hari.
+- Semua egress workflow, webhook, dan plugin **MUST** melewati SSRF guard yang menolak loopback, CIDR privat, link-local, dan metadata cloud, dengan pengecualian hanya melalui `security.allowPrivateEgress` yang diaudit.
+- Notifikasi push **MUST** memakai WebPush (VAPID) atau UnifiedPush; FCM/APNs **MUST NOT** menjadi jalur wajib, dan payload push tidak memuat isi E2EE.
+
+## 17. Referensi
 
 - [system-overview.md](system-overview.md), [sync-crdt.md](sync-crdt.md), [registry-supply-chain.md](registry-supply-chain.md)
 - [threat-model.md](threat-model.md), [ai-workflow.md](ai-workflow.md)

@@ -53,19 +53,22 @@ Setiap baris `crdt_change_log` mencatat satu perubahan tingkat kolom:
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | `mutation_id` | UUIDv7 | Unik global; dipakai idempotency |
-| `app_id` | TEXT | Namespace aplikasi |
+| `app_install_id` | TEXT | Namespace aplikasi |
 | `table_name` | TEXT | Tabel dalam DB app |
-| `row_id` | TEXT/UUIDv7 | Primary key baris |
+| `row_id` | TEXT/UUIDv7 | Primary key baris plaintext untuk operasi lokal |
 | `column_name` | TEXT | Kolom yang berubah |
-| `value_json` | BLOB/TEXT | Nilai baru (sudah dienkripsi di envelope saat dikirim) |
+| `pk_hash` | BLOB(32) | SHA-256 dari gabungan `table_name` dan `row_id` untuk log; tidak menggantikan `row_id` |
+| `value_json` | TEXT NULL | Nilai baru non-sensitif; NULL untuk tombstone |
+| `value_ciphertext` | BLOB NULL | Nilai kolom sensitif terenkripsi per kolom |
 | `hlc` | BLOB 24 byte | Urutan perubahan; 6 byte `physical_ms` + 2 byte `counter` + 16 byte `site_id`, big-endian |
 | `site_id` | BLOB 16 byte | Asal perubahan |
 | `schema_version` | INTEGER | Versi skema saat mutasi dibuat |
-| `synced_at` | INTEGER NULL | Null selama belum di-ack |
+| `synced_at_ms` | INTEGER NULL | Null selama belum di-ack |
 
 - Mutasi ditulis dalam transaksi yang sama dengan perubahan data; tidak ada mutasi tanpa perubahan.
-- Log dipangkas setelah semua peer dan server meng-ack sampai `high_water_mark`, dengan retensi minimum 30 hari.
-- Delete direpresentasikan sebagai tombstone dengan `deleted = 1`; tombstone dipertahankan minimal 90 hari agar peer lama tidak menghidupkan kembali baris.
+- Log dipangkas setelah semua peer dan server meng-ack sampai `high_water_mark`, dengan retensi minimum **90 hari** lokal dan **180 hari** pada salinan server.
+- Delete direpresentasikan sebagai tombstone dengan `value_json IS NULL` dan `value_ciphertext IS NULL`; tombstone dipertahankan minimal 90 hari agar peer lama tidak menghidupkan kembali baris.
+- Nilai sensitif **MUST NOT** pernah ditulis plaintext ke `value_json`; envelope `version | key_id | nonce | ciphertext | tag` disimpan di `value_ciphertext`.
 
 ## 3. Resolusi Konflik
 
@@ -227,12 +230,13 @@ flowchart TD
 |---|---|---|
 | Data micro-app | `cr-sqlite` | Replikasi tabel SQLite native, column-level, dapat diaudit lewat SQL |
 | Dokumen Studio/multiplayer | Yjs | Struktur dokumen kaya, presence, undo terdistribusi |
-| Antrean workflow | Outbox transaksional | Bukan CRDT; urutan dan idempotency eksplisit |
+| Antrean workflow | Outbox transaksional (`outbox`) | Bukan CRDT; urutan dan idempotency eksplisit |
 
 - `cr-sqlite` dijalankan di DB worker yang sama dengan SQLite; tidak ada replika kedua.
+- Bila `cr-sqlite` tidak dapat dimuat di `@sqlite.org/sqlite-wasm`, implementasi mutation log kolom-level di `packages/core-rust` (bagian 2.2 dan 3) menjadi mesin pengganti, dan ADR supersede terhadap [ADR-0004](adr/0004-crdt-strategy.md) dibuat sebelum rilis fase 3. Fase 3 **MUST NOT** ditunda karena ketergantungan ekstensi.
 - Yjs hanya untuk dokumen Studio; data micro-app MUST NOT disimpan sebagai dokumen Yjs.
 - Server tidak menjalankan CRDT untuk data pengguna; server hanya menyimpan ciphertext.
-- Konvergensi diuji dengan properti komutatif, asosiatif, dan idempoten pada urutan batch acak.
+- Konvergensi diuji dengan properti komutatif, asosiatif, dan idempoten pada urutan batch acak, baik dengan `cr-sqlite` maupun jalur mutation log kolom-level.
 
 ## 13. Kegagalan dan Pemulihan
 

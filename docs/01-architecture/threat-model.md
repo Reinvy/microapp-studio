@@ -30,6 +30,7 @@ Ancaman di luar cakupan: physical access tanpa kunci perangkat, side-channel har
 | Recovery Phrase 24 kata | Hanya ditampilkan saat setup, tidak disimpan | Kehilangan total akses data bila bocor | Kritis |
 | Data micro-app | SQLite lokal per `app_id` | Kebocoran data pribadi/organisasi | Tinggi |
 | Vault item dan kredensial BYOK | Tabel `vault_items`, envelope AES-256-GCM | Akses tidak sah ke layanan pihak ketiga | Kritis |
+| Vault key terbalut | Tabel `vault_key_wraps` (Argon2id + AES-256-GCM) | Dekripsi seluruh Vault tanpa PIN/passphrase | Kritis |
 | Manifest dan signature `.mapp` | Registry, cache lokal, file impor | Eksekusi kode jahat | Tinggi |
 | Mutation log dan cursor sync | SQLite lokal, transport E2EE | Kebocoran metadata aktivitas | Sedang |
 | Audit log chain | Server dan perangkat | Hilangnya bukti forensik | Tinggi |
@@ -91,6 +92,9 @@ Aturan boundary:
 - Data yang melintasi jaringan **MUST** berupa ciphertext atau artefak bersignature; tidak ada plaintext data pengguna.
 - Verifikasi signature **MUST** terjadi di `core-rust` sebelum parsing lebih lanjut.
 - Server dan registry **MUST NOT** dianggap sebagai otoritas kebenaran data pengguna.
+- Setiap query data pengguna **MUST** menyertakan `workspace_id`; pelanggaran isolasi menghasilkan `E-HOST-007` dan diaudit.
+- `audit_log_chain` adalah satu-satunya tabel audit append-only; `sandbox_audit` adalah VIEW atas tabel tersebut, dan rantai tidak valid menghasilkan `E-HOST-006` yang memblokir aksi sensitif.
+- Micro-app dengan `runtime.secureDisplay = true` **MUST NOT** muncul sebagai screenshot atau preview di app switcher maupun Media Capture.
 
 ## 5. STRIDE per Komponen
 
@@ -101,7 +105,9 @@ Aturan boundary:
 | Spoofing | UI palsu menyerupai dialog permission | Dialog dirender Host, bukan micro-app; origin dan label app selalu terlihat |
 | Tampering | Manipulasi state UI via devtools | State otoritatif di DB/broker; UI hanya proyeksi |
 | Repudiation | Aksi destruktif tanpa jejak | Audit lokal dan toast undo 10 detik |
-| Information disclosure | Data app A terlihat di app B | Isolasi workspace dan renderer per app |
+| Information disclosure | Data app A terlihat di app B | Isolasi `workspace_id`, renderer per app, dan penolakan query lintas workspace `E-HOST-007` |
+| Information disclosure | Screenshot app switcher membocorkan app sensitif | `runtime.secureDisplay` memaksa placeholder dan melarang screenshot/Media Capture |
+| Repudiation | Aksi sensitif tanpa jejak yang dapat diverifikasi | `audit_log_chain` hash-chained; tamper menghasilkan `E-HOST-006` |
 | Denial of service | Render loop atau payload besar | Batas MUIP 10.000 node/1 MiB, watchdog |
 | Elevation of privilege | Shortcut menembus broker | Tidak ada API host langsung dari renderer |
 
@@ -133,10 +139,11 @@ Aturan boundary:
 |---|---|---|
 | Spoofing | Akses DB memakai identitas app lain | Nama database diturunkan dari `app_id` |
 | Tampering | Modifikasi file DB langsung | SQLCipher native; web field-level encryption + integritas GCM |
-| Repudiation | Perubahan tanpa audit | Audit event untuk operasi sensitif |
-| Information disclosure | Backup atau file DB dicuri | Enkripsi, passphrase, auto-lock vault 5 menit |
+| Tampering | Penggantian atau downgrade `vault_key_wraps` | Pembungkus diikat ke `workspace_id` dan `kdf`; envelope AAD memuat `key_id`; mismatch gagal dekripsi |
+| Repudiation | Perubahan tanpa audit | Audit event untuk operasi sensitif; `audit_log_chain` append-only |
+| Information disclosure | Backup atau file DB dicuri | Enkripsi, passphrase, auto-lock vault 300.000 ms |
 | Denial of service | DB korup | WAL, snapshot sebelum migrasi, export |
-| Elevation of privilege | Query lintas database | Koneksi terpisah per app, tanpa `ATTACH` dari sandbox |
+| Elevation of privilege | Query lintas database | Koneksi terpisah per app, tanpa `ATTACH` dari sandbox, `E-HOST-007` |
 
 ### 5.5 Sync dan Jaringan
 
@@ -177,7 +184,7 @@ Aturan boundary:
 |---|---|---|
 | Spoofing | Provider AI palsu di endpoint lokal | Konfigurasi eksplisit pengguna, TLS, verifikasi endpoint |
 | Tampering | Prompt injection mengubah rencana | Validasi skema, preview sandbox, consent |
-| Repudiation | Eksekusi workflow tanpa jejak | `workflow_runs` dan audit |
+| Repudiation | Eksekusi workflow tanpa jejak | `outbox.state` dan `diagnostic_log` append-only plus audit |
 | Information disclosure | Kunci BYOK bocor ke log | Kunci hanya di vault, redaksi log |
 | Denial of service | Retry tak terbatas | Maksimal 8 attempt, cap 1 jam |
 | Elevation of privilege | Workflow menjalankan kode di luar sandbox | Runner hanya memanggil connector/bridge; tidak ada eval |
@@ -200,7 +207,7 @@ Setiap baris wajib diverifikasi oleh suite di [security test plan](../08-quality
 | R-10 | Key exfiltration dari penyimpanan | Pemalsuan identitas dan dekripsi data | Non-extractable WebCrypto, Keychain/Keystore, zeroize, tanpa log kunci, signing di Rust core | Malware dengan kontrol OS-level | [security test plan](../08-quality/security-test-plan.md) — key handling |
 | R-11 | Brute force backup terenkripsi | Dekripsi snapshot | KDF memory-hard, passphrase kuat, rate limit percobaan, tanpa verifier offline yang bocor | Passphrase lemah yang dipilih pengguna | [security test plan](../08-quality/security-test-plan.md) — backup crypto |
 | R-12 | Admin takeover pada self-host | Kontrol penuh server | Passkey/MFA, session 15 menit, rotasi refresh, revoke per device, audit, least privilege | Phishing kredensial SSO | [security test plan](../08-quality/security-test-plan.md) — authz matrix |
-| R-13 | Audit tampering | Hilangnya bukti dan penyangkalan aksi | Hash chain append-only, ekspor SIEM, verifikasi rantai | Penyerang dengan kontrol penuh host | [security test plan](../08-quality/security-test-plan.md) — audit integrity |
+| R-13 | Audit tampering | Hilangnya bukti dan penyangkalan aksi | Hash chain append-only `audit_log_chain`, verifikasi `seq_id`/hash, `E-HOST-006` memblokir aksi sensitif, ekspor SIEM | Penyerang dengan kontrol penuh host | [security test plan](../08-quality/security-test-plan.md) — audit integrity |
 | R-14 | Plugin/driver supply chain | Eksekusi kode di server atau host | Plugin ditandatangani, permission eksplisit, isolasi proses, review registry policy | Plugin sah dengan bug | [security test plan](../08-quality/security-test-plan.md) — dependency scan |
 | R-15 | DoS via payload, loop, atau request flood | App/servis tidak tersedia | Batas MUIP, watchdog 5 detik, kuota memori, rate limit, timeout bridge, graceful degradation | Serangan volumetrik di luar kendali aplikasi | [security test plan](../08-quality/security-test-plan.md) — resource exhaustion |
 | R-16 | Prompt injection dari konten micro-app ke AI | AI menghasilkan kode berbahaya | Prompt diperlakukan sebagai data, validasi output, security linter, preview sandbox, consent | Model tetap bisa menghasilkan output tidak aman | [security test plan](../08-quality/security-test-plan.md) — AI pipeline |
@@ -208,6 +215,9 @@ Setiap baris wajib diverifikasi oleh suite di [security test plan](../08-quality
 | R-18 | Rollback/stale cache menyajikan versi rentan | Regresi ke versi dengan CVE | Pin versi, penolakan downgrade tanpa consent, cache tetap diverifikasi signature | Pengguna memilih pin versi rentan secara sadar | [security test plan](../08-quality/security-test-plan.md) — update integrity |
 | R-19 | Kebocoran metadata sync | Inferensi aktivitas pengguna | Minimisasi field, padding opsional, server ciphertext-only | Pola waktu koneksi | [security test plan](../08-quality/security-test-plan.md) — metadata leak |
 | R-20 | Data lokal dibaca malware setelah perangkat terbuka | Kebocoran data | SQLCipher native, enkripsi field-level web, auto-lock vault, kunci non-extractable | Malware dengan hak root | [security test plan](../08-quality/security-test-plan.md) — at-rest encryption |
+| R-21 | Vault key terbalut diganti atau di-downgrade | Dekripsi seluruh Vault atau pemulihan gagal permanen | `vault_key_wraps` diikat ke `workspace_id` dan `kdf`, salt/nonce unik, envelope AAD memuat `key_id`, pembungkus lama ditandai `retired_at_ms` | Penyerang dengan kontrol penuh DB lokal dapat menghapus pembungkus (data menjadi tidak terbaca) | [security test plan](../08-quality/security-test-plan.md) — vault wrapping |
+| R-22 | Query atau grant melintasi `workspace_id` | Kebocoran data antar workspace | Repository wajib menyertakan `workspace_id`, test isolasi, penolakan `E-HOST-007` dan audit | Bug repository baru yang belum tercakup test | [security test plan](../08-quality/security-test-plan.md) — workspace isolation |
+| R-23 | Screenshot app switcher atau Media Capture membocorkan app sensitif | Kebocoran data di layar | `runtime.secureDisplay` memaksa placeholder berlabel, melarang screenshot, dan tidak menyimpan preview | Tangkapan layar oleh OS di luar kendali aplikasi | [security test plan](../08-quality/security-test-plan.md) — secure display |
 
 ## 7. Mitigasi Lintas Potong
 

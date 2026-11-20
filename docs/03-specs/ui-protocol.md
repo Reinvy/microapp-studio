@@ -27,11 +27,11 @@ Di luar lingkup: styling detail komponen (lihat [component-catalog.md](../02-des
 
 | Aturan | Level | Ketentuan | Verifikasi |
 |---|---|---|---|
-| U-01 | MUST | Node berbentuk `{type, id, props, children, events, style}`. `type` dan `id` wajib; `children` array node; `style` hanya token MADS. | Node tanpa `id` ditolak; `style` dengan warna arbitrer ditolak. |
-| U-02 | MUST | `type` MUST berasal dari daftar 120 komponen MADS; tipe tak dikenal ditolak tanpa fallback diam. | `type: "iframe"` ditolak; `type: "DataTable"` valid. |
+| U-01 | MUST | Node berbentuk `{type, id, props, children, events, style, a11y}`. `type` dan `id` wajib; `children` array node; `style` hanya token MADS; `a11y` objek top-level. | Node tanpa `id` ditolak; `style` dengan warna arbitrer ditolak; `a11y` di dalam `props` ditolak. |
+| U-02 | MUST | `type` MUST berasal dari `componentCatalog` versi aktif; katalog membawa `introducedIn` dan Host membawa `supportedComponents`. Tipe di luar katalog ditolak tanpa fallback diam; tipe yang dikenal katalog tetapi belum ada di `supportedComponents` dirender placeholder berlabel. | `type: "iframe"` ditolak; `type: "DataTable"` valid; komponen `introducedIn` lebih baru dari Host tampil sebagai placeholder. |
 | U-03 | MUST | `id` unik dalam satu dokumen dan stabil antar patch; duplikat menyebabkan dokumen ditolak. | Dua node dengan id sama ditolak. |
-| U-04 | MUST | `props` divalidasi terhadap skema per tipe; properti tak dikenal ditolak kecuali dideklarasikan `additionalProps: true` pada komponen tersebut. | Prop `onClick` mentah ditolak; prop `label` valid. |
-| U-05 | MUST | `events` memetakan nama event ke `intent` atau `action` terdaftar; handler berupa kode JavaScript mentah ditolak. | `events: {onPress: "alert(1)"}` ditolak; `events: {onPress: {action: "submit"}}` valid. |
+| U-04 | MUST | `props` divalidasi terhadap skema per tipe dari `componentCatalog`; `additionalProps` default `false` sehingga properti tak dikenal ditolak kecuali komponen tersebut mendeklarasikan `additionalProps: true`. | Prop `onClick` mentah ditolak; prop `label` valid; prop tambahan pada komponen tanpa `additionalProps` ditolak. |
+| U-05 | MUST | `events` memetakan nama event ke objek tepat `{action, intent, params}`; `action` dan `intent` berasal dari enum katalog, `params` objek JSON. Handler berupa kode JavaScript mentah ditolak. `ai.prompt` dan `workflow.run` ditolak Host dengan `E-SBX-005` sampai fase 3 dan renderer menampilkan placeholder aksi. | `events: {onPress: "alert(1)"}` ditolak; `events: {onPress: {action: "submit"}}` valid; `{action: "ai.prompt"}` pada fase 1 menghasilkan `E-SBX-005`. |
 | U-06 | MUST | `style` hanya memuat token: spacing, radius, warna token, tipografi, dan alignment; nilai CSS arbitrer dan `url()` ditolak. | `style: {color: "#ff0000"}` ditolak; `style: {color: "fg"}` valid. |
 | U-07 | MUST | Kedalaman pohon maksimum 64, jumlah node maksimum 10.000, ukuran payload maksimum 1 MiB, dan panjang string maksimum 64 KiB. | Melebihi batas menghasilkan error validasi, bukan crash renderer. |
 | U-08 | MUST | Patch dikirim sebagai batch operasi `insert`, `update`, `remove`, `move` dengan `id` target; patch MUST diterapkan atomik. | Patch dengan satu operasi invalid ditolak seluruhnya. |
@@ -39,7 +39,7 @@ Di luar lingkup: styling detail komponen (lihat [component-catalog.md](../02-des
 | U-10 | MUST | Event dari renderer ke micro-app MUST memuat `type`, `id`, `event`, `payload`, dan `timestamp`, dengan payload tervalidasi per event. | Payload tak dikenal ditolak dan dicatat. |
 | U-11 | MUST | Negosiasi versi MUST terjadi saat mount: micro-app mengirim `muipVersion`, Host merespons versi yang didukung; ketidakcocokan menghasilkan error yang jelas. | Micro-app v2 pada Host v1 menerima error dan tidak dirender. |
 | U-12 | MUST | Renderer MUST menyediakan fallback untuk komponen yang tidak didukung versi Host: node diganti placeholder dengan label dan aksi, bukan dihilangkan diam-diam. | Host lama merender placeholder untuk komponen baru. |
-| U-13 | MUST | Properti aksesibilitas (`label`, `description`, `role`, `live`, `disabled`, `required`) MUST didukung pada setiap node dan dipetakan ke ARIA (web) serta `Semantics` (Flutter). | axe tidak menemukan kontrol tanpa nama; screen reader membaca label. |
+| U-13 | MUST | Objek `a11y` top-level MUST berbentuk `{label, description, role, live, disabled, required}` dan dipetakan ke ARIA (web) serta `Semantics` (Flutter). Field lain di `a11y` ditolak. | axe tidak menemukan kontrol tanpa nama; screen reader membaca label; `a11y: {foo: 1}` ditolak. |
 | U-14 | MUST | MUIP MUST NOT memuat HTML mentah, `innerHTML`, `<script>`, `javascript:` URL, atau event handler string. | Validator menolak seluruh pola tersebut. |
 | U-15 | MUST | Renderer web dan Flutter MUST identik secara semantik: tipe, props, event, dan a11y menghasilkan perilaku yang sama; perbedaan visual diperbolehkan hanya pada token platform. | Test kontrak yang sama lulus di kedua renderer. |
 | U-16 | MUST | Renderer MUST menolak node dengan `type` yang tidak ada di katalog versi aktif dan mencatat audit, tanpa mengeksekusi apa pun. | Node berbahaya tidak dirender dan tercatat. |
@@ -60,11 +60,13 @@ Di luar lingkup: styling detail komponen (lihat [component-catalog.md](../02-des
       "id": "stat-1",
       "props": { "label": "Hari ini", "value": "Rp120.000" },
       "events": { "onPress": { "action": "open.route", "params": { "route": "/detail" } } },
-      "style": { "padding": "md", "color": "fg" }
+      "style": { "padding": "md", "color": "fg" },
+      "a11y": { "label": "Buka detail saldo", "role": "button", "live": "off", "disabled": false, "required": false }
     }
   ],
   "events": {},
-  "style": { "gap": "sm" }
+  "style": { "gap": "sm" },
+  "a11y": { "label": "Ringkasan saldo", "role": "group", "live": "polite", "disabled": false, "required": false }
 }
 ```
 

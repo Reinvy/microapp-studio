@@ -62,16 +62,16 @@ sequenceDiagram
 ```
 
 1. Wizard membaca Dexie dalam mode baca dan MUST NOT menulis atau menghapus record sumber selama proses.
-2. Wizard mengekspor backup JSON v1 Phase 0 dan menyimpannya sebagai rollback read-only; berkas ini tidak pernah ditimpa.
-3. Wizard menghitung jumlah record per tabel sumber dan menyimpannya sebagai baseline verifikasi.
+2. Wizard mengekspor backup JSON v1 Phase 0, menyimpannya sebagai rollback read-only, dan mencatat baris `migration_backup` dengan checksum SHA-256; berkas dan baris ini tidak pernah ditimpa.
+3. Wizard menghitung jumlah record per tabel sumber dan menyimpannya sebagai baseline verifikasi di `migration_report.counts_json`.
 4. Wizard membuat database SQLite target melalui DB Worker dengan skema target, memakai OPFS bila tersedia.
-5. Wizard mengimpor `apps`, `content`, dan `runHistory`; setiap record diberi UUIDv7 baru sambil mempertahankan `legacy_id` untuk penelusuran.
-6. Wizard memverifikasi jumlah record dan hash per tabel terhadap baseline; ketidakcocokan MUST menghentikan migrasi sebelum data lama disentuh.
-7. Setiap `AppSchema` Phase 0 menjadi project draft di Studio dan MUST NOT otomatis menjadi `.mapp` terpasang; pengguna harus meninjau dan mem-build ulang.
+5. Wizard mengimpor `apps`, `content`, dan `runHistory` secara idempoten; setiap record diberi UUIDv7 baru sambil mempertahankan `legacy_id`, dan `legacy_record_map` mencegah impor ganda saat migrasi diulang.
+6. Wizard memverifikasi jumlah record dan hash per tabel terhadap baseline; ketidakcocokan MUST menghentikan migrasi sebelum data lama disentuh, dan checksum hasil disimpan di `migration_report.checksums_json`.
+7. Setiap `AppSchema` Phase 0 menjadi baris `studio_project` dengan `source = 'phase0'` dan `status = 'draft'`; project MUST NOT otomatis menjadi `.mapp` terpasang dan pengguna harus meninjau dan mem-build ulang.
 8. Setiap `LogicNode` yang memakai `new Function` dimigrasikan menjadi modul sandbox `dist/functions/logic.js` dengan input/output tervalidasi, lalu diuji ulang di sandbox.
-9. Wizard menghapus sesi localStorage dan membuat Local Identity Ed25519/X25519; password Phase 0 MUST NOT dimigrasikan dan pengguna MUST diminta membuat Recovery Phrase.
+9. Wizard membersihkan `microapp_users` dan `microapp_session` dari localStorage tanpa membaca atau membandingkan password, lalu membuat Local Identity Ed25519/X25519; password Phase 0 MUST NOT dimigrasikan dan pengguna MUST diminta membuat Recovery Phrase.
 10. Route lama dipertahankan atau dialihkan ke route baru; tautan lama MUST NOT menghasilkan halaman kosong.
-11. Wizard menampilkan ringkasan verifikasi dan menyimpan laporan migrasi di audit lokal.
+11. Wizard menampilkan ringkasan verifikasi dan menyimpan laporan migrasi di `migration_report` serta audit lokal. Data Dexie MUST NOT dihapus sampai langkah ini selesai dan pengguna menyetujui pembersihan eksplisit.
 
 ## Cabang Gagal
 
@@ -89,16 +89,17 @@ sequenceDiagram
 
 | Entitas | Field kunci | Invariant |
 |---|---|---|
-| `migration_report` | `migration_id`, `source_version`, `counts_json`, `status`, `finished_at` | Satu laporan per percobaan; tidak menimpa laporan lama |
-| `legacy_record_map` | `legacy_id`, `target_table`, `target_id` | Unik per `legacy_id`; mencegah impor ganda |
-| `migration_backup` | `path`, `sha256`, `created_at`, `read_only` | Read-only dan tidak pernah ditimpa |
-| `studio_project` | `project_id`, `source`, `status`, `legacy_app_id` | `source: phase0`; status awal `draft` |
+| `migration_report` | `id` (UUIDv7), `source_version`, `counts_json`, `checksums_json`, `status`, `started_at_ms`, `finished_at_ms` | Satu laporan per percobaan; laporan lama tidak ditimpa; `status` ∈ `running/completed/failed` |
+| `legacy_record_map` | `legacy_id`, `target_table`, `target_id`, `migration_id` | Unik per (`legacy_id`, `target_table`); mencegah impor ganda |
+| `migration_backup` | `id`, `relative_path`, `sha256`, `created_at_ms`, `read_only` | Read-only dan tidak pernah ditimpa; checksum diverifikasi sebelum restore |
+| `studio_project` | `id`, `workspace_id`, `source`, `status`, `legacy_app_id`, `revision`, `created_at_ms` | `source = 'phase0'`; status awal `draft`; tidak pernah otomatis menjadi `.mapp` terpasang |
 
 State migrasi: `detected → backed_up → imported → verified → completed`, dan `* → failed → retryable`. `completed` bersifat final; mengulang migrasi hanya menambah laporan baru tanpa menggandakan record.
 
 - `legacy_id` dipertahankan untuk penelusuran dan rekonsiliasi, tetapi kunci utama memakai UUIDv7.
 - `runHistory` diimpor sebagai riwayat read-only dan MUST NOT dieksekusi ulang.
 - Backup JSON Phase 0 dipertahankan sampai pengguna menghapusnya secara eksplisit.
+- Data Dexie MUST NOT dihapus sampai verifikasi jumlah dan hash selesai serta pengguna menyetujui pembersihan; persetujuan dicatat di `migration_report` dan audit.
 
 ## Izin dan Keamanan
 
@@ -126,6 +127,9 @@ State migrasi: `detected → backed_up → imported → verified → completed`,
 - **Given** route lama **When** dibuka **Then** halaman baru tampil atau redirect terjadi tanpa error 404.
 - **Given** backup JSON Phase 0 **When** diperiksa **Then** berkas read-only dan dapat dipakai sebagai rollback.
 - **Given** OPFS tidak tersedia **When** migrasi dijalankan **Then** status degradasi tampil dan ekspor tetap tersedia.
+- **Given** migrasi diulang setelah `completed` **When** wizard dijalankan **Then** `legacy_record_map` menolak duplikasi, `migration_report` baru dibuat, dan data Dexie tetap utuh sampai pengguna menyetujui pembersihan.
+- **Given** perangkat memiliki `microapp_users` dan `microapp_session` **When** pembersihan berjalan **Then** kedua kunci dihapus tanpa membaca atau membandingkan hash password, dan tidak ada password yang disalin ke database target.
+- **Given** `studio_project` hasil migrasi **When** diperiksa **Then** `source = 'phase0'` dan `status = 'draft'`, bukan `.mapp` terpasang.
 
 ## Verifikasi
 

@@ -81,11 +81,12 @@ sequenceDiagram
     participant PERM as Permission store
     participant HOST as Host service
     APP->>BR: request(ns, method, params)
-    BR->>BR: validasi skema + ukuran + rate limit
+    BR->>BR: validasi versi + ukuran frame
     BR->>PERM: cek grant untuk app_id + permission
     alt tidak ada grant
-        BR-->>APP: error PERMISSION_DENIED
+        BR-->>APP: error E-SBX-005
     else grant ada
+        BR->>BR: validasi parameter + rate limit
         BR->>HOST: eksekusi method
         HOST-->>BR: result / error
         BR-->>APP: response
@@ -95,6 +96,7 @@ sequenceDiagram
 
 Aturan broker:
 
+- Urutan validasi broker MUST mengikat: versi → ukuran frame → permission → parameter → rate limit → eksekusi. Permission diperiksa sebelum parameter agar penolakan tidak membocorkan keberadaan resource (`SEC-014`/B-03).
 - Micro-app MUST NOT memegang handle langsung ke objek Host; hanya ID buram berumur terbatas.
 - Setiap method mendeklarasikan permission yang dibutuhkan; method tanpa deklarasi ditolak.
 - Permission diperiksa **setiap panggilan**, bukan hanya saat mount, sehingga pencabutan berlaku seketika.
@@ -122,6 +124,19 @@ Aturan broker:
 
 Permission yang tidak tercantum di manifest MUST ditolak. Permission opsional ditampilkan sebagai pilihan saat consent; penolakan tidak boleh membuat app crash, melainkan menonaktifkan fitur terkait.
 
+### 4.2 Intent bus
+
+- Payload intent maksimum 64 KiB; transfer lebih besar memakai referensi berkas, bukan payload inline.
+- Setiap transfer lintas app MUST meminta consent per transfer yang menampilkan `(source, target, type, route)`. Tidak ada grant intent persisten; consent tidak disimpan sebagai grant dan tidak dapat dipakai ulang untuk transfer lain.
+- Target MUST mendeklarasikan intent yang diterima pada `capabilities.intentsIn`; intent yang tidak dideklarasikan ditolak `E-SBX-009` sebelum payload diserahkan.
+- Intent tidak menambah permission ID baru. Setiap transfer dan penolakan diaudit; payload tidak disimpan setelah dikonsumsi.
+
+### 4.3 Widget board
+
+- Widget board membaca database app secara langsung oleh Host, bukan lewat namespace bridge; micro-app MUST NOT dapat memicu query widget.
+- Setiap widget dibatasi satu query per 5 detik dan setiap query diaudit.
+- Widget yang app-nya tidak aktif menampilkan empty state, bukan menjalankan app di background.
+
 ## 5. Network Allowlist dan Offline Cage
 
 - `network.allowlist` berisi entri domain exact atau wildcard `*.example.com`; skema, port, path, IP literal, dan CIDR MUST NOT dipakai (ditolak validator manifest).
@@ -134,7 +149,7 @@ Permission yang tidak tercantum di manifest MUST ditolak. Permission opsional di
 
 ## 6. Lifecycle
 
-Urutan lifecycle mengikat kedua engine. Setiap transisi menghasilkan audit event.
+Urutan lifecycle mengikat kedua engine. Setiap transisi menghasilkan audit event. Hook dibagi dua kelas: transition-scoped (`onInstall`, `onMount`, `onFocus`, `onBlur`, `onBackground`, `onUpdate`, `onUninstall`) yang berjalan paling banyak sekali per transisi, dan event-scoped (`onSync`, `onMemoryWarning`) yang dipicu kejadian seperti batch CRDT atau ambang memori, bukan oleh transisi.
 
 | Event | Kapan | Kontrak |
 |---|---|---|
@@ -158,7 +173,7 @@ Aturan tambahan:
 
 | Parameter | Mobile | Desktop | Perilaku |
 |---|---|---|---|
-| Kuota memori | 128 MB | 512 MB | Melebihi kuota → kill isolate |
+| Kuota memori efektif | `min(maxMemoryMb, 128 MB)` | `min(maxMemoryMb, 512 MB)` | Manifest di atas cap diterima dengan peringatan lalu di-clamp; < 64 MB ditolak; melebihi kuota efektif → kill isolate |
 | Ambang peringatan | 80% | 80% | `onMemoryWarning` sekali per siklus |
 | Deteksi freeze | 5 detik | 5 detik | Heartbeat tidak diterima → kill |
 | Hibernasi | 30 detik tanpa interaksi | 30 detik tanpa interaksi | Snapshot state, lepas isolate |
@@ -167,16 +182,20 @@ Aturan tambahan:
 | AI inference | 120 detik | 120 detik | Dibatalkan saat app background |
 
 - Watchdog mengirim ping setiap 1 detik; tiga ping berturut-turut tanpa pong dianggap freeze dan isolate dibunuh segera setelah ambang 5 detik.
-- Freeze yang disebabkan loop tak berujung tidak boleh diubah menjadi pengulangan restart otomatis tanpa batas; maksimum dua restart otomatis, lalu error boundary persisten.
+- Freeze yang disebabkan loop tak berujung tidak boleh diubah menjadi pengulangan restart otomatis tanpa batas; maksimum dua restart otomatis dalam 60 detik, lalu error boundary persisten tanpa restart otomatis berikutnya.
 - Hibernasi menyimpan snapshot state yang dideklarasikan micro-app (bukan heap), mencabut semua timer dan bridge handle, dan mempertahankan DB.
 - `onFocus` berikutnya memulihkan snapshot; jika versi paket berubah selama hibernasi, snapshot dibuang dan `onMount` dijalankan.
 - Kuota memori dihitung per micro-app, bukan agregat; micro-app background yang hibernasi tidak memakan kuota.
+- `runtime.secureDisplay: true` pada manifest melarang app muncul di screenshot, preview app switcher, atau Media Capture; Host menampilkan placeholder berlabel dan MUST NOT mengambil atau menyimpan gambar preview.
+- Jadwal notifikasi lokal dimuat ulang saat launch; web memakai Notification Triggers bila tersedia dan native memakai local notifications.
 
 ## 8. Rendering MUIP
 
 - UI micro-app dinyatakan sebagai pohon MUIP v1, bukan HTML atau widget Host. Spesifikasi ada di [03-specs/ui-protocol.md](../03-specs/ui-protocol.md).
-- Pada web, renderer MUIP berjalan **di dalam iframe** yang sama dengan logika micro-app; Host hanya menerima event dan tidak menyisipkan node ke dokumen induk.
+- Pada web, renderer MUIP berjalan **di dalam iframe** yang sama dengan logika micro-app; Host hanya menerima event dan tidak menyisipkan node ke dokumen induk. `ui.render`, `ui.patch`, `ui.focus`, dan `ui.toast` adalah API internal renderer tersebut dan BUKAN method Host Bridge.
 - Pada native, renderer MUIP adalah implementasi Flutter yang memetakan node ke widget MADS; micro-app tidak memegang referensi widget.
+- Katalog komponen membawa `introducedIn`, dan Host membawa `supportedComponents`; komponen yang dikenal katalog tetapi belum didukung versi Host dirender placeholder berlabel, sedangkan tipe di luar katalog ditolak dan diaudit.
+- Aksi `ai.prompt` dan `workflow.run` ditolak `E-SBX-005` sampai fase 3; renderer menampilkan placeholder aksi, bukan no-op.
 - Renderer MUST menolak node dengan tipe tidak dikenal, atribut di luar skema, HTML mentah, atau handler yang bukan nama event.
 - Batas divalidasi sebelum render: kedalaman 64, 10.000 node, payload 1 MiB, string 64 KiB.
 - Patch dikirim sebagai batch dan diterapkan atomik; patch yang gagal validasi ditolak seluruhnya tanpa merusak tampilan terakhir yang valid.

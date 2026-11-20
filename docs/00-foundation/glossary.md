@@ -48,8 +48,8 @@ Istilah pada kolom **Istilah** adalah satu-satunya bentuk yang boleh dipakai pad
 | Mutation Log | Catatan mutasi tabel berisi HLC, tabel, primary key hash, dan payload terenkripsi. | change log, WAL | `crdt_change_log` |
 | Conflict History | Tabel penyimpan nilai yang kalah saat konflik kolom identik, dapat ditinjau pengguna. | error log | `conflict_history` |
 | Schema Staging | Penyimpanan mutasi dengan skema lebih baru sampai perangkat lama diperbarui. | pending migration | `crdt_schema_staging` |
-| Outbox | Antrean tugas persisten di SQLite untuk panggilan eksternal saat offline. | queue, buffer | `workflow_outbox` |
-| Workflow Run | Satu eksekusi graph workflow dengan status dan checkpoint. | job | `workflow_runs` |
+| Outbox | Antrean durable di SQLite untuk pemanggilan eksternal dan mutasi sync saat offline. | queue, buffer | `outbox` |
+| Workflow Run | Satu eksekusi graph workflow; riwayatnya dibaca dari `outbox.state` ditambah `diagnostic_log`. | job | `outbox.state` |
 | Delta Update | Pembaruan yang hanya mengirim perbedaan antara versi terpasang dan versi baru. | patch | `delta.json` |
 | Pin | Penguncian versi micro-app agar tidak berubah oleh auto-update. | lock | `pinned_version` |
 | Rollback | Pengembalian ke versi sebelumnya beserta snapshot database. | revert, undo | rollback 1 klik |
@@ -59,7 +59,7 @@ Istilah pada kolom **Istilah** adalah satu-satunya bentuk yang boleh dipakai pad
 | Istilah | Definisi | Sinonim terlarang | Contoh |
 |---|---|---|---|
 | Sandbox | Lingkungan eksekusi terisolasi tanpa akses ambient ke Host. | container, iframe | iframe opaque origin |
-| Offline Cage | Mode yang memaksa micro-app berjalan tanpa jaringan meski manifest meminta allowlist. | offline mode | `offline_cage_enabled` |
+| Offline Cage | Mode yang memaksa micro-app berjalan tanpa jaringan meski manifest meminta allowlist. | offline mode | `app_policy.offline_cage` |
 | Capability | Kemampuan yang diminta micro-app dan dijembatani Host setelah consent. | fitur, API | `camera.qr` |
 | Permission Grant | Persetujuan pengguna atas capability, tersimpan sampai dicabut. | izin | `granted_permissions` |
 | Intent | Permintaan terstruktur antar micro-app atau dari deep link, dengan consent. | action, event | `image.receipt` |
