@@ -46,17 +46,17 @@ Setiap langkah wajib lulus: `node scripts/check-docs.mjs --strict`, `npm test`, 
 
 | Langkah | Isi | Status |
 |---|---|---|
-| P1.1 | Migrasi ke npm workspaces `apps/*`, `packages/*`, CI, gitignore | pending |
-| P1.2 | `core-rust`: crypto, identity, manifest, `.mapp`, HLC, audit, guard | pending |
-| P1.3 | `runtime-web`: sandbox opaque origin, bridge, MUIP, loader `.mapp` | pending |
-| P1.4 | Host DB worker SQLite WASM, migrasi, repository, FTS5 | pending |
-| P1.5 | Identitas lokal, onboarding, PWA, i18n, MADS shell | pending |
-| P1.6 | Permission broker, Vault, audit, offline cage, storage manager | pending |
-| P1.7 | Instalasi `.mapp`, runner app, error boundary | pending |
-| P1.8 | Pencarian, widget, intent, deep link, launcher, command palette | pending |
-| P1.9 | Migrasi Phase 0, backup terenkripsi, notifikasi lokal | pending |
+| P1.1 | Migrasi ke npm workspaces `apps/*`, `packages/*`, CI, gitignore | done |
+| P1.2 | `core-rust`: crypto, identity, manifest, `.mapp`, HLC, audit, guard | done |
+| P1.3 | `runtime-web`: sandbox opaque origin, bridge, MUIP, loader `.mapp` | done |
+| P1.4 | Host DB worker SQLite WASM, migrasi, repository, FTS5 | done |
+| P1.5 | Identitas lokal, onboarding, PWA, i18n, MADS shell | done |
+| P1.6 | Permission broker, Vault, audit, offline cage, storage manager | done |
+| P1.7 | Instalasi `.mapp`, runner app, error boundary | done |
+| P1.8 | Pencarian, widget, intent, deep link, launcher, command palette | partial |
+| P1.9 | Migrasi Phase 0, backup terenkripsi, notifikasi lokal | done |
 | P1.10 | Host Flutter, `runtime-native`, MADS Flutter | pending |
-| P1.11 | Gate fase 1, evidence, tag `v0.1.0-phase1` | pending |
+| P1.11 | Gate fase 1, evidence, tag `v0.1.0-phase1` | partial |
 
 ### 3.3 Phase 2 — Studio IDE, data layer, CLI
 
@@ -107,6 +107,13 @@ Setiap langkah wajib lulus: `node scripts/check-docs.mjs --strict`, `npm test`, 
 3. Setiap commit menyebut spec: `Spec: docs/<path>#<ID>`.
 4. Push ke `development` setelah gate langkah hijau; tidak menumpuk lebih dari satu langkah tanpa push.
 5. Tag annotated hanya dibuat setelah evidence fase ditulis dan status matriks diperbarui.
+
+## 4.1 Catatan Status Fase 1
+
+- Gate otomatis fase 1 hijau pada `scripts/verify-phase-1.mjs` untuk lingkup host web + Rust core: docs, migrasi, unit, typecheck, lint, build, `build:core`, `cargo test`, `cargo clippy`, dan E2E Playwright (first run offline, instalasi `.mapp` bertanda tangan, isolasi sandbox, backup terenkripsi, migrasi Phase 0, isolasi crash).
+- P1.8 selesai sebagian: pencarian FTS, intent consent, deep link, pemulihan launcher, dan command palette ada; **widget board** belum punya UI (query DB app per widget belum dijalankan).
+- P1.10 belum dikerjakan: `apps/host-flutter` dan `packages/runtime-native` belum ada, sehingga requirement `FR-SBX-*` di matriks tetap `partial`.
+- P1.11: evidence ditulis dan matriks diperbarui lewat `scripts/apply-status.mjs`; tag `v0.1.0-phase1` **belum** dibuat karena fase 1 belum lengkap (P1.8 widget, P1.10 Flutter, gate perangkat).
 
 ## 5. Aturan Status
 

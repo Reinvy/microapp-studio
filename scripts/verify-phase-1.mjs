@@ -10,7 +10,7 @@
  * sensors) are recorded as `blocked` with a reason instead of being omitted.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -38,7 +38,11 @@ const results = [];
 function run(name, command, args, options = {}) {
   const start = Date.now();
   try {
-    execFileSync(command, args, { cwd: ROOT, stdio: 'pipe', timeout: options.timeoutMs ?? 900_000 });
+    execFileSync(command, args, {
+      cwd: options.cwd ?? ROOT,
+      stdio: 'pipe',
+      timeout: options.timeoutMs ?? 900_000,
+    });
     results.push({ name, command: [command, ...args].join(' '), exitCode: 0, durationMs: Date.now() - start });
     process.stdout.write(`PASS ${name}\n`);
     return true;
@@ -79,12 +83,18 @@ const clippyOk = run('cargo-clippy', 'cargo', [
 ]);
 const e2eOk = run('e2e', 'npm', ['run', 'e2e', '-w', '@microapp/studio-web']);
 
-const flutterAvailable = toolVersion('flutter', ['--version']) !== null;
+// Flutter gates run only when the host app exists; an empty repo must not be
+// reported as a passing Flutter analysis.
+const flutterProject = join(ROOT, 'apps', 'host-flutter', 'pubspec.yaml');
+const flutterAvailable = existsSync(flutterProject) && toolVersion('flutter', ['--version']) !== null;
 const flutterAnalyzeOk = flutterAvailable
-  ? run('flutter-analyze', 'flutter', ['analyze'], { optional: !flutterAvailable })
+  ? run('flutter-analyze', 'flutter', ['analyze'], {
+      optional: true,
+      cwd: join(ROOT, 'apps', 'host-flutter'),
+    })
   : false;
 const flutterTestOk = flutterAvailable
-  ? run('flutter-test', 'flutter', ['test'], { optional: !flutterAvailable })
+  ? run('flutter-test', 'flutter', ['test'], { optional: true, cwd: join(ROOT, 'apps', 'host-flutter') })
   : false;
 
 const automaticPassed = docsOk && migrationsOk && unitOk && typecheckOk && lintOk && buildOk && cargoTestOk && clippyOk;
@@ -108,29 +118,32 @@ function range(prefix, from, to) {
   return ids;
 }
 
-const hostIds = [...range('FR-HOST', 1, 18), ...range('FR-HOST', 20, 30)];
+// FR-HOST-010 (sqlite-vec) is phase 2, FR-HOST-019 (push) is phase 5, and
+// FR-HOST-026 (sync queue count) is phase 3; they stay out of this evidence.
+const hostIds = [
+  ...range('FR-HOST', 1, 9),
+  ...range('FR-HOST', 11, 18),
+  ...range('FR-HOST', 20, 25),
+  ...range('FR-HOST', 27, 30),
+];
 const sbxIds = range('FR-SBX', 1, 25);
 const secIds = range('SEC', 1, 20);
 
+const sbxPartial = sbxIds.slice();
 const requirements = [
-  ...requirementStatus(hostIds, { partial: ['FR-HOST-019', 'FR-HOST-026'] }),
-  ...requirementStatus(sbxIds, { partial: ['FR-SBX-014', 'FR-SBX-015', 'FR-SBX-019'] }),
+  ...requirementStatus(hostIds),
+  // The sandbox contract is verified on the web engine; the native
+  // QuickJS/Wasmtime host (P1.10) does not exist yet, so these stay partial.
+  ...requirementStatus(sbxIds, { partial: sbxPartial }),
   ...requirementStatus(secIds, { partial: ['SEC-009', 'SEC-010'] }),
 ];
 
-// Force phase-bound partials regardless of the automatic gate.
 for (const entry of requirements) {
-  if (entry.id === 'FR-HOST-019') {
-    entry.status = 'blocked';
-    entry.evidence = 'WebPush/UnifiedPush server tersedia pada fase 5';
-  }
-  if (entry.id === 'FR-HOST-026') {
-    entry.status = 'partial';
-    entry.evidence = 'Indikator antrean sync menunggu fase 3';
+  if (entry.status === 'partial' && entry.id.startsWith('FR-SBX')) {
+    entry.evidence = 'kontrak web terverifikasi; host native (P1.10) belum ada';
   }
   if (entry.id === 'FR-SBX-019') {
-    entry.status = 'partial';
-    entry.evidence = 'Rollback versi paket menunggu fase 4';
+    entry.evidence = 'rollback paket menunggu fase 4';
   }
 }
 
@@ -150,6 +163,7 @@ const securitySuites = [
 }));
 
 const manualGates = [
+  { id: 'flutter-host-p1.10', status: 'blocked', reason: 'apps/host-flutter dan runtime-native belum diimplementasikan' },
   { id: 'ios-ipados-macos-windows-build', status: 'blocked', reason: 'toolchain dan perangkat tidak tersedia' },
   { id: 'flutter-linux-desktop', status: 'blocked', reason: 'clang++/cmake/ninja tidak tersedia' },
   { id: 'android-physical-device', status: 'blocked', reason: 'perangkat fisik tidak tersedia' },

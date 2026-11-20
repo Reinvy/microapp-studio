@@ -131,3 +131,23 @@ fn vault_key_wrap_roundtrip_and_wrong_passphrase() {
     tampered[0] ^= 0xff;
     assert!(unwrap_key(&tampered, "correct horse battery staple", &salt, &nonce).is_err());
 }
+
+#[test]
+fn passphrase_seal_roundtrip_rejects_wrong_passphrase_and_weak_kdf() {
+    use microapp_core::crypto::{open_with_passphrase, seal_with_passphrase};
+    let plaintext = br#"{"formatVersion":1,"hostDb":{}}"#;
+    let sealed = seal_with_passphrase("correct horse battery", plaintext).unwrap();
+    assert_eq!(open_with_passphrase("correct horse battery", &sealed).unwrap(), plaintext);
+    assert!(open_with_passphrase("wrong passphrase", &sealed).is_err());
+
+    // The KDF parameters are embedded; weakening them must be rejected.
+    let mut weak = sealed.clone();
+    weak[27] = 1; // parallelism < floor
+    assert!(open_with_passphrase("correct horse battery", &weak).is_err());
+
+    // Any ciphertext flip fails closed.
+    let mut tampered = sealed.clone();
+    let last = tampered.len() - 1;
+    tampered[last] ^= 0x01;
+    assert!(open_with_passphrase("correct horse battery", &tampered).is_err());
+}
