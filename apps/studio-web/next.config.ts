@@ -28,6 +28,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   outputFileTracingRoot: path.join(__dirname, "../.."),
+  transpilePackages: ['@microapp/runtime-web'],
   async headers() {
     return [
       {

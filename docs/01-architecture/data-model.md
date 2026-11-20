@@ -703,7 +703,7 @@ CREATE TABLE audit_log_chain (
 );
 CREATE INDEX audit_log_chain_action_idx ON audit_log_chain (action, created_at_ms);
 CREATE VIEW sandbox_audit AS
-  SELECT id, seq_id, actor, action, target, metadata_json, created_at_ms
+  SELECT id, seq_id, prev_hash, entry_hash, actor, action, target, metadata_json, created_at_ms
   FROM audit_log_chain
   WHERE action LIKE 'sandbox.%'
      OR action LIKE 'permission.%'

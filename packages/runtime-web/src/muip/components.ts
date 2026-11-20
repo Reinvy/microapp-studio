@@ -891,7 +891,7 @@ const imageBuilder: ComponentBuilder = () => {
     else img.removeAttribute('width');
     if (height) img.height = height;
     else img.removeAttribute('height');
-    applyBase(root, node, { role: 'img', label: labelFrom(node, alt) });
+    applyBase(root, node, { role: 'img', label: labelFrom(node, alt.length > 0 ? alt : 'Image') });
   });
 };
 

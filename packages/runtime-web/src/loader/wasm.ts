@@ -46,6 +46,11 @@ export interface CoreWasmModule {
   sha256_hex(bytes: Uint8Array): string;
 }
 
+/** URL of the generated `microapp_core.js` loader (built by `npm run build:core`). */
+export function coreWasmUrl(): string {
+  return new URL('../wasm/microapp_core.js', import.meta.url).href;
+}
+
 const REQUIRED_EXPORTS: Array<keyof CoreWasmModule> = [
   'init',
   'identity_create',
