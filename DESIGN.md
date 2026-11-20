@@ -1,3 +1,9 @@
+> **LEGACY — Phase 0, bukan acuan desain.**
+> Dokumen ini mendeskripsikan prototipe Prompt → Schema → Runner dan token gelap yang dipakai saat itu.
+> Sumber kanonik ada di [docs/02-design/design-system.md](docs/02-design/design-system.md) (token MADS) dan
+> [docs/02-design/component-catalog.md](docs/02-design/component-catalog.md) (120 komponen).
+> Jangan menambahkan token, warna, atau komponen baru di file ini; perubahan desain wajib melalui dokumen kanonik.
+
 # MicroApp Studio — Design Token Spec
 
 ## Architecture Overview

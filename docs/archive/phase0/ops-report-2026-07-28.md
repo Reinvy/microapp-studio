@@ -1,3 +1,8 @@
+> **Arsip Phase 0 — bukan status terkini.** Laporan ini merekam operasi prototipe pada 2026-07-28.
+> Status aktif ada di [docs/00-foundation/implementation-status.md](../../00-foundation/implementation-status.md)
+> dan [docs/00-foundation/prd-compliance-matrix.md](../../00-foundation/prd-compliance-matrix.md).
+> Isi historis tidak diubah.
+
 # DevOps Ops Report — 2026-07-28
 
 ## QA Gate

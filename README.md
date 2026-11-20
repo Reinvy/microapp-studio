@@ -1,128 +1,59 @@
-# MicroApp Studio 🚀
+# MicroApp Studio
 
-**AI-powered local-first platform untuk membuat mini web apps hanya dengan teks atau drag-and-drop.**
+Platform micro-app open-source, offline-first, dan self-hostable. Repo ini saat ini berisi **prototipe Phase 0** (web) dan **paket dokumentasi SDD** yang menjadi kontrak untuk target PRD v2.0.
 
-MicroApp Studio adalah platform web yang memungkinkan siapa pun — dari non-teknis hingga developer — untuk membuat, menjalankan, dan berbagi micro-apps kecil seperti kalkulator custom, pengolah CSV, form validator, dan lainnya. Semua berjalan di browser, tanpa server backend.
+> Status: prototipe web. Local Identity, sandbox, SQLite/OPFS, CRDT, registry, AI lokal, dan server self-host **belum ada**. Lihat [implementation-status.md](docs/00-foundation/implementation-status.md) sebelum mengklaim kemampuan apa pun.
 
-![Architecture](docs/architecture.html)
+## 1. Apa yang Benar-Benar Ada
 
-## ✨ Fitur Utama
+| Area | Kondisi saat ini |
+|---|---|
+| Web app | Next.js 16 App Router, React 19, TypeScript, Tailwind v4 |
+| Halaman | `/`, `/app`, `/builder`, `/dev`, `/login`, `/register`, `/run/[id]` |
+| Builder | Canvas drag-and-drop (`@dnd-kit`) untuk 9 tipe field + properties panel |
+| Prompt parser | Pola terbatas (calculator, form, survey, todo, budget, counter, validator) |
+| Runner | Render form dari JSON schema, validasi, eksekusi node logika |
+| Editor | Monaco di halaman `/dev` (tanpa LSP) |
+| Penyimpanan | Dexie/IndexedDB `MicroAppStudio` v6: `apps`, `content`, `runHistory` |
+| Backup | JSON `microapp-studio-backup` v1 (belum terenkripsi) |
+| Auth | Akun lokal di localStorage + JWT (utang keamanan, akan dihapus) |
+| Test | Vitest |
 
-### 🤖 AI Prompt → Micro App
-Tulis prompt seperti *"Buat kalkulator diskon 3 input"* atau *"Form survey kepuasan 5 pertanyaan"* → langsung jadi app yang bisa dijalankan.
+Tidak ada: server, Rust core, Flutter host, sandbox, permission broker, sinkronisasi, registry, workflow engine, CLI, SDK.
 
-Cara kerja:
-1. Ketik deskripsi app di dialog "New App"
-2. **Prompt Parser** mengenali pola: calculator, form, survey, todo, budget, counter, validator
-3. **Schema Engine** menghasilkan JSON Schema → app siap diedit atau di-run
-
-### 🎨 Visual Drag-and-Drop Builder
-- **Canvas** — Susun field dengan drag-and-drop (via @dnd-kit)
-- **Component Palette** — 9 tipe field: Text, Number, Select, Checkbox, Textarea, Date, Slider, Toggle
-- **Properties Panel** — Edit properti tiap field: label, placeholder, validasi, opsi
-- **Toolbar** — Simpan, preview, edit nama app
-
-### 🏃 App Runner
-- Render form interaktif dari schema
-- Validasi input realtime (required, pattern, min/max, dll)
-- Compute output via schema engine + custom JS nodes
-- Hasil komputasi ditampilkan di panel output
-
-### 💻 Dev Playground (Custom JS Nodes)
-- **Monaco Editor** — Editor kode JavaScript profesional (syntax highlighting, minimap)
-- Buat custom logic nodes yang bisa digunakan ulang
-- Test dengan input JSON, lihat output langsung
-- Simpan node untuk digunakan di builder
-
-### 💾 Local-First (IndexedDB)
-Semua data disimpan di browser via Dexie.js. Tidak perlu server, tidak perlu login. App tetap ada meskipun offline.
-
-## 🏗️ Tech Stack
-
-| Layer | Teknologi |
-|-------|-----------|
-| **Framework** | Next.js 16 (App Router) + TypeScript |
-| **Styling** | Tailwind CSS v4 + shadcn/ui + Lucide Icons |
-| **State** | Zustand |
-| **Drag & Drop** | @dnd-kit/core, @dnd-kit/sortable |
-| **Code Editor** | Monaco Editor (@monaco-editor/react) |
-| **Storage** | Dexie.js (IndexedDB) |
-| **Engine** | Prompt-to-Schema Parser + Schema Executor + Sandboxed Evaluator |
-| **Deploy** | Vercel (Edge Network) |
-
-## 📁 Project Structure
-
-```
-src/
-├── app/
-│   ├── layout.tsx          # Root layout + dark theme
-│   ├── page.tsx            # Dashboard Gallery
-│   ├── builder/page.tsx    # Visual Builder (Canvas + Palette + Props)
-│   ├── run/[id]/page.tsx   # App Runner
-│   └── dev/page.tsx        # Dev Playground (Monaco Editor)
-├── components/
-│   ├── dashboard/          # Gallery, AppCard
-│   ├── builder/            # Canvas, Toolbar, ComponentPalette, PropertiesPanel
-│   ├── runner/             # AppRunner, RenderField
-│   ├── dev/                # MonacoEditor
-│   └── ui/                 # shadcn-style primitives (Button, Card, Dialog, etc.)
-├── engine/
-│   ├── promptToSchema.ts   # NLP pattern recognition → JSON Schema
-│   ├── schemaEngine.ts     # Schema validation + execution
-│   └── evaluator.ts        # Sandboxed JS evaluator
-├── db/
-│   ├── db.ts               # Dexie.js setup
-│   └── microAppRepo.ts     # CRUD operations
-├── store/
-│   └── appStore.ts         # Zustand store
-├── types/
-│   └── schema.ts           # TypeScript type definitions
-└── lib/
-    └── utils.ts            # Helpers (cn, generateId, formatDate, debounce)
-```
-
-## 🚀 Cara Penggunaan
-
-### 1. Buka Dashboard
-Buka [microapp-studio.vercel.app](https://microapp-studio.vercel.app)
-
-### 2. Buat App Baru
-Klik **"New App"** → masukkan nama + prompt:
-- *"Kalkulator diskon dengan input harga, diskon persen, dan pajak"*
-- *"Form registrasi dengan nama, email, password, dan konfirmasi password"*
-- *"Survey kepuasan dengan 5 pilihan rating"*
-
-### 3. Edit di Builder
-- Seret field dari palette ke canvas
-- Klik field untuk edit properti
-- Tambah custom JS node untuk logic kustom
-
-### 4. Run & Share
-Klik **Run** untuk menjalankan app. Copy URL untuk berbagi.
-
-## 🧪 Pengembangan Lokal
+## 2. Quick Start (Phase 0)
 
 ```bash
-# Clone
 git clone https://github.com/Reinvy/microapp-studio.git
 cd microapp-studio
-
-# Install dependencies
 npm install
-
-# Dev server
-npm run dev
-
-# Build
+npm run dev      # http://localhost:3000
+npm test
 npm run build
 ```
 
-## 🌐 Deployment
+## 3. Dokumentasi
 
-Deployed to Vercel. Auto-deploy on push to `main` branch via GitHub integration.
+Dokumen adalah sumber kebenaran. Mulai dari [docs/README.md](docs/README.md).
 
-**Live URL:** [https://microapp-studio.vercel.app](https://microapp-studio.vercel.app)
+| Topik | Dokumen |
+|---|---|
+| Visi, prinsip, persona, mode operasi | [docs/00-foundation/product-foundation.md](docs/00-foundation/product-foundation.md) |
+| SDD dan status implementasi | [docs/00-foundation/sdd-workflow.md](docs/00-foundation/sdd-workflow.md), [docs/00-foundation/implementation-status.md](docs/00-foundation/implementation-status.md) |
+| Arsitektur dan ADR | [docs/01-architecture/system-overview.md](docs/01-architecture/system-overview.md) |
+| Design system dan 120 komponen | [docs/02-design/design-system.md](docs/02-design/design-system.md) |
+| Spec normatif (FR/NFR/SEC) | [docs/03-specs/01-host-shell.md](docs/03-specs/01-host-shell.md) |
+| Flow | [docs/04-flows/README.md](docs/04-flows/README.md) |
+| Aturan agen dan kontribusi | [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Keamanan | [SECURITY.md](SECURITY.md) |
 
-## 📄 Lisensi
+## 4. Target PRD v2.0
 
-MIT — built with ❤️ by [Reinvy](https://github.com/Reinvy)
+Target: Host Shell offline-first (Flutter + PWA), Studio IDE hybrid, sandbox QuickJS/WASM dengan permission broker, SQLite per micro-app + CRDT, registry terfederasi dengan reproducible build, sync E2EE, dan server self-host Lite/Standard/Cluster. Roadmap dan exit gate ada di [docs/00-foundation/product-foundation.md](docs/00-foundation/product-foundation.md).
+
+Deployment web saat ini hanya untuk demo prototipe; target distribusi adalah PWA self-host dan bundel desktop. Tidak ada URL produksi yang dijanjikan oleh dokumen ini.
+
+## 5. Lisensi
+
+- Apache-2.0 untuk core, Host, Studio, server, dan runtime ([LICENSE](LICENSE)).
+- MIT untuk SDK, CLI, UI kit, dan template micro-app (dokumen lisensi ditambahkan saat paket di-scaffold).

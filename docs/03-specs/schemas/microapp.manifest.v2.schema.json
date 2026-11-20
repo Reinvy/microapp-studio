@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://microapp.dev/schemas/microapp.manifest.v2.schema.json",
+  "title": "MicroApp Manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "license",
+    "repository",
+    "publisher",
+    "minHostVersion",
+    "contentHash",
+    "entry",
+    "offline",
+    "runtime",
+    "permissions",
+    "capabilities"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "2.0-open" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)+$",
+      "minLength": 3,
+      "maxLength": 128
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(beta|rc)\\.[1-9][0-9]*)?$"
+    },
+    "license": { "type": "string", "pattern": "^[A-Za-z0-9.+-]+$" },
+    "repository": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyId", "fingerprint"],
+      "properties": {
+        "keyId": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "minHostVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "contentHash": { "type": "string", "pattern": "^sha256-[0-9a-f]{64}$" },
+    "reproducibleBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commitHash", "builderImage"],
+      "properties": {
+        "commitHash": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "builderImage": {
+          "type": "string",
+          "pattern": "^[a-z0-9./:_-]+@sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle", "assetsDir", "uiEngine", "integrity", "signature"],
+      "properties": {
+        "bundle": { "$ref": "#/$defs/relativePath" },
+        "assetsDir": { "$ref": "#/$defs/relativeDir" },
+        "uiEngine": { "const": "hybrid-native" },
+        "integrity": { "type": "string", "pattern": "^sha384-[A-Za-z0-9+/=]+$" },
+        "signature": { "type": "string", "pattern": "^ed25519-[0-9a-f]{16}$" }
+      }
+    },
+    "offline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "requiresInternet", "localDbSchema", "syncStrategy"],
+      "properties": {
+        "mode": { "const": "offline-first" },
+        "requiresInternet": { "const": false },
+        "localDbSchema": { "$ref": "#/$defs/relativeDir" },
+        "syncStrategy": { "const": "crdt-hlc" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isolation", "maxMemoryMb", "supportedViewports"],
+      "properties": {
+        "isolation": { "const": "strict-sandbox" },
+        "maxMemoryMb": { "type": "integer", "minimum": 64, "maximum": 512 },
+        "supportedViewports": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["mobile", "tablet", "desktop", "widget"] }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "optional", "networkAllowlist"],
+      "properties": {
+        "required": { "$ref": "#/$defs/permissionList" },
+        "optional": { "$ref": "#/$defs/permissionList" },
+        "networkAllowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+          }
+        }
+      }
+    },
+    "localAi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["optionalCapabilities", "recommendedModelSize"],
+      "properties": {
+        "optionalCapabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["text-classification", "receipt-ocr", "summarization", "embedding"] }
+        },
+        "recommendedModelSize": { "enum": ["small-3b", "medium-7b", "large-13b"] }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intentsIn", "intentsOut", "widgets"],
+      "properties": {
+        "intentsIn": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["image.receipt", "csv.import", "text.share", "json.share", "url.open"] }
+        },
+        "intentsOut": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["document.pdf", "data.csv", "image.share", "text.share", "json.share"] }
+        },
+        "widgets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "sizes"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+              "sizes": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "enum": ["1x1", "2x1", "2x2", "3x2", "4x2"] }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+    },
+    "relativeDir": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*/$"
+    },
+    "permissionList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "storage.local",
+          "storage.local.sqlite",
+          "camera",
+          "camera.qr",
+          "microphone",
+          "location",
+          "biometrics",
+          "filesystem.picker",
+          "bluetooth",
+          "nfc",
+          "notifications.local",
+          "local_ai.inference",
+          "network.allowlist"
+        ]
+      }
+    }
+  }
+}
