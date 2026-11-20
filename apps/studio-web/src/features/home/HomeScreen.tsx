@@ -6,10 +6,17 @@
  */
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { useHost } from '@/features/host/HostProvider';
 import { search, type SearchHit } from '@/db/repositories/search';
+import { loadWorkspaceState, saveWorkspaceState } from '@/db/repositories/workspaces';
+import { parseDeepLink } from '@/features/deeplink/parse';
+import {
+  createBrowserNotifier,
+  rescheduleNotifications,
+} from '@/features/notifications/scheduler';
 import type { VerifiedPackage } from '@microapp/runtime-web';
 
 interface PendingInstall {
@@ -20,7 +27,11 @@ interface PendingInstall {
 
 export function HomeScreen(): ReactElement {
   const host = useHost();
+  const router = useRouter();
   const t = host.t;
+  const paletteRef = useRef<HTMLDialogElement | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [deepLinkNotice, setDeepLinkNotice] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [installError, setInstallError] = useState<string | null>(null);
@@ -36,6 +47,77 @@ export function HomeScreen(): ReactElement {
       (app) => app.appId.toLowerCase().includes(term) || app.version.includes(term),
     );
   }, [host.apps, query]);
+
+  // Restore launcher state (last app, Home scroll) on cold start.
+  useEffect(() => {
+    const db = host.db;
+    const workspace = host.workspace;
+    if (!db || !workspace) return;
+    void Promise.resolve().then(async () => {
+      const state = await loadWorkspaceState(db, workspace.id);
+      if (typeof window !== 'undefined') {
+        if (state.homeScroll > 0) window.scrollTo({ top: state.homeScroll });
+        const target = new URLSearchParams(window.location.search).get('target');
+        if (target) {
+          const parsed = parseDeepLink(target);
+          if (parsed) {
+            const installed = host.apps.find((app) => app.appId === parsed.appId);
+            if (installed) {
+              router.push(`/app/${encodeURIComponent(installed.appId)}`);
+              return;
+            }
+            setDeepLinkNotice(`Deep link untuk ${parsed.appId} belum terpasang.`);
+          }
+        }
+      }
+      const saveScroll = (): void => {
+        void saveWorkspaceState(db, workspace.id, {
+          lastAppId: state.lastAppId,
+          homeScroll: window.scrollY,
+          filters: state.filters,
+        });
+      };
+      window.addEventListener('pagehide', saveScroll);
+    });
+  }, [host.apps, host.db, host.workspace, router]);
+
+  // Re-register persisted notification schedules on launch (FR-HOST-018).
+  useEffect(() => {
+    const db = host.db;
+    const workspace = host.workspace;
+    if (!db || !workspace) return;
+    let cancelled = false;
+    const notifier = createBrowserNotifier();
+    const handles = new Map<string, unknown>();
+    void Promise.resolve().then(async () => {
+      if (cancelled) return;
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const result = await rescheduleNotifications(db, workspace.id, notifier);
+      for (const [id, handle] of result.handles) handles.set(id, handle);
+    });
+    return () => {
+      cancelled = true;
+      for (const handle of handles.values()) notifier.cancel(handle);
+    };
+  }, [host.db, host.workspace]);
+
+  // Command palette (Cmd/Ctrl+K) with keyboard navigation.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+      if (event.key === 'Escape') setPaletteOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!paletteOpen) return;
+    paletteRef.current?.focus();
+  }, [paletteOpen]);
 
   useEffect(() => {
     const db = host.db;
@@ -127,6 +209,12 @@ export function HomeScreen(): ReactElement {
         </p>
       ) : null}
 
+      {deepLinkNotice ? (
+        <p role="status" className="alert">
+          {deepLinkNotice}
+        </p>
+      ) : null}
+
       {installedNotice ? (
         <p role="status" className="alert">
           {installedNotice}
@@ -213,6 +301,43 @@ export function HomeScreen(): ReactElement {
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {paletteOpen ? (
+        <dialog ref={paletteRef} open className="modal" aria-label="Command palette" tabIndex={-1}>
+          <h2>Command palette</h2>
+          <ul className="stack-md">
+            <li>
+              <Link className="button" href="/settings" onClick={() => setPaletteOpen(false)}>
+                {t('nav.settings')}
+              </Link>
+            </li>
+            <li>
+              <Link className="button" href="/settings/vault" onClick={() => setPaletteOpen(false)}>
+                {t('nav.vault')}
+              </Link>
+            </li>
+            <li>
+              <Link className="button" href="/registry" onClick={() => setPaletteOpen(false)}>
+                {t('nav.registry')}
+              </Link>
+            </li>
+            {host.apps.map((app) => (
+              <li key={app.id}>
+                <Link
+                  className="button"
+                  href={`/app/${encodeURIComponent(app.appId)}`}
+                  onClick={() => setPaletteOpen(false)}
+                >
+                  {t('app.run')}: {app.appId}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="button" onClick={() => setPaletteOpen(false)}>
+            {t('common.close')}
+          </button>
+        </dialog>
       ) : null}
 
       {pending ? (

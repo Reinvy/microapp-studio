@@ -64,6 +64,9 @@ export interface CoreClient extends CoreMappApi {
   vaultVerifyWrap(pin: string, blob: Uint8Array): Promise<boolean>;
   vaultSealWrapped(request: { pin: string; blob: Uint8Array; aadJson: string; plaintext: Uint8Array }): Promise<Uint8Array>;
   vaultOpenWrapped(request: { pin: string; blob: Uint8Array; aadJson: string; envelope: Uint8Array }): Promise<Uint8Array>;
+  backupSeal(passphrase: string, plaintext: Uint8Array): Promise<Uint8Array>;
+  backupOpen(passphrase: string, blob: Uint8Array): Promise<Uint8Array>;
+  jsonJcsSha256(json: string): Promise<string>;
 }
 
 export interface CoreWasmModule {
@@ -101,6 +104,9 @@ export interface CoreWasmModule {
   vault_verify_wrap(pin: string, blob: Uint8Array): boolean;
   vault_seal_wrapped(pin: string, blob: Uint8Array, aadJson: string, plaintext: Uint8Array): Uint8Array;
   vault_open_wrapped(pin: string, blob: Uint8Array, aadJson: string, envelope: Uint8Array): Uint8Array;
+  backup_seal(passphrase: string, plaintext: Uint8Array): Uint8Array;
+  backup_open(passphrase: string, blob: Uint8Array): Uint8Array;
+  json_jcs_sha256(json: string): string;
 }
 
 /**
@@ -139,6 +145,9 @@ const REQUIRED_EXPORTS: Array<keyof CoreWasmModule> = [
   'vault_verify_wrap',
   'vault_seal_wrapped',
   'vault_open_wrapped',
+  'backup_seal',
+  'backup_open',
+  'json_jcs_sha256',
 ];
 
 function hexFromBytes(bytes: Uint8Array): string {
@@ -270,6 +279,15 @@ export function createCoreClient(module: CoreWasmModule): CoreClient {
     },
     async vaultOpenWrapped(request) {
       return module.vault_open_wrapped(request.pin, request.blob, request.aadJson, request.envelope);
+    },
+    async backupSeal(passphrase, plaintext) {
+      return module.backup_seal(passphrase, plaintext);
+    },
+    async backupOpen(passphrase, blob) {
+      return module.backup_open(passphrase, blob);
+    },
+    async jsonJcsSha256(json) {
+      return module.json_jcs_sha256(json);
     },
   };
 }

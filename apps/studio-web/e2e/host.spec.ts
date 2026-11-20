@@ -86,6 +86,71 @@ test('signed .mapp installs offline and runs isolated in the sandbox', async ({ 
   await expect(page.getByRole('heading', { level: 1, name: 'org.reinvy.fixture' })).toBeVisible();
 });
 
+test('encrypted backup exports and restores with verified checksums', async ({ page }) => {
+  await completeFirstRun(page);
+  await installFixture(page, 'escape.mapp');
+  await page.getByRole('link', { name: 'Pengaturan' }).click();
+  await page.getByRole('link', { name: 'Backup terenkripsi' }).click();
+
+  await page.getByLabel('Passphrase backup').fill('correct horse battery');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Ekspor .mapp-backup' }).click();
+  const download = await downloadPromise;
+  const backupPath = test.info().outputPath('backup.mapp-backup');
+  await download.saveAs(backupPath);
+  expect(backupPath).toContain('.mapp-backup');
+
+  await page.getByLabel('Pilih berkas backup').setInputFiles(backupPath);
+  await page.getByLabel(/Workspace tujuan sudah berisi data/).check();
+  await page.getByRole('button', { name: 'Pulihkan backup' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Backup berhasil' })).toBeVisible({ timeout: 30_000 });
+});
+
+test('Phase 0 Dexie data migrates into Studio drafts', async ({ page }) => {
+  await completeFirstRun(page);
+  await page.evaluate(async () => {
+    const request = indexedDB.open('MicroAppStudio', 6);
+    await new Promise<void>((resolve, reject) => {
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('apps')) db.createObjectStore('apps', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('content')) db.createObjectStore('content', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('runHistory')) db.createObjectStore('runHistory', { keyPath: 'id' });
+      };
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+    const db = request.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('apps', 'readwrite');
+      tx.objectStore('apps').put({
+        id: 'legacy-app-1',
+        name: 'Kas lama',
+        description: 'dari phase 0',
+        prompt: 'kas',
+        fields: [],
+        logicNodes: [],
+        layout: [],
+        createdAt: 1,
+        updatedAt: 2,
+        version: 1,
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  });
+
+  await page.getByRole('link', { name: 'Pengaturan' }).click();
+  await page.getByRole('link', { name: 'Backup terenkripsi' }).click();
+  await page.getByRole('button', { name: 'Jalankan migrasi' }).click();
+  await expect(page.getByText('Draft dibuat')).toBeVisible({ timeout: 30_000 });
+  const summary = await page.locator('section[aria-label="Migrasi Phase 0"] dl').innerText();
+  expect(summary).toContain('App\n1');
+  await page.goto('/studio');
+  await expect(page.getByText('Kas lama')).toBeVisible();
+});
+
 test('a crashing app is isolated and the host stays responsive', async ({ page }) => {
   await completeFirstRun(page);
   await installFixture(page, 'crash.mapp');

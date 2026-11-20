@@ -382,3 +382,71 @@ pub fn hex_lower(bytes: &[u8]) -> String {
 pub fn hex_decode(value: &str) -> CoreResult<Vec<u8>> {
     hex::decode(value).map_err(|e| CoreError::Crypto(format!("invalid hex: {e}")))
 }
+
+/// Seal arbitrary bytes with a passphrase (Argon2id → AES-256-GCM).
+///
+/// Layout: `salt(16) | m_kib(u32 be) | t(u32 be) | p(u32 be) | nonce(12) | ciphertext`.
+pub fn seal_with_passphrase(passphrase: &str, plaintext: &[u8]) -> CoreResult<Vec<u8>> {
+    use argon2::Argon2;
+    let salt = random_bytes::<ARGON2_SALT_LEN>();
+    let params = argon2::Params::new(
+        ARGON2_MEMORY_KIB,
+        ARGON2_ITERATIONS,
+        ARGON2_PARALLELISM,
+        Some(KEY_LEN),
+    )
+    .map_err(|e| CoreError::Crypto(format!("argon2 params: {e}")))?;
+    let argon = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+    let mut kek = [0u8; KEY_LEN];
+    argon
+        .hash_password_into(passphrase.as_bytes(), &salt, &mut kek)
+        .map_err(|e| CoreError::Crypto(format!("argon2 failed: {e}")))?;
+    let nonce = random_nonce();
+    let cipher = Aes256Gcm::new_from_slice(&kek)
+        .map_err(|e| CoreError::Crypto(format!("invalid kek: {e}")))?;
+    let ciphertext = cipher
+        .encrypt(Nonce::from_slice(&nonce), plaintext)
+        .map_err(|_| CoreError::Crypto("encryption failed".into()))?;
+    kek.zeroize();
+    let mut out = Vec::with_capacity(16 + 12 + 12 + ciphertext.len());
+    out.extend_from_slice(&salt);
+    out.extend_from_slice(&ARGON2_MEMORY_KIB.to_be_bytes());
+    out.extend_from_slice(&ARGON2_ITERATIONS.to_be_bytes());
+    out.extend_from_slice(&ARGON2_PARALLELISM.to_be_bytes());
+    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&ciphertext);
+    Ok(out)
+}
+
+/// Open a passphrase-sealed blob produced by [`seal_with_passphrase`].
+pub fn open_with_passphrase(passphrase: &str, blob: &[u8]) -> CoreResult<Vec<u8>> {
+    use argon2::Argon2;
+    if blob.len() < 16 + 12 + 12 + GCM_TAG_LEN {
+        return Err(CoreError::Crypto("sealed blob too short".into()));
+    }
+    let mut salt = [0u8; ARGON2_SALT_LEN];
+    salt.copy_from_slice(&blob[..16]);
+    let memory_kib = u32::from_be_bytes([blob[16], blob[17], blob[18], blob[19]]);
+    let iterations = u32::from_be_bytes([blob[20], blob[21], blob[22], blob[23]]);
+    let parallelism = u32::from_be_bytes([blob[24], blob[25], blob[26], blob[27]]);
+    if memory_kib < ARGON2_MEMORY_KIB || iterations < ARGON2_ITERATIONS || parallelism < ARGON2_PARALLELISM {
+        return Err(CoreError::Crypto("sealed blob weakens the KDF floor".into()));
+    }
+    let mut nonce = [0u8; 12];
+    nonce.copy_from_slice(&blob[28..40]);
+    let ciphertext = &blob[40..];
+    let params = argon2::Params::new(memory_kib, iterations, parallelism, Some(KEY_LEN))
+        .map_err(|e| CoreError::Crypto(format!("argon2 params: {e}")))?;
+    let argon = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+    let mut kek = [0u8; KEY_LEN];
+    argon
+        .hash_password_into(passphrase.as_bytes(), &salt, &mut kek)
+        .map_err(|e| CoreError::Crypto(format!("argon2 failed: {e}")))?;
+    let cipher = Aes256Gcm::new_from_slice(&kek)
+        .map_err(|e| CoreError::Crypto(format!("invalid kek: {e}")))?;
+    let plaintext = cipher
+        .decrypt(Nonce::from_slice(&nonce), ciphertext)
+        .map_err(|_| CoreError::Crypto("decryption failed".into()))?;
+    kek.zeroize();
+    Ok(plaintext)
+}

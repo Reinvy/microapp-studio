@@ -507,3 +507,24 @@ pub fn vault_open_wrapped(
     let aad = aad_from_json(aad_json)?;
     envelope_open(&key, crate::crypto::LABEL_VAULT, &aad, envelope).map_err(err_to_js)
 }
+
+/// Seal backup bytes with a passphrase (Argon2id parameters embedded).
+#[wasm_bindgen]
+pub fn backup_seal(passphrase: &str, plaintext: &[u8]) -> Result<Vec<u8>, JsValue> {
+    crate::crypto::seal_with_passphrase(passphrase, plaintext).map_err(err_to_js)
+}
+
+/// Open a backup blob; wrong passphrase fails without distinguishing the cause.
+#[wasm_bindgen]
+pub fn backup_open(passphrase: &str, blob: &[u8]) -> Result<Vec<u8>, JsValue> {
+    crate::crypto::open_with_passphrase(passphrase, blob).map_err(err_to_js)
+}
+
+/// Canonical (JCS) SHA-256 of a JSON document, hex encoded.
+#[wasm_bindgen]
+pub fn json_jcs_sha256(json: &str) -> Result<String, JsValue> {
+    let value: serde_json::Value = serde_json::from_str(json)
+        .map_err(|e| JsValue::from_str(&format!("E-CLI-001|{e}")))?;
+    let canonical = crate::crypto::jcs(&value).map_err(err_to_js)?;
+    Ok(hex_lower(&crate::crypto::sha256(&canonical)))
+}

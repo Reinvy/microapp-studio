@@ -13,7 +13,7 @@ import { useParams } from 'next/navigation';
 import { useHost } from '@/features/host/HostProvider';
 import { BridgeBroker, buildSandboxDocument, FREEZE_MS, type AuditEvent } from '@microapp/runtime-web';
 import { permissionDecision } from '@/db/repositories/permissions';
-import type { InstalledApp } from '@/db/repositories/apps';
+import { getApp, type InstalledApp } from '@/db/repositories/apps';
 
 interface CrashState {
   code: string;
@@ -41,6 +41,12 @@ export default function AppRunnerPage(): ReactElement {
   const appId = typeof params?.appId === 'string' ? decodeURIComponent(params.appId) : '';
   const [app, setApp] = useState<InstalledApp | null>(null);
   const [crash, setCrash] = useState<CrashState | null>(null);
+  const [consent, setConsent] = useState<{
+    target: string;
+    intent: string;
+    route: string;
+    resolve: (decision: 'granted' | 'denied') => void;
+  } | null>(null);
   const [status, setStatus] = useState<string>('loading');
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastBeatRef = useRef<number>(0);
@@ -106,6 +112,31 @@ export default function AppRunnerPage(): ReactElement {
           return { removed: true };
         },
         'storage.keys': () => ({ keys: [] }),
+      },
+      requestConsent: async (request) => {
+        // Per-transfer intent consent: the dialog shows source, target, type, route.
+        const target = String(request.params.target ?? '');
+        const intent = String(request.params.intent ?? '');
+        const route = String(request.params.route ?? '/');
+        if (!target) return 'denied';
+        const targetApp = await getApp(host.db!, host.workspace!.id, target);
+        if (!targetApp) return 'denied';
+        let declared: string[] = [];
+        try {
+          const manifest = JSON.parse(targetApp.manifestJson) as {
+            capabilities?: { intentsIn?: string[] };
+          };
+          declared = manifest.capabilities?.intentsIn ?? [];
+        } catch {
+          declared = [];
+        }
+        if (!declared.includes(intent)) {
+          await host.audit('intent.deny', target, { reason: 'undeclared_intent', intent });
+          return 'denied';
+        }
+        return new Promise<'granted' | 'denied'>((resolve) => {
+          setConsent({ target, intent, route, resolve });
+        });
       },
       checkPermission: async (permissionId) => {
         const decision = await permissionDecision(host.db!, {
@@ -261,6 +292,41 @@ export default function AppRunnerPage(): ReactElement {
             {t('app.restart')}
           </button>
         </section>
+      ) : null}
+      {consent ? (
+        <div role="dialog" aria-modal="true" aria-label={t('permissions.title')} className="modal">
+          <h2>{t('permissions.title')}</h2>
+          <p>
+            {appId} → {consent.target}
+          </p>
+          <p>
+            {consent.intent} · {consent.route}
+          </p>
+          <div className="badge-row">
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => {
+                consent.resolve('granted');
+                void host.audit('intent.dispatch', consent.target, { intent: consent.intent });
+                setConsent(null);
+              }}
+            >
+              {t('install.allow')}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                consent.resolve('denied');
+                void host.audit('intent.deny', consent.target, { intent: consent.intent });
+                setConsent(null);
+              }}
+            >
+              {t('install.deny')}
+            </button>
+          </div>
+        </div>
       ) : null}
       <div id="sandbox-container" aria-live="polite" />
     </main>
