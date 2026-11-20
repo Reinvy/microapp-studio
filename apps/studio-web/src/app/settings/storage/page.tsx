@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useHost } from '@/features/host/HostProvider';
 import { SettingsShell } from '@/features/settings/SettingsShell';
-import { listPins } from '@/db/repositories/search';
+import { listPins, pinStorage, unpinStorage } from '@/db/repositories/search';
 import { appPolicy, setOfflineCage } from '@/db/repositories/apps';
 
 export default function StoragePage(): ReactElement {
@@ -32,6 +32,27 @@ export default function StoragePage(): ReactElement {
   useEffect(() => {
     void Promise.resolve().then(refresh);
   }, [refresh]);
+
+  const togglePin = async (appInstallId: string, relativePath: string, pinned: boolean): Promise<void> => {
+    if (!host.db || !host.workspace) return;
+    if (pinned) {
+      await unpinStorage(host.db, {
+        workspaceId: host.workspace.id,
+        appInstallId,
+        category: 'bundle',
+        relativePath,
+      });
+    } else {
+      await pinStorage(host.db, {
+        workspaceId: host.workspace.id,
+        appInstallId,
+        category: 'bundle',
+        relativePath,
+      });
+    }
+    await host.audit(pinned ? 'storage.unpin' : 'storage.pin', appInstallId);
+    await refresh();
+  };
 
   const toggleCage = async (installId: string): Promise<void> => {
     if (!host.db || !host.workspace) return;
@@ -63,6 +84,21 @@ export default function StoragePage(): ReactElement {
             <div className="badge-row">
               <button type="button" className="button" onClick={() => void toggleCage(app.id)}>
                 {host.t('settings.offlineCage')}: {cages[app.id] ? 'aktif' : 'nonaktif'}
+              </button>
+              <button
+                type="button"
+                className="button"
+                onClick={() =>
+                  void togglePin(
+                    app.id,
+                    app.bundlePath,
+                    pins.some((pin) => pin.appInstallId === app.id && pin.relativePath === app.bundlePath),
+                  )
+                }
+              >
+                {pins.some((pin) => pin.appInstallId === app.id && pin.relativePath === app.bundlePath)
+                  ? 'Lepas pin'
+                  : 'Pin permanen'}
               </button>
             </div>
             <p>{host.t('settings.offlineCageHint')}</p>

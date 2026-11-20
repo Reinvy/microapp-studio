@@ -8,24 +8,24 @@ prd_refs: ["§8"]
 
 # Evidence Fase 1
 
-- Commit: `18ab26dc8df3df4c11a9c952368842e2ef9b9545`
-- Generated: 2026-11-20T17:39:47.459Z
+- Commit: `aff83f822552ae983b9f971b70acfbc4adc37c2f`
+- Generated: 2026-11-20T17:42:58.989Z
 - Result: **pass**
 
 ## 1. Perintah
 
 | Perintah | Exit | Durasi (ms) |
 |---|---|---|
-| `node scripts/check-docs.mjs --strict` | 0 | 187 |
-| `node scripts/test-migrations.mjs` | 0 | 127 |
-| `npm test` | 0 | 3386 |
-| `npm run typecheck` | 0 | 2961 |
-| `npm run lint` | 0 | 4536 |
-| `npm run build` | 0 | 4442 |
-| `npm run build:core` | 0 | 361 |
-| `cargo test --manifest-path packages/core-rust/Cargo.toml` | 0 | 10336 |
-| `cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings` | 0 | 255 |
-| `npm run e2e -w @microapp/studio-web` | 0 | 12852 |
+| `node scripts/check-docs.mjs --strict` | 0 | 184 |
+| `node scripts/test-migrations.mjs` | 0 | 120 |
+| `npm test` | 0 | 3426 |
+| `npm run typecheck` | 0 | 4439 |
+| `npm run lint` | 0 | 4560 |
+| `npm run build` | 0 | 4479 |
+| `npm run build:core` | 0 | 487 |
+| `cargo test --manifest-path packages/core-rust/Cargo.toml` | 0 | 10534 |
+| `cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings` | 0 | 114 |
+| `npm run e2e -w @microapp/studio-web` | 0 | 12867 |
 
 ## 2. Requirement
 
@@ -37,8 +37,8 @@ prd_refs: ["§8"]
 | FR-HOST-004 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-005 | partial | gate otomatis fase 1 (lihat manualGates) |
 | FR-HOST-006 | partial | gate otomatis fase 1 (lihat manualGates) |
-| FR-HOST-007 | partial | gate otomatis fase 1 (lihat manualGates) |
-| FR-HOST-008 | partial | gate otomatis fase 1 (lihat manualGates) |
+| FR-HOST-007 | implemented | scripts/verify-phase-1.mjs |
+| FR-HOST-008 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-009 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-011 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-012 | partial | gate otomatis fase 1 (lihat manualGates) |
@@ -50,7 +50,7 @@ prd_refs: ["§8"]
 | FR-HOST-018 | partial | gate otomatis fase 1 (lihat manualGates) |
 | FR-HOST-020 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-021 | implemented | scripts/verify-phase-1.mjs |
-| FR-HOST-022 | partial | gate otomatis fase 1 (lihat manualGates) |
+| FR-HOST-022 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-023 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-024 | implemented | scripts/verify-phase-1.mjs |
 | FR-HOST-025 | implemented | scripts/verify-phase-1.mjs |

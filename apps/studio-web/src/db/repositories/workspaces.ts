@@ -164,3 +164,59 @@ export async function saveWorkspaceState(
     [workspaceId, state.lastAppId, state.homeScroll, JSON.stringify(state.filters), nowMs],
   );
 }
+
+/** Create a non-default workspace; the first workspace stays default. */
+export async function createWorkspace(
+  db: HostDb,
+  input: { name: string; locale?: string; nowMs?: number },
+): Promise<Workspace> {
+  const now = input.nowMs ?? Date.now();
+  if (input.name.trim().length === 0) throw new Error('E-SBX-005 workspace name is required');
+  const id = uuidv7(now);
+  const baseSlug = slugifyWorkspace(input.name);
+  const taken = await db.select<{ slug: string }>('SELECT slug FROM workspaces WHERE slug LIKE ?', [`${baseSlug}%`]);
+  const slug = taken.some((row) => row.slug === baseSlug) ? `${baseSlug}-${taken.length}` : baseSlug;
+  await db.transaction(async (tx) => {
+    await tx.exec(
+      `INSERT INTO workspaces (id, name, slug, theme, locale, is_default, created_at_ms, updated_at_ms, last_opened_at_ms)
+       VALUES (?, ?, ?, 'studio', ?, 0, ?, ?, ?)`,
+      [id, input.name.trim(), slug, input.locale ?? 'id-ID', now, now, now],
+    );
+    await tx.exec(
+      `INSERT INTO workspace_state (workspace_id, last_app_id, home_scroll, filters_json, updated_at_ms)
+       VALUES (?, NULL, 0, '{}', ?)`,
+      [id, now],
+    );
+  });
+  return {
+    id,
+    name: input.name.trim(),
+    slug,
+    theme: 'studio',
+    locale: input.locale ?? 'id-ID',
+    isDefault: false,
+    createdAtMs: now,
+    lastOpenedAtMs: now,
+  };
+}
+
+/** Switch the active workspace by moving the single `is_default` flag. */
+export async function setActiveWorkspace(db: HostDb, workspaceId: string, nowMs = Date.now()): Promise<void> {
+  await db.transaction(async (tx) => {
+    const exists = await tx.select<{ id: string }>(
+      'SELECT id FROM workspaces WHERE id = ? AND deleted_at_ms IS NULL',
+      [workspaceId],
+    );
+    if (!exists[0]) throw new Error('E-HOST-007 workspace not found');
+    await tx.exec('UPDATE workspaces SET is_default = 0 WHERE is_default = 1');
+    await tx.exec('UPDATE workspaces SET is_default = 1, last_opened_at_ms = ? WHERE id = ?', [nowMs, workspaceId]);
+  });
+}
+
+/** Soft-delete a non-default workspace; the default workspace cannot be removed. */
+export async function deleteWorkspace(db: HostDb, workspaceId: string, nowMs = Date.now()): Promise<void> {
+  const rows = await db.select<{ is_default: number }>('SELECT is_default FROM workspaces WHERE id = ?', [workspaceId]);
+  if (!rows[0]) throw new Error('E-HOST-007 workspace not found');
+  if (rows[0].is_default === 1) throw new Error('E-HOST-007 default workspace cannot be deleted');
+  await db.exec('UPDATE workspaces SET deleted_at_ms = ?, updated_at_ms = ? WHERE id = ?', [nowMs, nowMs, workspaceId]);
+}

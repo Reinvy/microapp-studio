@@ -11,7 +11,15 @@ import { useRouter } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { useHost } from '@/features/host/HostProvider';
 import { search, type SearchHit } from '@/db/repositories/search';
-import { loadWorkspaceState, saveWorkspaceState } from '@/db/repositories/workspaces';
+import {
+  createWorkspace,
+  listWorkspaces,
+  loadWorkspaceState,
+  renameWorkspace,
+  saveWorkspaceState,
+  setActiveWorkspace,
+  type Workspace,
+} from '@/db/repositories/workspaces';
 import { parseDeepLink } from '@/features/deeplink/parse';
 import {
   createBrowserNotifier,
@@ -32,6 +40,9 @@ export function HomeScreen(): ReactElement {
   const paletteRef = useRef<HTMLDialogElement | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [deepLinkNotice, setDeepLinkNotice] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [newWorkspace, setNewWorkspace] = useState('');
+  const [renameValue, setRenameValue] = useState('');
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [installError, setInstallError] = useState<string | null>(null);
@@ -47,6 +58,38 @@ export function HomeScreen(): ReactElement {
       (app) => app.appId.toLowerCase().includes(term) || app.version.includes(term),
     );
   }, [host.apps, query]);
+
+  const reloadWorkspaces = useCallback(async (): Promise<void> => {
+    if (!host.db) return;
+    setWorkspaces(await listWorkspaces(host.db));
+  }, [host.db]);
+
+  useEffect(() => {
+    void Promise.resolve().then(reloadWorkspaces);
+  }, [reloadWorkspaces, host.workspace]);
+
+  const addWorkspace = async (): Promise<void> => {
+    if (!host.db || newWorkspace.trim().length === 0) return;
+    const created = await createWorkspace(host.db, { name: newWorkspace.trim(), locale: host.locale });
+    await host.audit('workspace.create', created.name);
+    setNewWorkspace('');
+    await reloadWorkspaces();
+  };
+
+  const switchWorkspace = async (id: string): Promise<void> => {
+    if (!host.db || id === host.workspace?.id) return;
+    await setActiveWorkspace(host.db, id);
+    await host.audit('workspace.switch', id);
+    await host.refresh();
+  };
+
+  const renameActive = async (): Promise<void> => {
+    if (!host.db || !host.workspace || renameValue.trim().length === 0) return;
+    await renameWorkspace(host.db, host.workspace.id, renameValue.trim());
+    await host.audit('workspace.rename', host.workspace.id);
+    setRenameValue('');
+    await host.refresh();
+  };
 
   // Restore launcher state (last app, Home scroll) on cold start.
   useEffect(() => {
@@ -186,6 +229,35 @@ export function HomeScreen(): ReactElement {
         <div>
           <h1>{t('home.title')}</h1>
           <p>{host.workspace?.name}</p>
+        </div>
+        <div className="badge-row" aria-label="Workspace">
+          <label className="field">
+            <span>Workspace aktif</span>
+            <select
+              value={host.workspace?.id ?? ''}
+              onChange={(event) => void switchWorkspace(event.target.value)}
+            >
+              {workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Workspace baru</span>
+            <input type="text" value={newWorkspace} onChange={(event) => setNewWorkspace(event.target.value)} />
+          </label>
+          <button type="button" className="button" onClick={() => void addWorkspace()} disabled={!newWorkspace.trim()}>
+            Tambah
+          </button>
+          <label className="field">
+            <span>Ganti nama</span>
+            <input type="text" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
+          </label>
+          <button type="button" className="button" onClick={() => void renameActive()} disabled={!renameValue.trim()}>
+            Simpan nama
+          </button>
         </div>
         <nav className="badge-row" aria-label="Navigasi utama">
           <Link className="button" href="/registry">

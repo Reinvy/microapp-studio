@@ -6,11 +6,14 @@ import { HOST_MIGRATIONS } from '../migrations/index.generated';
 import { isUuidv7, uuidv7 } from '../ids';
 import { createIdentity, loadIdentity, resetIdentity, setRecoveryHint } from '../repositories/identity';
 import {
+  createWorkspace,
+  deleteWorkspace,
   ensureDefaultWorkspace,
   listWorkspaces,
   loadWorkspaceState,
   saveWorkspaceState,
   renameWorkspace,
+  setActiveWorkspace,
 } from '../repositories/workspaces';
 import { appPolicy, getApp, installApp, listApps, setOfflineCage, startRuntimeSession } from '../repositories/apps';
 import {
@@ -166,6 +169,28 @@ describe('workspaces', () => {
       homeScroll: 42.5,
       filters: { kind: 'finance' },
     });
+  });
+});
+
+describe('workspace management', () => {
+  it('creates, switches, renames, and soft-deletes non-default workspaces', async () => {
+    const workspace = await ensureDefaultWorkspace(db, { name: 'Rumah', locale: 'id-ID', nowMs: 1_000 });
+    const second = await createWorkspace(db, { name: 'Kantor', nowMs: 2_000 });
+    expect(second.isDefault).toBe(false);
+    expect(await listWorkspaces(db)).toHaveLength(2);
+
+    await setActiveWorkspace(db, second.id, 3_000);
+    const active = await db.select<{ id: string }>('SELECT id FROM workspaces WHERE is_default = 1');
+    expect(active).toEqual([{ id: second.id }]);
+
+    await renameWorkspace(db, second.id, 'Kantor Pusat', 4_000);
+    expect((await listWorkspaces(db)).find((row) => row.id === second.id)?.name).toBe('Kantor Pusat');
+
+    await setActiveWorkspace(db, workspace.id, 4_500);
+    await expect(deleteWorkspace(db, second.id, 5_000)).resolves.toBeUndefined();
+    expect(await listWorkspaces(db)).toHaveLength(1);
+    await expect(deleteWorkspace(db, workspace.id)).rejects.toThrow(/default workspace/);
+    await expect(createWorkspace(db, { name: '   ' })).rejects.toThrow(/name is required/);
   });
 });
 

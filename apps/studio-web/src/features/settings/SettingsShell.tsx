@@ -36,6 +36,9 @@ export function SettingsShell({
         <Link className="button" href="/settings/sync">
           {host.t('settings.sync')}
         </Link>
+        <Link className="button" href="/settings/notifications">
+          Notifikasi
+        </Link>
         <Link className="button" href="/settings/backup">
           {host.t('backup.title')}
         </Link>

@@ -1,7 +1,7 @@
 {
   "phase": 1,
-  "commit": "18ab26dc8df3df4c11a9c952368842e2ef9b9545",
-  "generatedAt": "2026-11-20T17:39:47.459Z",
+  "commit": "aff83f822552ae983b9f971b70acfbc4adc37c2f",
+  "generatedAt": "2026-11-20T17:42:58.989Z",
   "environment": {
     "node": "v24.19.0",
     "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
@@ -15,61 +15,61 @@
       "name": "docs",
       "command": "node scripts/check-docs.mjs --strict",
       "exitCode": 0,
-      "durationMs": 187
+      "durationMs": 184
     },
     {
       "name": "migrations",
       "command": "node scripts/test-migrations.mjs",
       "exitCode": 0,
-      "durationMs": 127
+      "durationMs": 120
     },
     {
       "name": "unit",
       "command": "npm test",
       "exitCode": 0,
-      "durationMs": 3386
+      "durationMs": 3426
     },
     {
       "name": "typecheck",
       "command": "npm run typecheck",
       "exitCode": 0,
-      "durationMs": 2961
+      "durationMs": 4439
     },
     {
       "name": "lint",
       "command": "npm run lint",
       "exitCode": 0,
-      "durationMs": 4536
+      "durationMs": 4560
     },
     {
       "name": "build",
       "command": "npm run build",
       "exitCode": 0,
-      "durationMs": 4442
+      "durationMs": 4479
     },
     {
       "name": "build:core",
       "command": "npm run build:core",
       "exitCode": 0,
-      "durationMs": 361
+      "durationMs": 487
     },
     {
       "name": "cargo-test",
       "command": "cargo test --manifest-path packages/core-rust/Cargo.toml",
       "exitCode": 0,
-      "durationMs": 10336
+      "durationMs": 10534
     },
     {
       "name": "cargo-clippy",
       "command": "cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings",
       "exitCode": 0,
-      "durationMs": 255
+      "durationMs": 114
     },
     {
       "name": "e2e",
       "command": "npm run e2e -w @microapp/studio-web",
       "exitCode": 0,
-      "durationMs": 12852
+      "durationMs": 12867
     }
   ],
   "requirements": [
@@ -105,13 +105,13 @@
     },
     {
       "id": "FR-HOST-007",
-      "status": "partial",
-      "evidence": "gate otomatis fase 1 (lihat manualGates)"
+      "status": "implemented",
+      "evidence": "scripts/verify-phase-1.mjs"
     },
     {
       "id": "FR-HOST-008",
-      "status": "partial",
-      "evidence": "gate otomatis fase 1 (lihat manualGates)"
+      "status": "implemented",
+      "evidence": "scripts/verify-phase-1.mjs"
     },
     {
       "id": "FR-HOST-009",
@@ -170,8 +170,8 @@
     },
     {
       "id": "FR-HOST-022",
-      "status": "partial",
-      "evidence": "gate otomatis fase 1 (lihat manualGates)"
+      "status": "implemented",
+      "evidence": "scripts/verify-phase-1.mjs"
     },
     {
       "id": "FR-HOST-023",
@@ -514,5 +514,5 @@
     }
   ],
   "result": "pass",
-  "startedAt": "2026-11-20T17:39:08.009Z"
+  "startedAt": "2026-11-20T17:42:17.773Z"
 }
