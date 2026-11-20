@@ -15,7 +15,7 @@ prd_refs: ["§4.3", "§3 Modul 5", "§5.1"]
 ## Keputusan
 
 1. **Placeholder digest.** `contentHash` dihitung atas ZIP kanonik **tanpa** direktori `signatures/`, dengan nilai `manifest.json.contentHash` diganti sementara menjadi `sha256-` + 64 karakter `0` sebelum hashing. Nilai asli ditulis setelah hash dihitung. Verifier mem-parse manifest, mengganti field dengan placeholder yang sama, men-serialisasi ulang JCS, membangun ulang ZIP kanonik, lalu membandingkan hash.
-2. **Signature menandatangani 32 byte digest mentah** hasil SHA-256 ZIP kanonik (setelah placeholder diganti nilai asli), bukan string hex. `signatures/author.ed25519` dan `signatures/registry.ed25519` berisi 64 byte signature mentah tanpa header.
+2. **Signature menandatangani 32 byte digest mentah** yang sama dengan digest `contentHash` (ZIP kanonik dengan placeholder), bukan string hex dan bukan ZIP yang sudah memuat nilai akhir. `signatures/author.ed25519` dan `signatures/registry.ed25519` berisi 64 byte signature mentah tanpa header.
 3. **Identitas kunci.** `publisher.keyId` = 16 hex pertama `SHA-256(public key author)`; `publisher.fingerprint` = 64 hex penuh hash yang sama; `entry.signature` = `ed25519-<keyId>`.
 4. **Matriks kepercayaan instalasi.**
    - `.mapp` lokal: signature author wajib valid; `signatures/registry.ed25519` opsional, bila ada wajib valid.

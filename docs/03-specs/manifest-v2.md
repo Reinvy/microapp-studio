@@ -105,8 +105,8 @@ Di luar lingkup: format indeks registry (lihat [registry-supply-chain.md](../01-
     "recommendedModelSize": "small-3b"
   },
   "capabilities": {
-    "intentsIn": ["image.receipt", "csv.import"],
-    "intentsOut": ["document.pdf", "data.csv"],
+    "intentsIn": ["image.receipt", "data.csv"],
+    "intentsOut": ["document.pdf", "json.structured"],
     "widgets": [{ "id": "daily-balance", "sizes": ["2x1", "2x2"] }]
   }
 }
@@ -161,11 +161,11 @@ app.mapp
 
 1. Susun ZIP kanonik tanpa `signatures/` (entry terurut bytewise, timestamp `1980-01-01`, deflate level 9, permission `0644`/`0755`).
 2. Tulis `manifest.json` dengan `contentHash` sementara `sha256-` + 64 karakter `0`, serialisasi JCS UTF-8 tanpa BOM dan tanpa newline akhir.
-3. Hitung `digest = SHA-256(ZIP kanonik)`.
-4. Tulis ulang `manifest.json` dengan `contentHash = "sha256-" || hex(digest)` dan serialisasi ulang JCS.
-5. Hitung ulang ZIP kanonik penuh tanpa `signatures/`; nilai ini yang dipakai `contentHash` final dan diverifikasi ulang.
-6. Tandatangani 32 byte `digest` final dengan Ed25519 author, tulis `signatures/author.ed25519` (64 byte mentah). Registry melakukan hal yang sama dengan kunci berbeda ke `signatures/registry.ed25519`.
-7. Verifier mem-parse manifest, mengganti `contentHash` dengan placeholder, men-serialisasi ulang JCS, membangun ulang ZIP kanonik dengan placeholder, lalu membandingkan digest dan kedua signature.
+3. Hitung `digest = SHA-256(ZIP kanonik)`; digest ini adalah satu-satunya nilai yang dipakai `contentHash` **dan** kedua signature.
+4. Tulis ulang `manifest.json` dengan `contentHash = "sha256-" || hex(digest)` dan serialisasi ulang JCS, lalu bangun ZIP final.
+5. Tandatangani 32 byte `digest` dari langkah 3 dengan Ed25519 author, tulis `signatures/author.ed25519` (64 byte mentah). Registry melakukan hal yang sama dengan kunci berbeda ke `signatures/registry.ed25519`.
+6. Verifier mem-parse manifest, mengganti `contentHash` dengan placeholder, men-serialisasi ulang JCS, membangun ulang ZIP kanonik dengan placeholder, menghitung digest, lalu membandingkan `contentHash` dan kedua signature terhadap digest itu.
+7. Karena `signatures/` tidak ikut di-ZIP-kan pada langkah 1–3, penambahan signature tidak mengubah digest; isi selain signature yang berubah selalu membatalkan `contentHash`.
 
 ### 4.6 Matriks Kepercayaan Instalasi
 
@@ -175,6 +175,23 @@ app.mapp
 | Registry | Wajib valid | Wajib valid | Wajib | Tidak ada |
 | Git tanpa signature | Tidak ada | Tidak ada | Tidak berlaku | Wajib eksplisit; trust `community`/`local` |
 | Enterprise (internal) | Wajib valid | Wajib valid | Wajib | Tidak ada |
+
+### 4.7 Registry Intent
+
+`capabilities.intentsIn` dan `intentsOut` hanya boleh memuat ID berikut; daftar ini di-embed di `core-rust` dan diubah lewat RFC.
+
+| Intent ID | Payload | Contoh penggunaan |
+|---|---|---|
+| `text.plain` | teks UTF-8 saja | Catatan, catatan tempel |
+| `json.structured` | objek JSON ≤ 64 KiB | Pertukaran data antar-app |
+| `image.photo` | blob gambar | Kirim foto ke app lain |
+| `image.receipt` | blob gambar + metadata OCR opsional | Struk ke app keuangan |
+| `document.pdf` | blob PDF | Ekspor dokumen |
+| `data.csv` | blob CSV | Impor/ekspor tabel |
+| `url.open` | URL HTTPS | Buka tautan di app target |
+| `file.any` | blob dengan MIME terdeklarasi | Transfer file umum |
+
+Intent di luar daftar ditolak saat validasi manifest (`M-16`) dan saat dispatch (`E-SBX-009`).
 
 ## 5. Error dan Recovery
 
