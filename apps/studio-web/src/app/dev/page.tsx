@@ -52,15 +52,19 @@ export default function DevPage() {
 
   // Parse input names from test input
   useEffect(() => {
-    try {
-      const parsed = JSON.parse(testInput || '{}');
-      const names = Object.keys(parsed);
-      if (names.length > 0) {
-        setInputNames(names);
+    // Defer one microtask: parsing feeds setState which must not run inside the
+    // effect body.
+    void Promise.resolve().then(() => {
+      try {
+        const parsed = JSON.parse(testInput || '{}');
+        const names = Object.keys(parsed);
+        if (names.length > 0) {
+          setInputNames(names);
+        }
+      } catch {
+        // ignore parse errors
       }
-    } catch {
-      // ignore parse errors
-    }
+    });
   }, [testInput]);
 
   const handleRunTest = useCallback(() => {

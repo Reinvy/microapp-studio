@@ -61,6 +61,7 @@ export default function ImportDialog({ open, onClose, onImported }: ImportDialog
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportSummary | null>(null);
   const [copy, setCopy] = useState<ImportDialogCopy>(defaultCopy);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   // Load DB-driven dialog copy — falls back to the defaults above.
   useEffect(() => {
@@ -76,6 +77,7 @@ export default function ImportDialog({ open, onClose, onImported }: ImportDialog
     setBusy(false);
     setError(null);
     setResult(null);
+    setFileName(null);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -123,16 +125,17 @@ export default function ImportDialog({ open, onClose, onImported }: ImportDialog
               type="file"
               accept=".json,application/json"
               className="hidden"
-              onChange={() => {
+              onChange={(event) => {
                 setError(null);
                 setResult(null);
+                setFileName(event.target.files?.[0]?.name ?? null);
               }}
             />
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl clay-sm bg-[#C5E8F7] text-foreground">
               <FileUp className="h-5 w-5" />
             </span>
             <span className="text-sm font-medium text-foreground">
-              {fileRef.current?.files?.[0]?.name || copy.chooseFile}
+              {fileName || copy.chooseFile}
             </span>
             <span className="text-xs text-clay-muted">{copy.fileHint}</span>
           </label>

@@ -257,10 +257,12 @@ export default function AppRunner({ app }: AppRunnerProps) {
 
   // Initialize default values
   useEffect(() => {
-    const initial = buildInitialValues(app);
-    setValues(initial);
-    setResult(null);
-    setErrors({});
+    // Defer one microtask: resetting form state must not run in the effect body.
+    void Promise.resolve().then(() => {
+      setValues(buildInitialValues(app));
+      setResult(null);
+      setErrors({});
+    });
   }, [app]);
 
   // Real-time live computation

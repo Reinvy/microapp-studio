@@ -1,7 +1,7 @@
 'use client';
 
 import { useDraggable } from '@dnd-kit/core';
-import type { FieldType } from '@/types/schema';
+import type { FieldType, FieldSchema } from '@/types/schema';
 import { useAppStore } from '@/store/appStore';
 import { cn } from '@/lib/utils';
 import { FieldTypeIcon, fieldLabels, typeColors } from '@/lib/fieldMeta';
@@ -115,9 +115,9 @@ export default function ComponentPalette() {
 
   const handleQuickAdd = (type: FieldType, label: string) => {
     // Labels and default content come from builderCopy — nothing hardcoded here.
-    const baseField: Record<string, unknown> = { type, label: builderCopy.page.newField(label) };
+    const baseField: Partial<FieldSchema> = { type, label: builderCopy.page.newField(label) };
     if (type === 'heading') {
-      baseField.level = 2;
+      baseField.level = 'h2';
       baseField.content = builderCopy.palette.quickAdd.heading;
     }
     if (type === 'paragraph') {
@@ -127,7 +127,7 @@ export default function ComponentPalette() {
       baseField.variant = 'primary';
       baseField.actionType = 'submit';
     }
-    addField(baseField as any);
+    addField(baseField);
   };
 
   return (

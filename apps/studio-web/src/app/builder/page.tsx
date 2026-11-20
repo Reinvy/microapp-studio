@@ -176,7 +176,9 @@ function BuilderContent() {
   }, [appId, setActiveApp, setLoading]);
 
   useEffect(() => {
-    loadApp();
+    // Defer one microtask so the loader's synchronous `setLoading(true)` does
+    // not run inside the effect body.
+    void Promise.resolve().then(loadApp);
   }, [loadApp]);
 
   // Autosave — every edit enqueues a debounced, coalesced write through the

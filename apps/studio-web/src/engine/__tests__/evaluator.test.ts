@@ -417,7 +417,7 @@ describe('evaluator — createStringOpNode', () => {
   });
 
   it('falls back to uppercase code for unknown operations', () => {
-    const node = createStringOpNode('unknown' as any);
+    const node = createStringOpNode('unknown' as unknown as Parameters<typeof createStringOpNode>[0]);
 
     // Name uses the operation input, but code falls back to uppercase
     expect(node.name).toMatch(/Unknown/i);

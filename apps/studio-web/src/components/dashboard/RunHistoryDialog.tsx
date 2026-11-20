@@ -80,8 +80,11 @@ export default function RunHistoryDialog({ open, onClose }: RunHistoryDialogProp
   // Load DB-driven dialog copy + chip palette; reset to page 1 on open.
   useEffect(() => {
     if (!open) return;
-    setPage(1);
-    setJumpInput('');
+    // Defer the reset by one microtask so setState does not run in the effect body.
+    void Promise.resolve().then(() => {
+      setPage(1);
+      setJumpInput('');
+    });
     contentService.getContent<RunHistoryDialogCopy>('run-history-dialog-copy')
       .then((c) => {
         if (c) setCopy(c);
@@ -94,13 +97,13 @@ export default function RunHistoryDialog({ open, onClose }: RunHistoryDialogProp
         }
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Load the current page whenever the dialog opens or the page changes.
   useEffect(() => {
     if (!open) return;
-    loadPage(page);
+    // Defer one microtask: loadPage sets `loading` synchronously.
+    void Promise.resolve().then(() => loadPage(page));
   }, [open, page, loadPage]);
 
   if (!open) return null;

@@ -70,7 +70,9 @@ export default function RunPage() {
   }, [appId]);
 
   useEffect(() => {
-    loadApp();
+    // Defer one microtask so the loader's synchronous `setLoading(true)` does
+    // not run inside the effect body.
+    void Promise.resolve().then(loadApp);
   }, [loadApp]);
 
   // Record the run in the run-history trail (bounded retention, fire-and-forget).

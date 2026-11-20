@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const securityHeaders = [
   {
@@ -26,6 +27,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  outputFileTracingRoot: path.join(__dirname, "../.."),
   async headers() {
     return [
       {
@@ -38,7 +40,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/dashboard",
-        destination: "/app",
+        destination: "/",
         permanent: true,
       },
     ];

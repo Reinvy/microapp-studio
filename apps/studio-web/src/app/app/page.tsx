@@ -103,7 +103,9 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    loadApps(searchQuery, page, pageSize, sort);
+    // Defer one microtask: the loader sets `loading` synchronously, which must
+    // not happen inside the effect body (cascading render).
+    void Promise.resolve().then(() => loadApps(searchQuery, page, pageSize, sort));
   }, [page, pageSize, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Latest-view ref for the subscription below — kept current in an effect so

@@ -33,7 +33,7 @@ export default function MonacoEditor({
   const [testing, setTesting] = useState(false);
 
   const handleEditorMount = useCallback((editor: unknown) => {
-    const ed = editor as any;
+    const ed = editor as { updateOptions?: (options: Record<string, unknown>) => void } | null;
     if (ed?.updateOptions) {
       ed.updateOptions({
         minimap: { enabled: true },
