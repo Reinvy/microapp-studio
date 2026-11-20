@@ -142,7 +142,9 @@ fn passphrase_seal_roundtrip_rejects_wrong_passphrase_and_weak_kdf() {
 
     // The KDF parameters are embedded; weakening them must be rejected.
     let mut weak = sealed.clone();
-    weak[27] = 1; // parallelism < floor
+    // memory_kib is the big-endian u32 at bytes 16..20; 1024 << 65536 floor.
+    weak[18] = 0x04;
+    weak[19] = 0x00;
     assert!(open_with_passphrase("correct horse battery", &weak).is_err());
 
     // Any ciphertext flip fails closed.
