@@ -60,6 +60,7 @@ Paket dokumen ini tidak memuat status `draft`.
 | [00-foundation/glossary.md](00-foundation/glossary.md) | Istilah kanonik dan sinonim terlarang. |
 | [00-foundation/implementation-status.md](00-foundation/implementation-status.md) | Status nyata kode Phase 0 versus target PRD, utang keamanan. |
 | [00-foundation/prd-compliance-matrix.md](00-foundation/prd-compliance-matrix.md) | Matriks setiap requirement dan setiap bagian PRD ke spec, flow, fase, status, verifikasi. |
+| [00-foundation/refactor-roadmap.md](00-foundation/refactor-roadmap.md) | Roadmap lima fase, langkah, gate, urutan commit, dan status eksekusi. |
 
 ### 4.2 Arsitektur dan ADR
 
@@ -87,6 +88,12 @@ Paket dokumen ini tidak memuat status `draft`.
 | [01-architecture/adr/0008-identity-auth.md](01-architecture/adr/0008-identity-auth.md) | Local Identity dan penghapusan auth localStorage. |
 | [01-architecture/adr/0009-license-governance.md](01-architecture/adr/0009-license-governance.md) | Apache-2.0 core, MIT paket. |
 | [01-architecture/adr/0010-design-system.md](01-architecture/adr/0010-design-system.md) | MADS token CSS + Flutter `ThemeExtension`. |
+| [01-architecture/adr/0011-host-database-canonical.md](01-architecture/adr/0011-host-database-canonical.md) | DDL host kanonik, isolasi workspace, satu audit chain. |
+| [01-architecture/adr/0012-local-identity-vault.md](01-architecture/adr/0012-local-identity-vault.md) | Kolom identitas kanonik, vault wrap, verifikasi frasa. |
+| [01-architecture/adr/0013-manifest-digest-signature.md](01-architecture/adr/0013-manifest-digest-signature.md) | Placeholder `contentHash`, signature digest, field manifest baru. |
+| [01-architecture/adr/0014-sandbox-bridge-surface.md](01-architecture/adr/0014-sandbox-bridge-surface.md) | Renderer di iframe, permukaan bridge tertutup, kode error. |
+| [01-architecture/adr/0015-backup-workflow-crdt-server.md](01-architecture/adr/0015-backup-workflow-crdt-server.md) | Backup tunggal, status workflow, CRDT kolom, RBAC server. |
+| [01-architecture/adr/0016-doc-reconciliation-phases.md](01-architecture/adr/0016-doc-reconciliation-phases.md) | Presedensi, fase terkoreksi, status berbasis bukti. |
 
 ### 4.3 Desain
 
@@ -182,6 +189,7 @@ Paket dokumen ini tidak memuat status `draft`.
 | [08-quality/security-test-plan.md](08-quality/security-test-plan.md) | Test keamanan per ancaman. |
 | [08-quality/release-gates.md](08-quality/release-gates.md) | Gate per PR, fase, release. |
 | [08-quality/definition-of-done.md](08-quality/definition-of-done.md) | DoD global dan per artefak. |
+| [08-quality/evidence/README.md](08-quality/evidence/README.md) | Skema evidence fase dan aturan pengisian; record `phase-1`…`phase-5`. |
 | [09-operations/selfhost-runbook.md](09-operations/selfhost-runbook.md) | Instalasi, upgrade, scaling, troubleshooting. |
 | [09-operations/airgap-runbook.md](09-operations/airgap-runbook.md) | Bundle air-gap dan operasi tanpa egress. |
 | [09-operations/observability.md](09-operations/observability.md) | Log, metrik, trace, audit export, retensi. |
@@ -213,8 +221,8 @@ Paket dokumen ini tidak memuat status `draft`.
 | Non-functional requirement | `NFR-<KATEGORI>-<NNN>` | [03-specs/nfr.md](03-specs/nfr.md) | 20 |
 | Keamanan | `SEC-<NNN>` | [03-specs/permissions.md](03-specs/permissions.md) | 20 |
 | Flow | `FLOW-<NN>` | [04-flows](04-flows/README.md) | 13 |
-| ADR | `ADR-<NNNN>` | [01-architecture/adr](01-architecture/adr/README.md) | 10 |
-| Error | `E-<DOMAIN>-<NNN>` | [03-specs/error-codes.md](03-specs/error-codes.md) | 60 |
+| ADR | `ADR-<NNNN>` | [01-architecture/adr](01-architecture/adr/README.md) | 16 |
+| Error | `E-<DOMAIN>-<NNN>` | [03-specs/error-codes.md](03-specs/error-codes.md) | 68 |
 | Rule | `RULE-<AREA>-<NNN>` | [07-rules](07-rules/README.md) | per file |
 | Layar | `SCR-<NN>` | [02-design/screen-specs.md](02-design/screen-specs.md) | 22 |
 | Komponen | `MADS-<CAT>-<NN>` | [02-design/component-catalog.md](02-design/component-catalog.md) | 120 |
@@ -253,7 +261,7 @@ Checker memvalidasi frontmatter, H1, section wajib, link dan anchor relatif, def
 1. Ubah dokumen lebih dulu: spec/flow/acceptance, lalu matriks.
 2. Commit `docs:` berdiri sendiri agar review kontrak terpisah dari implementasi.
 3. Implementasi mengikuti dokumen; PR wajib menautkan `Spec: docs/.../file.md#FR-...`.
-4. Setelah verifikasi dijalankan, commit `docs(status):` menaikkan status di [00-foundation/implementation-status.md](00-foundation/implementation-status.md) dan [00-foundation/prd-compliance-matrix.md](00-foundation/prd-compliance-matrix.md).
+4. Setelah verifikasi dijalankan, commit `docs(status):` menaikkan status di [00-foundation/implementation-status.md](00-foundation/implementation-status.md) dan [00-foundation/prd-compliance-matrix.md](00-foundation/prd-compliance-matrix.md). Status matriks hanya boleh diubah lewat `scripts/apply-status.mjs` yang membaca [evidence fase](08-quality/evidence/README.md); status tanpa bukti ditolak.
 5. Perubahan kontrak (manifest, host bridge, sync/CRDT, permission, crypto, registry) wajib melalui [RFC](10-contributing/rfc-process.md).
 
 Detail siklus dan pengecualian hotfix ada di [00-foundation/sdd-workflow.md](00-foundation/sdd-workflow.md).

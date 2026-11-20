@@ -24,6 +24,12 @@ ADR merekam keputusan arsitektur yang mengikat. ADR yang berstatus `accepted` me
 | [ADR-0008](0008-identity-auth.md) | Identitas dan Auth | accepted | Local Identity, SSO server |
 | [ADR-0009](0009-license-governance.md) | Lisensi dan Tata Kelola | accepted | Apache-2.0 + MIT |
 | [ADR-0010](0010-design-system.md) | Design System MADS | accepted | Token dan komponen |
+| [ADR-0011](0011-host-database-canonical.md) | Database Host Kanonik dan Isolasi Workspace | accepted | DDL kanonik, audit chain tunggal, grant normal |
+| [ADR-0012](0012-local-identity-vault.md) | Identitas Lokal, Vault, dan Verifikasi Pemulihan | accepted | Kolom identitas, vault wrap, verifikasi frasa |
+| [ADR-0013](0013-manifest-digest-signature.md) | Digest Manifest, Determinisme mapp, dan Signature | accepted | Placeholder `contentHash`, signature digest, field baru |
+| [ADR-0014](0014-sandbox-bridge-surface.md) | Sandbox Opaque Origin dan Permukaan Bridge | accepted | Renderer di iframe, bridge tertutup, kode error baru |
+| [ADR-0015](0015-backup-workflow-crdt-server.md) | Backup, Workflow, CRDT, Registry, dan RBAC Server | accepted | Satu format backup, status workflow, CRDT kolom, RBAC |
+| [ADR-0016](0016-doc-reconciliation-phases.md) | Rekonsiliasi Dokumen, Fase, dan Bukti Status | accepted | Presedensi, fase terkoreksi, status berbasis bukti |
 
 ## 2. Format
 

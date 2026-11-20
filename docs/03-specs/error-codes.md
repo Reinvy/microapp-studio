@@ -47,6 +47,8 @@ Tingkat severity: `info`, `warning`, `error`, `critical`. Log level: `debug`, `i
 | E-HOST-003 | warning | `error.host.deeplink_unresolved` | Route/app tidak dikenal | Tawarkan instalasi atau kembali ke Home | Tidak | info |
 | E-HOST-004 | error | `error.host.vault_locked` | Vault terkunci atau gagal unlock | Unlock ulang, gunakan recovery phrase | Ya | warn |
 | E-HOST-005 | warning | `error.host.storage_cleanup_partial` | Sebagian cache gagal dibersihkan | Laporkan kategori, retry | Ya | warn |
+| E-HOST-006 | critical | `error.host.audit_chain_invalid` | Rantai audit tidak valid: celah `seq_id`, urutan salah, atau hash tidak cocok | Hentikan aksi sensitif, tawarkan ekspor audit dan verifikasi ulang | Tidak | error |
+| E-HOST-007 | critical | `error.host.workspace_isolation` | Query atau grant melintasi `workspace_id` | Tolak operasi, audit, tampilkan error generik | Tidak | error |
 | E-STU-001 | error | `error.studio.parse_failed` | Kode gagal diparse | Tampilkan lokasi, pulihkan revisi valid | Tidak | error |
 | E-STU-002 | error | `error.studio.ai_unavailable` | Provider AI tidak tersedia | Pilih provider lain secara manual | Ya | warn |
 | E-STU-003 | error | `error.studio.byok_missing` | Kunci BYOK tidak ada/ditolak | Arahkan ke Vault | Tidak | warn |
@@ -57,11 +59,16 @@ Tingkat severity: `info`, `warning`, `error`, `critical`. Log level: `debug`, `i
 | E-SBX-003 | critical | `error.sandbox.frozen` | Freeze/infinite loop | Hentikan setelah 5 detik | Ya | error |
 | E-SBX-004 | error | `error.sandbox.startup_timeout` | Watchdog startup timeout | Batalkan mount, restart/rollback | Ya | error |
 | E-SBX-005 | warning | `error.sandbox.bridge_denied` | Permission/channel ditolak | Kembalikan error, buka Pengaturan | Ya | warn |
+| E-SBX-006 | warning | `error.sandbox.cancelled` | Operasi dibatalkan lewat `bridge.cancel` atau background | Tidak mengirim hasil; app menerima status cancelled | Tidak | info |
+| E-SBX-007 | error | `error.sandbox.transfer_incomplete` | Transfer biner tidak lengkap atau SHA-256 tidak cocok | Buang chunk, minta ulang berkas | Ya | warn |
+| E-SBX-008 | warning | `error.sandbox.duplicate_request` | `id` request dipakai ulang dalam satu sesi | Tolak request, audit | Tidak | warn |
+| E-SBX-009 | warning | `error.sandbox.invalid_intent` | Intent tidak dideklarasikan target atau payload melebihi 64 KiB | Tolak transfer, audit | Tidak | warn |
 | E-DATA-001 | critical | `error.data.open_failed` | Database tidak dapat dibuka | Restore snapshot, jangan buat kosong | Ya | error |
 | E-DATA-002 | error | `error.data.migration_failed` | Migrasi gagal | Rollback snapshot dan versi | Tidak | error |
 | E-DATA-003 | warning | `error.data.schema_staged` | Skema lebih baru | Simpan staging, beri tahu | Tidak | info |
 | E-DATA-004 | error | `error.data.outbox_exhausted` | Outbox gagal permanen | Tandai failed, retry manual | Ya | error |
 | E-DATA-005 | warning | `error.data.ssrf_blocked` | Target diblokir SSRF guard | Tolak, audit | Tidak | warn |
+| E-DATA-006 | warning | `error.data.quota_exceeded` | Kuota storage app (`permissions.quotas.storageMb`) terlampaui | Tolak penulisan, tawarkan pembersihan cache | Ya | warn |
 | E-REG-001 | critical | `error.registry.signature_invalid` | Signature tidak valid | Blokir instalasi | Tidak | error |
 | E-REG-002 | critical | `error.registry.key_changed` | Kunci author berubah | Blokir sampai persetujuan | Tidak | error |
 | E-REG-003 | error | `error.registry.hash_mismatch` | Hash artefak tidak cocok | Tolak dan hapus unduhan | Tidak | error |
@@ -77,6 +84,7 @@ Tingkat severity: `info`, `warning`, `error`, `critical`. Log level: `debug`, `i
 | E-AUTH-003 | error | `error.auth.session_revoked` | Sesi dicabut | Hentikan sync, pairing ulang | Tidak | warn |
 | E-AUTH-004 | error | `error.auth.git_credential_invalid` | Kredensial Git tidak valid | Minta ulang, hapus dari memori | Ya | warn |
 | E-AUTH-005 | critical | `error.auth.device_key_mismatch` | Kunci perangkat tidak cocok | Tolak sesi, pairing ulang | Tidak | error |
+| E-AUTH-006 | warning | `error.auth.recovery_mismatch` | Frasa pemulihan tidak menurunkan `identity_pubkey` yang sama | Batasi 10 percobaan/menit, tampilkan kegagalan generik | Ya | warn |
 | E-CRYPTO-001 | critical | `error.crypto.envelope_corrupt` | Envelope rusak/tag gagal | Tolak payload, audit | Tidak | error |
 | E-CRYPTO-002 | error | `error.crypto.unknown_key_id` | Key ID tidak dikenal | Minta kunci benar | Tidak | error |
 | E-CRYPTO-003 | critical | `error.crypto.nonce_reuse` | Nonce reuse | Hentikan enkripsi, insiden | Tidak | error |

@@ -56,6 +56,28 @@ Setiap fase PRD §8 hanya boleh dinyatakan selesai bila seluruh bukti di bawah t
 
 Fase tidak boleh ditandai selesai hanya karena fitur "ada". Setiap kriteria lulus MUST memiliki bukti yang dijalankan pada build kandidat dan dicatat di [00-foundation/implementation-status.md](../00-foundation/implementation-status.md) serta [00-foundation/prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md).
 
+### 3.1 Perintah Gate Fase
+
+Gate fase dijalankan oleh skrip yang menulis evidence mesin dan ringkasan manusia:
+
+```bash
+node scripts/check-docs.mjs --strict
+npm test && npm run typecheck && npm run lint && npm run build
+cargo test --manifest-path packages/core-rust/Cargo.toml
+cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings
+node scripts/verify-phase-1.mjs
+```
+
+| Fase | Skrip | Evidence |
+|---|---|---|
+| 1 | `scripts/verify-phase-1.mjs` | [evidence/phase-1.md](evidence/phase-1.md) |
+| 2 | `scripts/verify-phase-2.mjs` | [evidence/phase-2.md](evidence/phase-2.md) |
+| 3 | `scripts/verify-phase-3.mjs` | [evidence/phase-3.md](evidence/phase-3.md) |
+| 4 | `scripts/verify-phase-4.mjs` | [evidence/phase-4.md](evidence/phase-4.md) |
+| 5 | `scripts/verify-phase-5.mjs` | [evidence/phase-5.md](evidence/phase-5.md) |
+
+Skrip menulis `docs/08-quality/evidence/phase-<n>.json` dan `.md`. `scripts/apply-status.mjs` membaca JSON tersebut dan menjadi satu-satunya jalur perubahan kolom Status pada matriks. Skema dan aturan pengisian ada di [evidence/README.md](evidence/README.md).
+
 ## 4. Gate per Release
 
 | # | Gate | Bukti | Gagal bila |
