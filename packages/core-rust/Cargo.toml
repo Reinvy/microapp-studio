@@ -1,0 +1,53 @@
+[package]
+name = "microapp-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "MicroApp Studio shared core: crypto, identity, manifest, .mapp, HLC, audit, guards"
+repository = "https://github.com/Reinvy/microapp-studio"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "mapp-tool"
+path = "src/bin/mapp-tool.rs"
+
+[dependencies]
+aes-gcm = "0.10"
+argon2 = { version = "0.5", features = ["std"] }
+base64 = "0.22"
+bip39 = { version = "2", features = ["rand"] }
+ciborium = "0.2"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+getrandom = { version = "0.2", features = ["js"] }
+hex = "0.4"
+hkdf = "0.12"
+rand = "0.8"
+regex = "1"
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_jcs = "0.2"
+sha2 = "0.10"
+subtle = "2"
+thiserror = "2"
+unicode-normalization = "0.1"
+wasm-bindgen = "0.2"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+zeroize = { version = "1", features = ["derive"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+pbkdf2 = "0.12"
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "s"
+
+[features]
+default = []
+# Native QuickJS/Wasmtime sandbox engines are wired in the Flutter host phase.
+native-sandbox = []
