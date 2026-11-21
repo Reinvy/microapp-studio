@@ -19,7 +19,8 @@
     "build:core": "node scripts/build-core.mjs",
     "build:sandbox": "node scripts/build-sandbox.mjs",
     "build:sqlite": "node scripts/copy-sqlite-wasm.mjs",
-    "e2e": "npm run e2e -w @microapp/studio-web"
+    "e2e": "npm run e2e -w @microapp/studio-web",
+    "dev:setup": "npm run build:core && npm run build:sqlite && npm run build:sandbox"
   },
   "overrides": {
     "monaco-editor": {
