@@ -1,143 +1,91 @@
 ---
 id: SPEC-PERM
-title: Permission dan Consent
+title: Permission
 status: accepted
 owner: security
-prd_refs: ["§3 Modul 3", "§5.1"]
+prd_refs: ["§5 F7", "§8 Data dan Privasi"]
 ---
 
-# Permission dan Consent
+# Permission
 
-## 1. Tujuan dan Ruang Lingkup
+## 1. Tujuan
 
-Dokumen ini menetapkan katalog permission, risk tier, alur consent, grant/revoke, mock/spoof, Offline Cage, semantik allowlist, dan audit. Micro-app berjalan dengan zero privilege; setiap akses harus dideklarasikan dan disetujui.
+Menetapkan model izin micro-app: zero privilege, deklarasi manifest, consent JIT, grant/revoke, offline cage, mock/spoof opsional, dan audit. Permission adalah batas keamanan utama antara app pihak ketiga dan data pengguna di browser.
 
-Di luar lingkup: mekanisme bridge (lihat [host-bridge.md](host-bridge.md)), threat model (lihat [threat-model.md](../01-architecture/threat-model.md)).
+## 2. Ruang Lingkup
 
-## 2. Aktor dan Prasyarat
-
-| Aktor | Prasyarat |
-|---|---|
-| Micro-app | Manifest memuat permission required/optional |
-| Pengguna | Dapat melihat detail risiko dan mencabut grant |
-| Host | Broker, audit, dan UI consent |
+Di dalam: daftar permission, risk tier, consent, penyimpanan grant, revoke, offline cage, audit. Di luar: mekanisme broker ([host-bridge.md](host-bridge.md)), sandbox ([03-sandbox-runtime.md](03-sandbox-runtime.md)), threat model ([threat-model.md](../01-architecture/threat-model.md)).
 
 ## 3. Requirement
 
 | ID | Level | Requirement | Acceptance |
 |---|---|---|---|
-| SEC-001 | MUST | Permission `storage.local` (risk **low**) MUST mengizinkan baca/tulis key-value milik app sendiri, terbatas pada kuota `permissions.quotas.storageMb` (default 10 MB bila manifest tidak mengisi), tanpa akses ke database micro-app lain. Penulisan yang melewati kuota MUST ditolak dengan `E-DATA-006`. | App hanya membaca key miliknya; key app lain tidak terlihat; penulisan melewati kuota gagal `E-DATA-006`. |
-| SEC-002 | MUST | Permission `storage.local.sqlite` (risk **low**) MUST mengizinkan query pada database SQLite milik `app_id` di workspace aktif, tanpa ATTACH atau akses lintas app. | `ATTACH` ditolak; query ke DB app lain gagal. |
-| SEC-003 | MUST | Permission `camera` (risk **medium**) MUST mengizinkan pengambilan foto/video melalui kamera dengan indikator aktif dan tanpa akses ke galeri. | Kamera aktif menampilkan indikator; akses galeri tidak tersedia. |
-| SEC-004 | MUST | Permission `camera.qr` (risk **medium**) MUST mengizinkan pemindaian QR/barcode melalui kamera dan MUST NOT menyimpan frame mentah setelah hasil dikembalikan. | Frame tidak tersimpan; hanya hasil decode yang diterima app. |
-| SEC-005 | MUST | Permission `microphone` (risk **medium**) MUST mengizinkan perekaman audio dengan indikator aktif dan penghentian otomatis saat app background. | Background menghentikan rekaman; indikator hilang. |
-| SEC-006 | MUST | Permission `location` (risk **medium**) MUST mengizinkan lokasi dengan pilihan presisi kasar/halus dan tanpa akses riwayat. | Memilih kasar mengembalikan koordinat terkuantisasi; riwayat tidak tersedia. |
-| SEC-007 | MUST | Permission `biometrics` (risk **medium**) MUST mengizinkan verifikasi biometrik lokal melalui OS dan MUST NOT memberikan akses ke data biometrik. | Hanya hasil verifikasi boolean yang diterima; template biometrik tidak pernah keluar dari OS. |
-| SEC-008 | MUST | Permission `filesystem.picker` (risk **medium**) MUST mengizinkan baca/tulis hanya pada berkas yang dipilih pengguna melalui picker, dengan grant per berkas. | Path di luar pilihan ditolak; grant berkas lain tidak berlaku. |
-| SEC-009 | MUST | Permission `bluetooth` (risk **medium**) MUST mengizinkan pemindaian dan koneksi perangkat dengan daftar layanan yang dideklarasikan. | Hanya layanan terdaftar yang dapat diakses; lainnya ditolak. |
-| SEC-010 | MUST | Permission `nfc` (risk **medium**) MUST mengizinkan baca/tulis tag NFC saat app di foreground, tanpa background scanning. | Background tidak memicu scan; foreground berfungsi. |
-| SEC-011 | MUST | Permission `notifications.local` (risk **low**) MUST mengizinkan penjadwalan notifikasi lokal dan MUST NOT memberi akses ke notifikasi app lain. | Notifikasi app lain tidak terbaca; jadwal milik app berfungsi. |
-| SEC-012 | MUST | Permission `local_ai.inference` (risk **medium**) MUST mengizinkan inferensi pada model lokal yang tersedia, dengan batas waktu 120 detik dan tanpa mengirim data keluar perangkat. | Inferensi berjalan offline; trafik keluar nihil. |
-| SEC-013 | MUST | Permission `network.allowlist` (risk **high**) MUST mengizinkan koneksi hanya ke domain pada allowlist manifest, dengan pemblokiran IP privat dan metadata endpoint secara default. | Domain di luar allowlist ditolak; `10.0.0.1` ditolak; `169.254.169.254` ditolak. |
-| SEC-014 | MUST | Permission broker MUST menerapkan zero-privilege default: tanpa grant aktif, seluruh panggilan yang membutuhkan permission MUST ditolak sebelum validasi parameter. | App tanpa grant tidak dapat memicu dialog maupun akses. |
-| SEC-015 | MUST | Dialog consent MUST menampilkan nama app, permission ID, risk tier, alasan yang diminta manifest, dan opsi `Allow once`, `Allow`, atau `Deny`; `Allow once` hanya berlaku untuk sesi berjalan. | Tiga opsi tampil; `Allow once` hilang setelah app ditutup. |
-| SEC-016 | MUST | Grant MUST berlaku sampai dicabut dan MUST dapat dicabut kapan saja dari Pengaturan dan dari detail app; pencabutan MUST berlaku segera tanpa restart. | Cabut grant saat app berjalan; panggilan berikutnya gagal. |
-| SEC-017 | SHOULD | Host MUST menyediakan mock/spoof untuk tepat `camera`, `camera.qr`, `microphone`, `location`, dan `biometrics` yang mengembalikan data sintetis, ditandai di UI, dan dicatat di audit; permission lain MUST NOT dapat di-mock. | Mock aktif menampilkan badge; data sintetis diterima; audit mencatat mock; permission di luar daftar tidak menyediakan opsi mock. |
-| SEC-018 | MUST | Offline Cage MUST aktif secara default per app (`app_policy.offline_cage = 1`), MUST memblokir seluruh jaringan meskipun `network.allowlist` berisi domain, MUST menampilkan status permanen di UI app, dan MUST dapat dimatikan pengguna secara eksplisit dari Pengaturan. | Cage default aktif memblokir request ke domain allowlist; badge tampil; mematikan cage mengembalikan akses allowlist. |
-| SEC-019 | MUST | Setiap grant, deny, revoke, mock, dan penolakan akses MUST dicatat di audit lokal dengan `app_id`, `permission`, `decision`, `actor`, dan timestamp, tanpa data sensitif. | Audit memuat kelima jenis kejadian; tidak ada isi payload. |
-| SEC-020 | MUST | Perubahan permission saat update MUST memerlukan consent ulang untuk permission baru atau naiknya risk tier; penurunan izin MUST mencabut grant yang tidak lagi dideklarasikan. | Update menambah `location` memunculkan consent baru; menghapus `camera` mencabut grant. |
+| SEC-001 | MUST | Micro-app memiliki zero privilege sampai permission diberikan. | App baru tidak dapat memanggil bridge selain `ui.ready`. |
+| SEC-002 | MUST | Setiap permission yang dipakai wajib dideklarasikan di manifest. | Method tanpa deklarasi ditolak sebelum consent. |
+| SEC-003 | MUST | Consent JIT diminta sebelum akses pertama dan menjelaskan alasan plain-language. | Sheet memuat app, permission, alasan, risk tier; fokus default Tolak. |
+| SEC-004 | MUST | Offline Cage aktif secara default dan memblokir semua network app. | Panggilan network menghasilkan `E-NET-001` saat cage aktif. |
+| SEC-005 | MUST | Package wajib memiliki signature valid sebelum instalasi. | Impor tanpa signature ditolak. |
+| SEC-006 | MUST | Perubahan public key memicu peringatan keras dan blokir sampai disetujui. | Key baru tidak otomatis dipercaya. |
+| SEC-007 | MUST | Tidak ada secret di source, log, fixture, atau dokumen. | Pemindaian pola kunci bersih; fixture memakai nilai dummy yang ditandai. |
+| SEC-008 | MUST | BYOK hanya disimpan di vault lokal dan tidak pernah dikirim ke host lain selain endpoint pengguna. | Key tidak muncul di log, ekspor settings, atau backup plaintext. |
+| SEC-009 | MUST | Tidak ada `eval`, `new Function`, atau HTML mentah pada render. | ESLint dan review menolak pola; renderer memakai `textContent`. |
+| SEC-010 | MUST | Host mengirim CSP ketat serta COOP/COEP. | Header terverifikasi pada respons dokumen. |
+| SEC-011 | MUST | Iframe app memakai opaque origin. | `allow-same-origin` tidak ada pada atribut sandbox. |
+| SEC-012 | MUST | Backup wajib terenkripsi sebelum ditulis ke disk. | Tidak ada file backup plaintext. |
+| SEC-013 | MUST | Tidak ada telemetry default. | Tidak ada beacon/analytics pada build produksi. |
+| SEC-014 | MUST | Aksi sensitif dicatat di audit lokal dengan rantai hash. | Grant, revoke, install, restore, dan reset tercatat. |
 
-## 4. Model Data dan State
+Risk tier: `low` (clipboard baca/tulis dengan consent), `medium` (notifikasi, file picker), `high` (network ke origin yang dideklarasikan, akses vault item), `critical` (tidak ada; permission semacam itu tidak disediakan).
 
-### 4.1 Katalog permission
+## 4. Daftar Permission
 
-| Permission ID | Risk | Default | Dapat di-mock | Catatan |
-|---|---|---|---|---|
-| `storage.local` | low | deny | Tidak | `permissions.quotas.storageMb`, default 10 MB |
-| `storage.local.sqlite` | low | deny | Tidak | Hanya DB milik app |
-| `camera` | medium | deny | Ya | Indikator wajib |
-| `camera.qr` | medium | deny | Ya | Tanpa penyimpanan frame |
-| `microphone` | medium | deny | Ya | Berhenti saat background |
-| `location` | medium | deny | Ya | Presisi dapat dipilih |
-| `biometrics` | medium | deny | Ya | Hanya hasil verifikasi |
-| `filesystem.picker` | medium | deny | Tidak | Grant per berkas |
-| `bluetooth` | medium | deny | Tidak | Layanan terdaftar |
-| `nfc` | medium | deny | Tidak | Foreground only |
-| `notifications.local` | low | deny | Tidak | Hanya milik app |
-| `local_ai.inference` | medium | deny | Tidak | Model lokal |
-| `network.allowlist` | high | deny | Tidak | Domain exact/wildcard |
+| Permission | Risiko | Cakupan | Catatan |
+|---|---|---|---|
+| `clipboard.read` | low | Teks | Hanya saat fokus. |
+| `clipboard.write` | low | Teks | Ditulis hanya lewat aksi pengguna. |
+| `notifications.local` | medium | Notifikasi | Tanpa push server. |
+| `files.pick` | medium | File yang dipilih | Tidak ada akses direktori. |
+| `network.fetch` | high | Origin di manifest | Diblokir Offline Cage. |
+| `storage.app` | low | DB app sendiri | Selalu aktif, bukan consent. |
+| `vault.read` | high | Item yang dipilih | Consent per item. |
+| `share.export` | low | File `.mapp` | Aksi pengguna. |
 
-Kuota dan mock:
+Tidak ada permission untuk Bluetooth, NFC, sensor native, kontak sistem, lokasi latar, atau akses filesystem bebas.
 
-- `permissions.quotas.storageMb` berlaku untuk `storage.local` dan default 10 MB bila manifest tidak mengisi; penulisan yang melewati kuota ditolak `E-DATA-006` dan app menerima saran pembersihan.
-- Himpunan permission yang dapat di-mock bersifat tertutup dan tepat: `camera`, `camera.qr`, `microphone`, `location`, `biometrics`. Permission lain tidak menampilkan opsi mock.
-- Offline Cage adalah kebijakan per app pada `app_policy.offline_cage` dengan default `1` (aktif); nilai `0` hanya tersimpan setelah pengguna mematikannya secara eksplisit.
+## 5. Consent dan Grant
 
-### 4.2 Semantik allowlist
+1. Broker memvalidasi manifest dan method.
+2. Jika grant `always` ada, panggilan dilanjutkan tanpa dialog.
+3. Jika belum, sheet consent muncul dengan fokus pada Tolak, `Esc` = Tolak.
+4. Pilihan: Izinkan sekali, Selalu izinkan, Tolak.
+5. Grant disimpan dengan scope dan waktu; audit mencatat hasil.
+6. Revoke dari Settings langsung berlaku; panggilan berikutnya memicu consent lagi.
 
-| Bentuk | Diizinkan | Contoh |
-|---|---|---|
-| Domain exact | Ya | `api.example.com` |
-| Wildcard subdomain | Ya | `*.example.com` (tidak termasuk apex) |
-| Apex + wildcard | Ya, dua entri | `example.com`, `*.example.com` |
-| IP literal | Tidak | `10.0.0.1` |
-| CIDR | Tidak | `10.0.0.0/8` |
-| Skema selain HTTPS | Tidak | `http://example.com` |
-| Metadata endpoint | Tidak pernah | `169.254.169.254` |
+## 6. Offline Cage
 
-### 4.3 State grant
+Cage aktif per app secara default. Saat aktif, `network.fetch` ditolak sebelum keluar dari browser dan menghasilkan `E-NET-001`. Pengguna dapat mematikan cage per app dengan konsekuensi yang dijelaskan. Mematikan cage tidak memberi permission network; consent tetap diperlukan.
 
-State kanonik:
+## 6.1 Audit
 
-```text
-requested → granted | denied
-granted   → revoked | mocked
-```
-
-- `requested` adalah state saat dialog consent ditampilkan; hasilnya hanya `granted` atau `denied`, tidak ada state antara.
-- `granted` dapat berpindah ke `revoked` (oleh pengguna, update manifest, atau pencabutan sesi) atau ke `mocked` untuk permission yang dapat di-mock.
-- `revoked` bersifat final untuk sesi tersebut; grant baru MUST membuat state baru, bukan menghidupkan kembali state `revoked`.
-- `denied` juga final untuk sesi tersebut; permintaan berikutnya MUST membuat state baru.
-- `Allow once` disimpan di `permission_sessions` dengan `expires_at_ms` = akhir sesi app; saat sesi ditutup, grant `once` berakhir dan tidak pernah menjadi grant persisten.
-- Grant persisten disimpan di `permission_grants` dengan partial unique index grant aktif per `(workspace_id, app_install_id, permission_id)`. `permission_grants_json` pada `installed_microapps` bukan sumber kebenaran.
-
-## 5. Error dan Recovery
-
-| Kode | Kondisi | Recovery |
-|---|---|---|
-| E-SBX-005 | Permission tidak diberikan atau dicabut | Kembalikan error ke app; tawarkan buka Pengaturan |
-| E-DATA-006 | Kuota `permissions.quotas.storageMb` terlampaui | Tolak penulisan; tawarkan pembersihan cache app |
-| E-AUTH-006 | Frasa pemulihan tidak cocok saat membuka Vault | Kegagalan generik; batasi 10 percobaan/menit |
-| E-HOST-004 | Vault terkunci saat permission sensitif dibutuhkan | Minta unlock; jangan gunakan kredensial tersimpan |
-| E-CRYPTO-004 | Kunci tidak dapat didekripsi | Tolak akses; minta pemulihan |
-
-## 6. Keamanan dan Privasi
-
-- Zero privilege adalah default; manifest bukan grant.
-- Permission high risk (`network.allowlist`) memerlukan konfirmasi tambahan dan menampilkan domain yang diminta.
-- Mock ditandai jelas agar pengguna tidak mengira data nyata.
-- Audit tidak menyimpan isi resource; hanya metadata keputusan.
-- Perubahan permission saat update tidak boleh memperluas akses tanpa consent baru.
+Audit lokal memakai rantai hash: setiap entri memuat `prev_hash` dan `hash`, sehingga penghapusan atau penyisipan dapat dideteksi. Audit tidak memuat nilai record, token, atau passphrase. Ekspor audit tersedia lewat DevTools.
 
 ## 7. Acceptance Criteria
 
-- **Given** manifest tanpa `camera` **When** app memanggil kamera **Then** ditolak tanpa dialog dan audit mencatat.
-- **Given** dialog consent **When** pengguna memilih `Allow once` **Then** grant berlaku sampai app ditutup, lalu hilang.
-- **Given** Offline Cage aktif **When** app memanggil domain allowlist **Then** request diblokir dan badge tampil.
-- **Given** update menambah permission high risk **When** app diperbarui **Then** consent baru diminta sebelum permission aktif.
-- **Given** grant dicabut **When** app berjalan **Then** panggilan berikutnya gagal tanpa restart.
+1. App baru tidak dapat memanggil method terlarang.
+2. Consent muncul satu kali per grant `always` dan tidak berulang.
+3. Revoke berlaku pada panggilan berikutnya tanpa reload.
+4. Offline Cage memblokir network dengan `E-NET-001`.
+5. Package tanpa signature atau dengan key berubah ditolak.
+6. Audit mendeteksi perubahan urutan entri.
 
 ## 8. Verifikasi
 
-| Bukti | Perintah/Prosedur |
+| Pemeriksaan | Cara |
 |---|---|
-| Matrix | Test setiap permission: grant, deny, revoke, mock |
-| Allowlist | Test domain exact, wildcard, IP, CIDR, metadata |
-| Consent | Snapshot UI dan keyboard flow; `Allow once` expiry |
-| Audit | Periksa field dan redaksi |
-| Update | Test perubahan permission required/optional |
-
-## 9. Referensi
-
-- [03-specs/host-bridge.md](host-bridge.md), [03-specs/03-sandbox-runtime.md](03-sandbox-runtime.md), [03-specs/error-codes.md](error-codes.md)
-- [04-flows/11-permission-consent.md](../04-flows/11-permission-consent.md), [01-architecture/threat-model.md](../01-architecture/threat-model.md)
+| Zero privilege | Vitest: app baru, panggilan bridge ditolak. |
+| Consent JIT | Playwright: panggilan pertama, sheet muncul, fokus Tolak. |
+| Revoke | Vitest: grant lalu revoke, panggilan gagal. |
+| Offline Cage | Vitest: mock fetch, harapkan `E-NET-001`. |
+| Signature/key | Vitest: fixture tanpa signature dan key mismatch. |
+| Audit chain | Vitest: ubah entri, verifikasi gagal. |
+| CSP/COOP | Playwright: cek header dan `sandbox` iframe. |

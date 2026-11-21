@@ -1,100 +1,52 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://microapp.dev/schemas/registry-index.v1.schema.json",
-  "title": "MicroApp Registry Index v1",
+  "$id": "https://microapp.studio/schemas/registry-index.v1.schema.json",
+  "title": "Static Package Index v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "name", "url", "publicKey", "updatedAt", "apps"],
+  "required": ["schemaVersion", "name", "updatedAt", "apps"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
-    "url": { "type": "string", "format": "uri", "pattern": "^https://" },
-    "publicKey": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["keyId", "fingerprint", "algorithm"],
-      "properties": {
-        "keyId": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
-        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "algorithm": { "const": "ed25519" }
-      }
-    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
     "updatedAt": { "type": "string", "format": "date-time" },
-    "revokedKeys": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
-    },
     "apps": {
       "type": "array",
+      "maxItems": 500,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "version",
-          "name",
-          "summary",
-          "icon",
-          "downloadUrl",
-          "size",
-          "sha256",
-          "signature",
-          "minHostVersion",
-          "permissions"
-        ],
+        "required": ["id", "version", "url", "sha256", "signature", "permissions"],
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)+$"
+            "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+){1,4}$"
           },
+          "name": { "type": "string", "minLength": 1, "maxLength": 80 },
           "version": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(beta|rc)\\.[1-9][0-9]*)?$"
-          },
-          "name": { "type": "string", "minLength": 1, "maxLength": 64 },
-          "summary": { "type": "string", "minLength": 1, "maxLength": 160 },
-          "icon": { "type": "string", "pattern": "^https://" },
-          "downloadUrl": { "type": "string", "pattern": "^https://" },
-          "size": { "type": "integer", "minimum": 1 },
-          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "signature": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["keyId", "value"],
-            "properties": {
-              "keyId": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
-              "value": { "type": "string", "minLength": 64 }
-            }
-          },
-          "minHostVersion": {
             "type": "string",
             "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
           },
+          "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "signature": { "type": "string", "minLength": 16, "maxLength": 512 },
+          "publicKey": { "type": "string", "minLength": 8, "maxLength": 256 },
           "permissions": {
             "type": "array",
             "uniqueItems": true,
             "items": {
               "enum": [
-                "storage.local",
-                "storage.local.sqlite",
-                "camera",
-                "camera.qr",
-                "microphone",
-                "location",
-                "biometrics",
-                "filesystem.picker",
-                "bluetooth",
-                "nfc",
+                "clipboard.read",
+                "clipboard.write",
                 "notifications.local",
-                "local_ai.inference",
-                "network.allowlist"
+                "files.pick",
+                "network.fetch",
+                "storage.app",
+                "vault.read",
+                "share.export"
               ]
             }
           },
-          "trustLevel": { "enum": ["official", "community", "internal", "local"] },
-          "reproducible": { "type": "boolean" },
-          "contentHash": { "type": "string", "pattern": "^sha256-[0-9a-f]{64}$" }
+          "description": { "type": "string", "maxLength": 280 }
         }
       }
     }

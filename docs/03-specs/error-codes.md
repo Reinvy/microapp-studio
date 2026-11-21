@@ -1,151 +1,93 @@
 ---
-id: SPEC-ERR
-title: Katalog Error
+id: SPEC-ERROR
+title: Kode Error
 status: accepted
-owner: dx
-prd_refs: ["§3 Modul 3", "§5.2"]
+owner: qa
+prd_refs: ["§5 Fitur", "§11 Risiko"]
 ---
 
-# Katalog Error
+# Kode Error
 
-## 1. Tujuan dan Ruang Lingkup
+## 1. Tujuan
 
-Dokumen ini mendaftar seluruh kode error yang dipakai spec dan flow. Kode yang dipakai tetapi tidak terdaftar adalah bug. Pesan pengguna diambil dari kunci locale, bukan dari string di kode.
+Menetapkan 27 kode error kanonik yang dipakai shell, builder, runtime, data, package, backup, identitas, settings, network, dan DevTools. Setiap kode MUST dipakai minimal satu spec atau flow, memiliki pesan aman, dan langkah pemulihan yang dapat dilakukan pengguna.
 
-Format: `E-<DOMAIN>-<NNN>` dengan domain `HOST`, `STU`, `SBX`, `DATA`, `REG`, `SYNC`, `SRV`, `DEV`, `AUTH`, `CRYPTO`, `NET`, `CLI`.
+## 2. Ruang Lingkup
 
-Di luar lingkup: strategi test keamanan (lihat [security-test-plan.md](../08-quality/security-test-plan.md)), copywriting detail (lihat [content-i18n.md](../02-design/content-i18n.md)).
-
-## 2. Aktor dan Prasyarat
-
-| Aktor | Prasyarat |
-|---|---|
-| Developer | Kode error baru harus ditambahkan di sini sebelum dipakai |
-| QA | Matriks pemetaan kode ke skenario uji |
-| Support | Pesan pengguna dan langkah pemulihan |
+Di dalam: format kode, katalog, pemetaan ke pemulihan, aturan pesan. Di luar: pesan UI lengkap ([content-i18n.md](../02-design/content-i18n.md)), log internal ([08-devtools.md](08-devtools.md)).
 
 ## 3. Requirement
 
-| Aturan | Level | Ketentuan | Verifikasi |
+Format kode: `E-<DOMAIN>-<NNN>`. Domain tidak boleh ditambah tanpa memperbarui katalog ini dan spec terkait. Kode tidak boleh dipakai untuk dua arti berbeda.
+
+| ID | Domain | Arti | Pemulihan |
 |---|---|---|---|
-| R-01 | MUST | Setiap kode yang muncul di spec/flow MUST terdaftar di tabel §4; kode terdaftar MUST dipakai minimal satu spec/flow. | `docs:check` memvalidasi referensi; audit manual memvalidasi pemakaian. |
-| R-02 | MUST | Nomor dialokasikan berurutan per domain tanpa gap. | Pemeriksaan urutan pada tabel. |
-| R-03 | MUST | Setiap kode MUST memiliki severity, kunci pesan, penyebab, recovery, retryable, dan log level. | Tidak ada sel kosong. |
-| R-04 | MUST | Pesan pengguna MUST mengikuti formula `[apa yang terjadi] + [mengapa] + [langkah berikut]` dan MUST NOT memuat PII, token, path internal, atau stack trace. | Review copy + pemindaian pola sensitif pada log. |
-| R-05 | MUST | `retryable: true` hanya untuk operasi idempoten; retry MUST memakai backoff dan tidak boleh otomatis untuk aksi destruktif. | Test retry pada kode terkait. |
-| R-06 | MUST | Error boundary menampilkan kode, pesan, dan aksi (retry/restart/rollback/export) sesuai kode; kode yang tidak dikenali menampilkan fallback generik. | Snapshot UI per kategori kode. |
-| R-07 | MUST | Crash report lokal memuat kode, versi app, versi host, dan jejak teredaksi; tidak dikirim keluar tanpa opt-in. | Inspeksi berkas crash report. |
+| E-SHELL-001 | Shell | Host database tidak dapat dibuka | Tampilkan mode terbatas, retry, tautan diagnostik |
+| E-SHELL-002 | Shell | Local identity gagal dibuat | Mode `ephemeral`, retry, buka Settings |
+| E-SHELL-003 | Shell | Service worker gagal memasang cache shell | Jalan tanpa cache, tampilkan badge offline |
+| E-CREATE-001 | Create | Prompt kosong atau melebihi batas | Tampilkan batas, fokus textarea |
+| E-CREATE-002 | Create | Provider AI belum dikonfigurasi | Tawarkan Atur AI atau template/blank |
+| E-CREATE-003 | Create | Generate gagal dan tidak dapat di-retry otomatis | Tampilkan fallback dan coba lagi manual |
+| E-STUDIO-001 | Studio | Dokumen draft rusak atau tidak valid | Muat versi terakhir yang valid, tawarkan ekspor |
+| E-STUDIO-002 | Studio | Autosave gagal | Pertahankan antrean, banner retry, salinan lokal |
+| E-STUDIO-003 | Studio | Operasi drop tidak valid | Tolak drop, toast, kembalikan node |
+| E-RUN-001 | Runtime | Watchdog timeout atau loop tak berujung | Hentikan app, tampilkan boundary, muat ulang |
+| E-RUN-002 | Runtime | Sandbox tidak tersedia | Fail closed, jelaskan browser tidak didukung |
+| E-RUN-003 | Runtime | Pelanggaran bridge atau permission | Tolak panggilan, audit, tawarkan consent bila relevan |
+| E-RUN-004 | Runtime | Renderer crash | Boundary, reload app, ekspor data |
+| E-PACK-001 | Package | Manifest atau layout `.mapp` tidak valid | Tampilkan field yang salah, tolak impor |
+| E-PACK-002 | Package | Signature tidak valid atau key tidak tersedia | Blokir impor, tawarkan Atur identitas |
+| E-PACK-003 | Package | Digest atau content hash tidak cocok | Tolak file, sarankan unduh ulang |
+| E-PACK-004 | Package | Versi tidak valid atau rollback tidak tersedia | Tampilkan versi tersedia |
+| E-DATA-001 | Data | Buka atau migrasi database gagal | Rollback, pulihkan snapshot, retry |
+| E-DATA-002 | Data | Kuota penuh atau tulis ditolak | Tawarkan ekspor dan bersihkan cache |
+| E-BACKUP-001 | Backup | Passphrase salah atau autentikasi gagal | Minta passphrase lagi, tanpa detail kripto |
+| E-BACKUP-002 | Backup | File atau checksum rusak | Tolak restore, sarankan file lain |
+| E-AUTH-001 | Auth | Private key tidak dapat dibuka | Mode `ephemeral`, buat identitas baru |
+| E-AUTH-002 | Auth | Recovery phrase tidak cocok | Coba lagi, jelaskan tanpa membocorkan kata |
+| E-SET-001 | Settings | Nilai settings tidak valid | Kembalikan nilai sebelumnya, tandai field |
+| E-SET-002 | Settings | Gagal menyimpan preferensi | Simpan lokal sementara, retry |
+| E-NET-001 | Network | Permintaan jaringan diblokir Offline Cage | Jelaskan cage, tawarkan buka Settings |
+| E-DEV-001 | DevTools | Data diagnostik gagal dimuat | Tampilkan panel kosong dengan retry |
 
-## 4. Model Data dan State
+## 4. Aturan Pesan
 
-Tingkat severity: `info`, `warning`, `error`, `critical`. Log level: `debug`, `info`, `warn`, `error`.
+1. Pesan memuat kode, ringkasan satu kalimat, dan satu aksi utama.
+2. Tidak ada stack trace, path absolut, token, atau detail kripto.
+3. Kode tidak boleh dipakai sebagai teks tombol.
+4. Pesan mengikuti nada di [content-i18n.md](../02-design/content-i18n.md).
+5. Setiap kode memiliki terjemahan `id-ID` dan `en-US`.
 
-| Kode | Severity | Message key | Cause | Recovery | Retryable | Log |
-|---|---|---|---|---|---|---|
-| E-HOST-001 | error | `error.host.keychain_unavailable` | Keychain/Keystore tidak tersedia | Gunakan passphrase, blokir data sensitif | Ya | error |
-| E-HOST-002 | warning | `error.host.opfs_unavailable` | OPFS tidak tersedia | Mode ephemeral, ekspor saja | Tidak | warn |
-| E-HOST-003 | warning | `error.host.deeplink_unresolved` | Route/app tidak dikenal | Tawarkan instalasi atau kembali ke Home | Tidak | info |
-| E-HOST-004 | error | `error.host.vault_locked` | Vault terkunci atau gagal unlock | Unlock ulang, gunakan recovery phrase | Ya | warn |
-| E-HOST-005 | warning | `error.host.storage_cleanup_partial` | Sebagian cache gagal dibersihkan | Laporkan kategori, retry | Ya | warn |
-| E-HOST-006 | critical | `error.host.audit_chain_invalid` | Rantai audit tidak valid: celah `seq_id`, urutan salah, atau hash tidak cocok | Hentikan aksi sensitif, tawarkan ekspor audit dan verifikasi ulang | Tidak | error |
-| E-HOST-007 | critical | `error.host.workspace_isolation` | Query atau grant melintasi `workspace_id` | Tolak operasi, audit, tampilkan error generik | Tidak | error |
-| E-STU-001 | error | `error.studio.parse_failed` | Kode gagal diparse | Tampilkan lokasi, pulihkan revisi valid | Tidak | error |
-| E-STU-002 | error | `error.studio.ai_unavailable` | Provider AI tidak tersedia | Pilih provider lain secara manual | Ya | warn |
-| E-STU-003 | error | `error.studio.byok_missing` | Kunci BYOK tidak ada/ditolak | Arahkan ke Vault | Tidak | warn |
-| E-STU-004 | warning | `error.studio.merge_conflict` | Konflik multiplayer | Tampilkan diff, minta merge | Tidak | info |
-| E-STU-005 | error | `error.studio.pack_invalid` | Validasi pack gagal | Blokir export, tampilkan daftar | Tidak | error |
-| E-SBX-001 | critical | `error.sandbox.unavailable` | Isolate tidak dapat dibuat | Fail closed, retry | Ya | error |
-| E-SBX-002 | critical | `error.sandbox.memory_exceeded` | Kuota memori terlampaui | Hentikan isolate, error boundary | Ya | error |
-| E-SBX-003 | critical | `error.sandbox.frozen` | Freeze/infinite loop | Hentikan setelah 5 detik | Ya | error |
-| E-SBX-004 | error | `error.sandbox.startup_timeout` | Watchdog startup timeout | Batalkan mount, restart/rollback | Ya | error |
-| E-SBX-005 | warning | `error.sandbox.bridge_denied` | Permission/channel ditolak | Kembalikan error, buka Pengaturan | Ya | warn |
-| E-SBX-006 | warning | `error.sandbox.cancelled` | Operasi dibatalkan lewat `bridge.cancel` atau background | Tidak mengirim hasil; app menerima status cancelled | Tidak | info |
-| E-SBX-007 | error | `error.sandbox.transfer_incomplete` | Transfer biner tidak lengkap atau SHA-256 tidak cocok | Buang chunk, minta ulang berkas | Ya | warn |
-| E-SBX-008 | warning | `error.sandbox.duplicate_request` | `id` request dipakai ulang dalam satu sesi | Tolak request, audit | Tidak | warn |
-| E-SBX-009 | warning | `error.sandbox.invalid_intent` | Intent tidak dideklarasikan target atau payload melebihi 64 KiB | Tolak transfer, audit | Tidak | warn |
-| E-DATA-001 | critical | `error.data.open_failed` | Database tidak dapat dibuka | Restore snapshot, jangan buat kosong | Ya | error |
-| E-DATA-002 | error | `error.data.migration_failed` | Migrasi gagal | Rollback snapshot dan versi | Tidak | error |
-| E-DATA-003 | warning | `error.data.schema_staged` | Skema lebih baru | Simpan staging, beri tahu | Tidak | info |
-| E-DATA-004 | error | `error.data.outbox_exhausted` | Outbox gagal permanen | Tandai failed, retry manual | Ya | error |
-| E-DATA-005 | warning | `error.data.ssrf_blocked` | Target diblokir SSRF guard | Tolak, audit | Tidak | warn |
-| E-DATA-006 | warning | `error.data.quota_exceeded` | Kuota storage app (`permissions.quotas.storageMb`) terlampaui | Tolak penulisan, tawarkan pembersihan cache | Ya | warn |
-| E-REG-001 | critical | `error.registry.signature_invalid` | Signature tidak valid | Blokir instalasi | Tidak | error |
-| E-REG-002 | critical | `error.registry.key_changed` | Kunci author berubah | Blokir sampai persetujuan | Tidak | error |
-| E-REG-003 | error | `error.registry.hash_mismatch` | Hash artefak tidak cocok | Tolak dan hapus unduhan | Tidak | error |
-| E-REG-004 | error | `error.registry.scanner_rejected` | Scanner menolak | Blokir, tampilkan temuan | Tidak | error |
-| E-REG-005 | warning | `error.registry.delta_failed` | Delta patch gagal | Unduh penuh atau batalkan | Ya | warn |
-| E-SYNC-001 | error | `error.sync.version_mismatch` | Versi protokol tidak cocok | Tampilkan versi, minta update | Tidak | warn |
-| E-SYNC-002 | warning | `error.sync.batch_rejected` | Batch ditolak | Kirim ulang dari cursor | Ya | warn |
-| E-SYNC-003 | warning | `error.sync.conflict_unmerged` | Konflik tidak otomatis | Simpan conflict history | Tidak | info |
-| E-SYNC-004 | error | `error.sync.restore_verify_failed` | Restore gagal verifikasi | Batalkan restore | Tidak | error |
-| E-SYNC-005 | warning | `error.sync.device_revoked` | Perangkat dicabut | Hentikan sesi, pairing ulang | Tidak | warn |
-| E-AUTH-001 | critical | `error.auth.device_cert_invalid` | Sertifikat perangkat tidak valid | Tolak, pairing ulang | Tidak | error |
-| E-AUTH-002 | warning | `error.auth.recovery_phrase_invalid` | Frasa salah | Batasi percobaan, tawarkan bantuan | Ya | warn |
-| E-AUTH-003 | error | `error.auth.session_revoked` | Sesi dicabut | Hentikan sync, pairing ulang | Tidak | warn |
-| E-AUTH-004 | error | `error.auth.git_credential_invalid` | Kredensial Git tidak valid | Minta ulang, hapus dari memori | Ya | warn |
-| E-AUTH-005 | critical | `error.auth.device_key_mismatch` | Kunci perangkat tidak cocok | Tolak sesi, pairing ulang | Tidak | error |
-| E-AUTH-006 | warning | `error.auth.recovery_mismatch` | Frasa pemulihan tidak menurunkan `identity_pubkey` yang sama | Batasi 10 percobaan/menit, tampilkan kegagalan generik | Ya | warn |
-| E-CRYPTO-001 | critical | `error.crypto.envelope_corrupt` | Envelope rusak/tag gagal | Tolak payload, audit | Tidak | error |
-| E-CRYPTO-002 | error | `error.crypto.unknown_key_id` | Key ID tidak dikenal | Minta kunci benar | Tidak | error |
-| E-CRYPTO-003 | critical | `error.crypto.nonce_reuse` | Nonce reuse | Hentikan enkripsi, insiden | Tidak | error |
-| E-CRYPTO-004 | error | `error.crypto.decrypt_failed` | Kunci tidak dapat mendekripsi | Tolak, tawarkan pemulihan | Ya | warn |
-| E-CRYPTO-005 | critical | `error.crypto.signature_invalid` | Signature manifest/backup tidak valid | Tolak artefak | Tidak | error |
-| E-NET-001 | warning | `error.net.peer_not_found` | Peer tidak ditemukan | Fallback transport | Ya | info |
-| E-NET-002 | error | `error.net.tls_pinning_failed` | TLS pinning gagal | Batalkan koneksi | Tidak | error |
-| E-NET-003 | warning | `error.net.server_unreachable` | Server tidak terjangkau | Antre dan backoff | Ya | warn |
-| E-NET-004 | error | `error.net.byos_auth_failed` | Kredensial BYOS ditolak | Minta ulang dari Vault | Ya | warn |
-| E-NET-005 | warning | `error.net.rate_limited` | Kuota/rate limit | Backoff, kecilkan batch | Ya | warn |
-| E-SRV-001 | critical | `error.server.migration_failed` | Migrasi DB gagal | Rollback, jangan melayani | Tidak | error |
-| E-SRV-002 | error | `error.server.idp_unreachable` | IdP tidak terjangkau | Status, sesi aktif tetap | Ya | warn |
-| E-SRV-003 | error | `error.server.storage_unavailable` | Object storage tidak tersedia | Degraded, antre unggahan | Ya | error |
-| E-SRV-004 | error | `error.server.queue_unavailable` | Queue gagal | Degraded, retry | Ya | error |
-| E-SRV-005 | critical | `error.server.audit_chain_invalid` | Audit chain tidak valid | Hentikan aksi sensitif | Tidak | error |
-| E-DEV-001 | warning | `error.devtools.runtime_unavailable` | DevTools tidak dapat akses runtime | Tampilkan status | Ya | warn |
-| E-DEV-002 | warning | `error.devtools.query_inspector_failed` | Inspector query gagal | Tampilkan error, lanjutkan app | Ya | warn |
-| E-DEV-003 | error | `error.devtools.plugin_load_failed` | Plugin gagal dimuat | Nonaktifkan plugin | Tidak | error |
-| E-DEV-004 | warning | `error.devtools.plugin_permission_denied` | Capability di luar izin | Tolak, minta consent | Tidak | warn |
-| E-DEV-005 | warning | `error.devtools.analytics_optin_failed` | Opt-in analytics gagal | Matikan pengumpulan | Ya | warn |
-| E-CLI-001 | error | `error.cli.validation_failed` | Validasi manifest gagal | Exit 1, tampilkan field | Tidak | error |
-| E-CLI-002 | error | `error.cli.network_unavailable` | Jaringan tidak tersedia | Exit 2, saran dry-run | Ya | error |
-| E-CLI-003 | error | `error.cli.signature_invalid` | Signature/permission tidak valid | Exit 3, jangan publish | Tidak | error |
-| E-CLI-004 | error | `error.cli.template_missing` | Template tidak ditemukan | Exit 1, daftar template | Tidak | error |
-| E-CLI-005 | error | `error.cli.not_reproducible` | Pack tidak reproducible | Exit 1, tampilkan hash | Tidak | error |
+## 5. Pemetaan ke Spec dan Flow
 
-## 5. Error dan Recovery
-
-| Kategori | Perilaku UI | Aksi |
+| Domain | Spec | Flow |
 |---|---|---|
-| `warning` | Toast/banner, alur berlanjut | Retry, abaikan, buka detail |
-| `error` | Panel error pada area terkait | Retry, ubah pengaturan, ekspor |
-| `critical` | Error boundary layar penuh | Restart, rollback, ekspor, laporkan lokal |
+| `E-SHELL`, `E-AUTH` | [01-app-shell.md](01-app-shell.md) | FLOW-01 |
+| `E-CREATE`, `E-STUDIO` | [02-studio.md](02-studio.md) | FLOW-02, FLOW-03 |
+| `E-RUN` | [03-sandbox-runtime.md](03-sandbox-runtime.md) | FLOW-07 |
+| `E-DATA` | [04-data.md](04-data.md) | FLOW-08 |
+| `E-PACK` | [05-packages.md](05-packages.md) | FLOW-04 |
+| `E-BACKUP` | [06-backup.md](06-backup.md) | FLOW-05 |
+| `E-SET` | [07-settings.md](07-settings.md) | FLOW-05 |
+| `E-NET` | [permissions.md](permissions.md) | FLOW-06 |
+| `E-DEV` | [08-devtools.md](08-devtools.md) | — |
 
-Error yang tidak dikenali MUST dipetakan ke `E-HOST-005`-style fallback generik dengan kode asli disertakan pada detail teknis yang dapat disalin pengguna.
+## 6. Konsistensi Katalog
 
-## 6. Keamanan dan Privasi
-
-- Pesan tidak memuat path absolut, nama pengguna, token, atau isi data.
-- Detail teknis disimpan lokal dan hanya dikirim bila pengguna memilih ekspor.
-- Kode kriptografi tidak membocorkan apakah kunci ada; hanya status gagal.
-- Audit mencatat kode dan konteks minimal, bukan payload.
+1. Katalog berisi tepat 27 kode dan tidak ada kode ganda.
+2. Setiap kode muncul di minimal satu spec atau flow di luar katalog ini.
+3. Setiap kode memiliki pesan `id-ID` dan `en-US`.
+4. Tidak ada pesan yang memuat stack trace atau secret.
 
 ## 7. Acceptance Criteria
 
-- **Given** kode error pada spec **When** `docs:check` dijalankan **Then** kode terdaftar dan referensi valid.
-- **Given** error `critical` **When** terjadi **Then** error boundary tampil dengan aksi restart/rollback/export.
-- **Given** pesan error **When** diperiksa **Then** tidak ada PII, token, atau stack trace.
-- **Given** error `retryable: true` **When** retry otomatis **Then** backoff diterapkan dan aksi destruktif tidak diulang.
+1. UI menampilkan kode dan aksi pemulihan untuk setiap error yang diuji.
+2. Kode yang tidak dikenal jatuh ke `E-DEV-001` dengan pesan generik.
 
 ## 8. Verifikasi
 
-| Bukti | Perintah/Prosedur |
+| Pemeriksaan | Cara |
 |---|---|
-| Registry kode | `npm run docs:check` memvalidasi referensi dan duplikasi |
-| Urutan | Skrip memeriksa nomor berurutan per domain |
-| Copy | Review locale `id-ID` dan `en-US` untuk 60 kode |
-| UI | Snapshot error boundary per severity |
-| Redaksi | Fixture log dengan token/PII; pastikan tersaring |
-
-## 9. Referensi
-
-- [03-specs/error-codes.md](error-codes.md), [02-design/content-i18n.md](../02-design/content-i18n.md)
-- [08-quality/security-test-plan.md](../08-quality/security-test-plan.md)
+| Kelengkapan | `node scripts/check-docs.mjs --strict` memastikan setiap kode direferensikan. |
+| Pesan | Vitest: kamus memuat 27 kode untuk dua locale. |
+| Redaksi | Vitest: pesan error tidak memuat path absolut. |

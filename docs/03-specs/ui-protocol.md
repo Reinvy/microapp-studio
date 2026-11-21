@@ -1,127 +1,94 @@
 ---
 id: SPEC-MUIP
-title: UI Protocol MUIP v1
+title: UI Protocol
 status: accepted
 owner: runtime
-prd_refs: ["§3 Modul 2", "§3 Modul 3"]
+prd_refs: ["§5 F4", "§7 Arsitektur Web"]
 ---
 
-# UI Protocol MUIP v1
+# UI Protocol
 
-## 1. Tujuan dan Ruang Lingkup
+## 1. Tujuan
 
-MUIP (Micro-App UI Protocol) adalah satu-satunya cara micro-app menyatakan UI. Micro-app mengirim pohon node deklaratif; Host merender di iframe (web) atau menjadi widget Flutter (native). MUIP MUST NOT memuat HTML, CSS arbitrer, atau JavaScript yang dieksekusi renderer.
+Menetapkan MUIP v1 untuk web: tipe node, props, event, batas, dan kontrak renderer. MUIP adalah satu-satunya bahasa UI micro-app; renderer menolak HTML, CSS, atau JavaScript arbitrer.
 
-Di luar lingkup: styling detail komponen (lihat [component-catalog.md](../02-design/component-catalog.md)), transport bridge (lihat [host-bridge.md](host-bridge.md)).
+## 2. Ruang Lingkup
 
-## 2. Aktor dan Prasyarat
-
-| Aktor | Prasyarat |
-|---|---|
-| Micro-app | Runtime sandbox aktif; versi MUIP dinegosiasikan |
-| Renderer web | iframe opaque origin; CSP ketat |
-| Renderer native | Widget Flutter dari token MADS |
-| Host | Validator skema dan batas ukuran |
+Di dalam: bentuk dokumen, node, props, event, batas ukuran, validasi, kontrak renderer. Di luar: katalog komponen ([component-catalog.md](../02-design/component-catalog.md)), bridge ([host-bridge.md](host-bridge.md)), skema JSON ([ui-node.v1.schema.json](schemas/ui-node.v1.schema.json)).
 
 ## 3. Requirement
 
-| Aturan | Level | Ketentuan | Verifikasi |
-|---|---|---|---|
-| U-01 | MUST | Node berbentuk `{type, id, props, children, events, style, a11y}`. `type` dan `id` wajib; `children` array node; `style` hanya token MADS; `a11y` objek top-level. | Node tanpa `id` ditolak; `style` dengan warna arbitrer ditolak; `a11y` di dalam `props` ditolak. |
-| U-02 | MUST | `type` MUST berasal dari `componentCatalog` versi aktif; katalog membawa `introducedIn` dan Host membawa `supportedComponents`. Tipe di luar katalog ditolak tanpa fallback diam; tipe yang dikenal katalog tetapi belum ada di `supportedComponents` dirender placeholder berlabel. | `type: "iframe"` ditolak; `type: "DataTable"` valid; komponen `introducedIn` lebih baru dari Host tampil sebagai placeholder. |
-| U-03 | MUST | `id` unik dalam satu dokumen dan stabil antar patch; duplikat menyebabkan dokumen ditolak. | Dua node dengan id sama ditolak. |
-| U-04 | MUST | `props` divalidasi terhadap skema per tipe dari `componentCatalog`; `additionalProps` default `false` sehingga properti tak dikenal ditolak kecuali komponen tersebut mendeklarasikan `additionalProps: true`. | Prop `onClick` mentah ditolak; prop `label` valid; prop tambahan pada komponen tanpa `additionalProps` ditolak. |
-| U-05 | MUST | `events` memetakan nama event ke objek tepat `{action, intent, params}`; `action` dan `intent` berasal dari enum katalog, `params` objek JSON. Handler berupa kode JavaScript mentah ditolak. `ai.prompt` dan `workflow.run` ditolak Host dengan `E-SBX-005` sampai fase 3 dan renderer menampilkan placeholder aksi. | `events: {onPress: "alert(1)"}` ditolak; `events: {onPress: {action: "submit"}}` valid; `{action: "ai.prompt"}` pada fase 1 menghasilkan `E-SBX-005`. |
-| U-06 | MUST | `style` hanya memuat token: spacing, radius, warna token, tipografi, dan alignment; nilai CSS arbitrer dan `url()` ditolak. | `style: {color: "#ff0000"}` ditolak; `style: {color: "fg"}` valid. |
-| U-07 | MUST | Kedalaman pohon maksimum 64, jumlah node maksimum 10.000, ukuran payload maksimum 1 MiB, dan panjang string maksimum 64 KiB. | Melebihi batas menghasilkan error validasi, bukan crash renderer. |
-| U-08 | MUST | Patch dikirim sebagai batch operasi `insert`, `update`, `remove`, `move` dengan `id` target; patch MUST diterapkan atomik. | Patch dengan satu operasi invalid ditolak seluruhnya. |
-| U-09 | MUST | Renderer MUST mempertahankan identitas node berdasarkan `id` sehingga state lokal (fokus, scroll, seleksi) bertahan antar patch. | Update props tidak kehilangan fokus input. |
-| U-10 | MUST | Event dari renderer ke micro-app MUST memuat `type`, `id`, `event`, `payload`, dan `timestamp`, dengan payload tervalidasi per event. | Payload tak dikenal ditolak dan dicatat. |
-| U-11 | MUST | Negosiasi versi MUST terjadi saat mount: micro-app mengirim `muipVersion`, Host merespons versi yang didukung; ketidakcocokan menghasilkan error yang jelas. | Micro-app v2 pada Host v1 menerima error dan tidak dirender. |
-| U-12 | MUST | Renderer MUST menyediakan fallback untuk komponen yang tidak didukung versi Host: node diganti placeholder dengan label dan aksi, bukan dihilangkan diam-diam. | Host lama merender placeholder untuk komponen baru. |
-| U-13 | MUST | Objek `a11y` top-level MUST berbentuk `{label, description, role, live, disabled, required}` dan dipetakan ke ARIA (web) serta `Semantics` (Flutter). Field lain di `a11y` ditolak. | axe tidak menemukan kontrol tanpa nama; screen reader membaca label; `a11y: {foo: 1}` ditolak. |
-| U-14 | MUST | MUIP MUST NOT memuat HTML mentah, `innerHTML`, `<script>`, `javascript:` URL, atau event handler string. | Validator menolak seluruh pola tersebut. |
-| U-15 | MUST | Renderer web dan Flutter MUST identik secara semantik: tipe, props, event, dan a11y menghasilkan perilaku yang sama; perbedaan visual diperbolehkan hanya pada token platform. | Test kontrak yang sama lulus di kedua renderer. |
-| U-16 | MUST | Renderer MUST menolak node dengan `type` yang tidak ada di katalog versi aktif dan mencatat audit, tanpa mengeksekusi apa pun. | Node berbahaya tidak dirender dan tercatat. |
-| U-17 | SHOULD | Renderer MUST mengirim metrik sederhana (jumlah node, waktu render) ke DevTools lokal untuk profiling, tanpa payload data pengguna. | DevTools menampilkan jumlah node; tidak ada data nilai field. |
+| Aturan | Level | Acceptance |
+|---|---|---|
+| Dokumen berupa array node dengan satu root. | MUST | Renderer menolak dokumen tanpa root atau dengan root ganda. |
+| Setiap `type` harus ada di 120 komponen katalog. | MUST | Tipe tidak dikenal ditolak, bukan dipetakan. |
+| Props hanya boleh dari allowlist per komponen. | MUST | Prop asing ditolak dengan path node. |
+| Event hanya boleh `press`, `change`, `submit`, `focus`, `blur`, `longPress`. | MUST | Event lain diabaikan dan dicatat. |
+| Tidak ada HTML, CSS, atau JS di dalam node. | MUST | Field `html`, `css`, `style`, `script` ditolak. |
+| Teks dirender dengan `textContent`. | MUST | Tidak ada `innerHTML` pada renderer. |
+| Kedalaman maksimum 32 dan 2000 node per dokumen. | MUST | Dokumen melebihi batas ditolak dengan `E-RUN-004`. |
+| Ukuran dokumen maksimum 512 KB. | MUST | Payload lebih besar ditolak sebelum parse penuh. |
 
-## 4. Model Data dan State
-
-### 4.1 Bentuk node
+## 4. Bentuk Node
 
 ```json
 {
   "type": "Card",
-  "id": "card-1",
-  "props": { "title": "Saldo" },
+  "id": "card_1",
+  "props": { "tone": "surface", "padding": "md" },
   "children": [
-    {
-      "type": "StatCard",
-      "id": "stat-1",
-      "props": { "label": "Hari ini", "value": "Rp120.000" },
-      "events": { "onPress": { "action": "open.route", "params": { "route": "/detail" } } },
-      "style": { "padding": "md", "color": "fg" },
-      "a11y": { "label": "Buka detail saldo", "role": "button", "live": "off", "disabled": false, "required": false }
-    }
+    { "type": "Text", "id": "title_1", "props": { "value": "Kasir", "variant": "title" } }
   ],
-  "events": {},
-  "style": { "gap": "sm" },
-  "a11y": { "label": "Ringkasan saldo", "role": "group", "live": "polite", "disabled": false, "required": false }
+  "on": { "press": { "action": "navigate", "target": "screen_checkout" } }
 }
 ```
 
-### 4.2 Operasi patch
+Aturan field:
 
-| Operasi | Field | Semantik |
+| Field | Wajib | Catatan |
 |---|---|---|
-| `insert` | `parentId`, `index`, `node` | Menyisipkan node baru; `id` harus belum ada |
-| `update` | `id`, `props`, `style`, `events` | Mengganti subset properti; properti yang tidak dikirim tidak berubah |
-| `remove` | `id` | Menghapus node beserta subtree |
-| `move` | `id`, `parentId`, `index` | Memindahkan node; tidak boleh membentuk siklus |
+| `type` | Ya | Nama komponen katalog, case-sensitive. |
+| `id` | Ya | Unik dalam dokumen, `^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`. |
+| `props` | Tidak | Objek; nilai skalar, array skalar, atau objek terbatas. |
+| `children` | Tidak | Array node; hanya komponen yang mengizinkan children. |
+| `on` | Tidak | Peta event ke aksi deklaratif. |
 
-### 4.3 Batas dan versi
+Aksi yang diizinkan: `navigate`, `setState`, `callBridge`, `openSheet`, `closeSheet`, `toast`. Aksi `callBridge` wajib menyebut method yang dideklarasikan manifest.
 
-| Batas | Nilai | Perilaku saat dilanggar |
-|---|---|---|
-| Kedalaman | 64 | Tolak dokumen, error validasi |
-| Jumlah node | 10.000 | Tolak dokumen |
-| Ukuran payload | 1 MiB | Tolak patch |
-| Panjang string | 64 KiB | Tolak node |
-| Versi | `1` | Negosiasi; mayor lain ditolak bila tidak didukung |
+## 5. Kontrak Renderer
 
-## 5. Error dan Recovery
+1. Validasi dokumen terhadap schema dan allowlist.
+2. Buat elemen DOM dari komponen, bukan dari string HTML.
+3. Set teks dengan `textContent`; set atribut dari allowlist.
+4. Pasang listener untuk event yang dideklarasikan.
+5. Laporkan error validasi ke host dengan path node dan kode.
+6. Jangan mengeksekusi nilai props sebagai kode.
 
-| Kode | Kondisi | Recovery |
-|---|---|---|
-| E-SBX-005 | Patch/event ditolak validator | Kirim error terstruktur ke micro-app; renderer tetap pada state valid terakhir |
-| E-SBX-002 | Render melebihi kuota memori | Hentikan isolate, tampilkan error boundary |
+Renderer tidak menyediakan akses ke `window.parent`, cookie, storage host, atau `fetch` langsung. Semua akses keluar melalui bridge.
 
-## 6. Keamanan dan Privasi
+## 6. Batas dan Kegagalan
 
-- MUIP tidak memiliki escape hatch ke HTML/JS; renderer tidak pernah mengeksekusi string dari micro-app.
-- Semua teks dirender sebagai teks, bukan markup; URL divalidasi terhadap skema yang diizinkan (`https`, `microapp`).
-- Properti `src` untuk media hanya menerima aset paket atau blob lokal, bukan URL eksternal kecuali diizinkan `networkAllowlist` dan permission terkait.
-- Event tidak boleh memicu aksi Host tanpa permission; aksi divalidasi terhadap allowlist.
+| Kondisi | Hasil |
+|---|---|
+| Tipe tidak dikenal | Tolak node, `E-RUN-004`, tampilkan boundary |
+| Props invalid | Tolak node, catat path |
+| Dokumen terlalu besar | Tolak sebelum parse, `E-RUN-004` |
+| Event tidak dikenal | Abaikan, catat di audit |
+| Aksi bridge tanpa permission | `E-RUN-003` |
 
 ## 7. Acceptance Criteria
 
-- **Given** dokumen MUIP dengan 10.001 node **When** dikirim **Then** ditolak dan renderer tetap stabil.
-- **Given** patch `remove` pada parent **When** diterapkan **Then** subtree hilang dan fokus berpindah ke elemen logis berikutnya.
-- **Given** node dengan `events.onPress` berupa string JS **When** divalidasi **Then** ditolak.
-- **Given** komponen baru pada Host lama **When** dirender **Then** placeholder tampil dengan label.
-- **Given** dokumen yang sama **When** dirender di web dan Flutter **Then** event dan a11y identik.
+1. Dokumen valid dirender tanpa HTML mentah.
+2. Tipe dan props invalid ditolak dengan path.
+3. Batas node, kedalaman, dan ukuran berlaku.
+4. Renderer tidak pernah memanggil `innerHTML`, `eval`, atau `new Function`.
 
 ## 8. Verifikasi
 
-| Bukti | Perintah/Prosedur |
+| Pemeriksaan | Cara |
 |---|---|
-| Schema | Validasi contoh terhadap `schemas/ui-node.v1.schema.json` |
-| Contract | Jalankan suite kontrak yang sama pada renderer web dan Flutter |
-| Limits | Fixture kedalaman, jumlah node, ukuran, dan string |
-| XSS | Fixture HTML/JS mentah; pastikan ditolak |
-| A11y | axe pada renderer web; semantics tree pada Flutter |
-
-## 9. Referensi
-
-- [03-specs/schemas/ui-node.v1.schema.json](schemas/ui-node.v1.schema.json), [03-specs/host-bridge.md](host-bridge.md)
-- [02-design/component-catalog.md](../02-design/component-catalog.md), [01-architecture/sandbox-capabilities.md](../01-architecture/sandbox-capabilities.md)
+| Schema | Vitest: ajv terhadap `ui-node.v1.schema.json`. |
+| Allowlist | Vitest: props asing ditolak. |
+| Batas | Vitest: 2001 node dan 33 level ditolak. |
+| XSS | Vitest: teks berisi `<img onerror>` dirender sebagai teks. |
+| Event | Vitest: event asing tidak memanggil handler. |

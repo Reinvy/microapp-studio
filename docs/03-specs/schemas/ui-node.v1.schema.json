@@ -1,233 +1,78 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://microapp.dev/schemas/ui-node.v1.schema.json",
-  "title": "MUIP v1 Node",
-  "$comment": "Depth is limited to 64 and total nodes to 10000 by the renderer validator; JSON Schema cannot express those structural limits.",
-  "$ref": "#/$defs/node",
-  "$defs": {
-    "node": {
+  "$id": "https://microapp.studio/schemas/ui-node.v1.schema.json",
+  "title": "MUIP UI Node v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "id"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]{1,39}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"
+    },
+    "props": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "id"],
-      "properties": {
-        "type": { "$ref": "#/$defs/componentType" },
-        "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$" },
-        "props": { "type": "object", "additionalProperties": true },
-        "children": {
-          "type": "array",
-          "maxItems": 10000,
-          "items": { "$ref": "#/$defs/node" }
-        },
-        "events": {
-          "type": "object",
-          "propertyNames": { "pattern": "^on[A-Z][A-Za-z0-9]*$" },
-          "additionalProperties": { "$ref": "#/$defs/action" }
-        },
-        "style": { "$ref": "#/$defs/style" },
-        "a11y": { "$ref": "#/$defs/a11y" }
+      "maxProperties": 24,
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string", "maxLength": 2048 },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "null" },
+          {
+            "type": "array",
+            "maxItems": 64,
+            "items": { "type": ["string", "number", "boolean"] }
+          }
+        ]
       }
     },
+    "children": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": { "$ref": "#" }
+    },
+    "on": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "press": { "$ref": "#/$defs/action" },
+        "change": { "$ref": "#/$defs/action" },
+        "submit": { "$ref": "#/$defs/action" },
+        "focus": { "$ref": "#/$defs/action" },
+        "blur": { "$ref": "#/$defs/action" },
+        "longPress": { "$ref": "#/$defs/action" }
+      }
+    }
+  },
+  "$defs": {
     "action": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["action"],
       "properties": {
         "action": {
           "enum": [
-            "open.route",
-            "navigate.back",
-            "submit",
-            "reset",
-            "refresh",
-            "intent.send",
-            "workflow.run",
-            "ai.prompt",
-            "close"
+            "navigate",
+            "setState",
+            "callBridge",
+            "openSheet",
+            "closeSheet",
+            "toast"
           ]
         },
-        "intent": { "type": "string", "pattern": "^intent\\.[a-z][a-z0-9-]*$" },
-        "params": { "type": "object", "additionalProperties": true }
-      },
-      "anyOf": [
-        { "required": ["action"] },
-        { "required": ["intent"] }
-      ]
-    },
-    "a11y": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "label": { "type": "string", "maxLength": 4096 },
-        "description": { "type": "string", "maxLength": 4096 },
-        "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-        "live": { "enum": ["off", "polite", "assertive"] },
-        "disabled": { "type": "boolean" },
-        "required": { "type": "boolean" }
+        "target": { "type": "string", "maxLength": 128 },
+        "method": { "type": "string", "maxLength": 64 },
+        "params": {
+          "type": "object",
+          "maxProperties": 16,
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        }
       }
-    },
-    "style": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "gap": { "enum": ["xs", "sm", "md", "lg", "xl"] },
-        "padding": { "enum": ["xs", "sm", "md", "lg", "xl"] },
-        "margin": { "enum": ["xs", "sm", "md", "lg", "xl"] },
-        "color": { "$ref": "#/$defs/colorToken" },
-        "background": { "$ref": "#/$defs/colorToken" },
-        "border": { "enum": ["none", "subtle", "strong"] },
-        "radius": { "enum": ["4", "8", "12", "16", "24", "full"] },
-        "shadow": { "enum": ["0", "1", "2", "3"] },
-        "direction": { "enum": ["row", "column"] },
-        "align": { "enum": ["start", "center", "end", "stretch"] },
-        "justify": { "enum": ["start", "center", "end", "space-between"] },
-        "wrap": { "enum": ["wrap", "nowrap"] },
-        "grow": { "type": "integer", "minimum": 0, "maximum": 12 },
-        "width": { "enum": ["auto", "full", "1/2", "1/3", "1/4"] },
-        "height": { "enum": ["auto", "full", "1/2", "1/3"] },
-        "textSize": { "enum": ["12", "14", "16", "20", "24", "28", "32"] },
-        "weight": { "enum": ["400", "500", "600", "700"] },
-        "font": { "enum": ["ui", "mono"] },
-        "motion": { "enum": ["0", "120", "180", "240", "320"] }
-      }
-    },
-    "colorToken": {
-      "enum": [
-        "bg",
-        "surface",
-        "fg",
-        "muted",
-        "border",
-        "primary",
-        "primary-fg",
-        "accent",
-        "success",
-        "warning",
-        "error",
-        "info"
-      ]
-    },
-    "componentType": {
-      "enum": [
-        "AppShell",
-        "Stack",
-        "Grid",
-        "SplitPane",
-        "Card",
-        "Sheet",
-        "Drawer",
-        "Modal",
-        "Popover",
-        "Toolbar",
-        "SafeArea",
-        "ScrollArea",
-        "Sidebar",
-        "TabBar",
-        "Breadcrumb",
-        "CommandPalette",
-        "Pagination",
-        "Stepper",
-        "Menu",
-        "Dock",
-        "WorkspaceSwitcher",
-        "BackButton",
-        "Button",
-        "IconButton",
-        "TextField",
-        "TextArea",
-        "NumberField",
-        "SearchField",
-        "Select",
-        "Combobox",
-        "MultiSelect",
-        "Checkbox",
-        "RadioGroup",
-        "Switch",
-        "Slider",
-        "RangeSlider",
-        "DatePicker",
-        "TimePicker",
-        "ColorPicker",
-        "FilePicker",
-        "SignaturePad",
-        "OTPInput",
-        "DataTable",
-        "VirtualList",
-        "TreeView",
-        "KanbanBoard",
-        "Calendar",
-        "Timeline",
-        "LineChart",
-        "BarChart",
-        "PieChart",
-        "AreaChart",
-        "StatCard",
-        "Badge",
-        "Tag",
-        "Avatar",
-        "Tooltip",
-        "Progress",
-        "Skeleton",
-        "EmptyState",
-        "Alert",
-        "Toast",
-        "Banner",
-        "FieldError",
-        "ConfirmDialog",
-        "PermissionDialog",
-        "ErrorBoundary",
-        "OfflineBanner",
-        "SyncStatus",
-        "LoadingOverlay",
-        "Image",
-        "VideoPlayer",
-        "AudioPlayer",
-        "CameraCapture",
-        "QRScanner",
-        "BarcodeScanner",
-        "MapView",
-        "PDFViewer",
-        "MarkdownView",
-        "RichTextEditor",
-        "FormBuilder",
-        "SchemaForm",
-        "WorkflowNode",
-        "CodeEditor",
-        "DiffViewer",
-        "Terminal",
-        "LogViewer",
-        "ChatThread",
-        "MessageBubble",
-        "ReceiptView",
-        "InvoiceView",
-        "ContactPicker",
-        "FileTree",
-        "RecordDetail",
-        "FilterBar",
-        "SavedView",
-        "ImportWizard",
-        "ExportDialog",
-        "VaultItem",
-        "DeviceCard",
-        "AppIcon",
-        "WidgetFrame",
-        "WindowChrome",
-        "ContextMenu",
-        "NotificationItem",
-        "ShareSheet",
-        "IntentPicker",
-        "PermissionBadge",
-        "StorageMeter",
-        "UpdateCard",
-        "PromptInput",
-        "ModelPicker",
-        "AIStatus",
-        "SuggestionChip",
-        "DiffSuggestion",
-        "GenerationProgress",
-        "SourceCitation",
-        "AIError",
-        "TokenMeter",
-        "AgentStep"
-      ]
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://microapp.dev/schemas/microapp.manifest.v2.schema.json",
+  "$id": "https://microapp.studio/schemas/microapp.manifest.v2.schema.json",
   "title": "MicroApp Manifest v2",
   "type": "object",
   "additionalProperties": false,
@@ -9,199 +9,102 @@
     "id",
     "name",
     "version",
-    "license",
-    "repository",
-    "publisher",
-    "minHostVersion",
-    "contentHash",
     "entry",
+    "integrity",
+    "signature",
     "offline",
-    "runtime",
     "permissions",
-    "capabilities"
+    "ui"
   ],
   "properties": {
-    "schemaVersion": { "const": "2.0-open" },
+    "schemaVersion": { "const": 2 },
     "id": {
       "type": "string",
-      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)+$",
-      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+){1,4}$",
       "maxLength": 128
     },
-    "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
     "version": {
       "type": "string",
-      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(beta|rc)\\.[1-9][0-9]*)?$"
-    },
-    "license": { "type": "string", "pattern": "^[A-Za-z0-9.+-]+$" },
-    "repository": { "type": "string", "format": "uri", "pattern": "^https://" },
-    "publisher": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["keyId", "fingerprint"],
-      "properties": {
-        "keyId": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
-        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "source": { "enum": ["registry", "git", "local", "enterprise"], "default": "registry" }
-      }
-    },
-    "minHostVersion": {
-      "type": "string",
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
-    },
-    "contentHash": { "type": "string", "pattern": "^sha256-[0-9a-f]{64}$" },
-    "reproducibleBuild": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["commitHash", "builderImage"],
-      "properties": {
-        "commitHash": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-        "builderImage": {
-          "type": "string",
-          "pattern": "^[a-z0-9./:_-]+@sha256:[0-9a-f]{64}$"
-        }
-      }
     },
     "entry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["bundle", "assetsDir", "uiEngine", "integrity", "signature"],
+      "required": ["bundle"],
       "properties": {
-        "bundle": { "$ref": "#/$defs/relativePath" },
-        "assetsDir": { "$ref": "#/$defs/relativeDir" },
-        "uiEngine": { "const": "hybrid-native" },
-        "integrity": { "type": "string", "pattern": "^sha384-[A-Za-z0-9+/=]+$" },
-        "signature": { "type": "string", "pattern": "^ed25519-[0-9a-f]{16}$" }
+        "bundle": {
+          "type": "string",
+          "pattern": "^bundle/[A-Za-z0-9._-]+\\.js$"
+        }
       }
     },
-    "offline": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["mode", "requiresInternet", "localDbSchema", "syncStrategy"],
-      "properties": {
-        "mode": { "const": "offline-first" },
-        "requiresInternet": { "const": false },
-        "localDbSchema": { "$ref": "#/$defs/relativeDir" },
-        "syncStrategy": { "const": "crdt-hlc" }
-      }
+    "assetsDir": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/$",
+      "default": "assets/"
     },
-    "runtime": {
+    "integrity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["isolation", "maxMemoryMb", "supportedViewports"],
+      "required": ["algorithm", "contentHash", "files"],
       "properties": {
-        "isolation": { "const": "strict-sandbox" },
-        "maxMemoryMb": { "type": "integer", "minimum": 64, "maximum": 512 },
-        "supportedViewports": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": { "enum": ["mobile", "tablet", "desktop", "widget"] }
-        },
-        "secureDisplay": { "type": "boolean", "default": false }
-      }
-    },
-    "permissions": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["required", "optional", "networkAllowlist"],
-      "properties": {
-        "required": { "$ref": "#/$defs/permissionList" },
-        "optional": { "$ref": "#/$defs/permissionList" },
-        "networkAllowlist": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
-          }
-        },
-        "quotas": {
+        "algorithm": { "enum": ["sha256"] },
+        "contentHash": { "$ref": "#/$defs/hex64" },
+        "files": {
           "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "storageMb": { "type": "integer", "minimum": 1, "maximum": 1024, "default": 10 }
-          }
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^(bundle|assets)/[A-Za-z0-9._/-]+$" },
+          "additionalProperties": { "$ref": "#/$defs/hex64" }
         }
       }
     },
-    "localAi": {
+    "signature": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["optionalCapabilities", "recommendedModelSize"],
+      "required": ["algorithm", "keyId", "value"],
       "properties": {
-        "optionalCapabilities": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": { "enum": ["text-classification", "receipt-ocr", "summarization", "embedding"] }
-        },
-        "recommendedModelSize": { "enum": ["small-3b", "medium-7b", "large-13b"] }
+        "algorithm": { "enum": ["ed25519"] },
+        "keyId": { "type": "string", "minLength": 8, "maxLength": 256 },
+        "value": { "type": "string", "minLength": 16, "maxLength": 512 }
       }
     },
-    "capabilities": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["intentsIn", "intentsOut", "widgets"],
-      "properties": {
-        "intentsIn": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": { "enum": ["image.receipt", "csv.import", "text.share", "json.share", "url.open"] }
-        },
-        "intentsOut": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": { "enum": ["document.pdf", "data.csv", "image.share", "text.share", "json.share"] }
-        },
-        "widgets": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id", "sizes"],
-            "properties": {
-              "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
-              "sizes": {
-                "type": "array",
-                "minItems": 1,
-                "uniqueItems": true,
-                "items": { "enum": ["1x1", "2x1", "2x2", "3x2", "4x2"] }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "$defs": {
-    "relativePath": {
-      "type": "string",
-      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
-    },
-    "relativeDir": {
-      "type": "string",
-      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*/$"
-    },
-    "permissionList": {
+    "offline": { "type": "boolean" },
+    "permissions": {
       "type": "array",
       "uniqueItems": true,
       "items": {
         "enum": [
-          "storage.local",
-          "storage.local.sqlite",
-          "camera",
-          "camera.qr",
-          "microphone",
-          "location",
-          "biometrics",
-          "filesystem.picker",
-          "bluetooth",
-          "nfc",
+          "clipboard.read",
+          "clipboard.write",
           "notifications.local",
-          "local_ai.inference",
-          "network.allowlist"
+          "files.pick",
+          "network.fetch",
+          "storage.app",
+          "vault.read",
+          "share.export"
         ]
       }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["ui.muip", "storage.app"] }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "protocol"],
+      "properties": {
+        "engine": { "const": "muip-web" },
+        "protocol": { "const": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     }
   }
 }
