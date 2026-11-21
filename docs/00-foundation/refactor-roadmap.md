@@ -1,131 +1,79 @@
 ---
 id: FOUND-ROADMAP
-title: Roadmap Refactor PRD v2.0
+title: Roadmap Refactor
 status: accepted
-owner: governance
-prd_refs: ["§8", "§7.2"]
+owner: product
+prd_refs: ["§10 Roadmap", "§12 Definisi Selesai"]
 ---
 
-# Roadmap Refactor PRD v2.0
+# Roadmap Refactor
 
-Dokumen ini adalah peta eksekusi refactor dari prototipe Phase 0 ke target PRD v2.0. Status di sini diperbarui setiap gate fase dan hanya boleh berubah berdasarkan evidence di [08-quality/evidence](../08-quality/evidence/README.md). Requirement per requirement dilacak di [prd-compliance-matrix.md](prd-compliance-matrix.md).
+## 1. Tujuan
 
-## 1. Legenda Status
+Menetapkan tiga fase refactor web-only, langkah per fase, gate, dan status. Roadmap ini menggantikan fase Flutter/Go/server dan tidak boleh memuat pekerjaan platform yang tidak ada.
 
-| Status | Arti |
-|---|---|
-| `pending` | Belum dikerjakan. |
-| `in-progress` | Sedang dikerjakan pada branch `development`. |
-| `done` | Seluruh acceptance langkah dijalankan dan evidence tercatat. |
-| `partial` | Sebagian acceptance dapat diverifikasi di lingkungan ini; sisanya gate manual. |
-| `blocked` | Prasyarat eksternal tidak tersedia; kode dan kontrak test tetap ditulis. |
+## 2. Ringkasan Fase
 
-## 2. Fase dan Gate
-
-| Fase | Tujuan | Gate otomatis | Gate manual |
+| Fase | Fokus | Gate keluar | Status |
 |---|---|---|---|
-| 0 | Rekonsiliasi kontrak dokumen dan roadmap | `node scripts/check-docs.mjs --strict` | Review governance |
-| 1 | Host Shell, Rust core, sandbox runtime | `scripts/verify-phase-1.mjs` | iOS/macOS/Windows/Linux desktop, perangkat Android fisik, sensor nyata |
-| 2 | Studio IDE, data layer, CLI | `scripts/verify-phase-2.mjs` | Desktop Flutter memuat Studio lokal |
-| 3 | AI lokal/BYOK, workflow, sync | `scripts/verify-phase-3.mjs` | Dua perangkat nyata, provider AI nyata |
-| 4 | Registry terfederasi dan supply chain | `scripts/verify-phase-4.mjs` | Hosting registry nyata (Pages/MinIO) |
-| 5 | Self-host, air-gap, governance | `scripts/verify-phase-5.mjs` | K8s/Helm, Let's Encrypt, VPS 512 MB, IdP nyata, SIEM |
+| **Fase 1 Foundation** | Shell, identitas lokal, host DB, sandbox, package, backup, permission. | Test dan E2E fase 1 lulus; dokumen tidak mengklaim builder. | partial |
+| **Fase 2 Builder** | Create (template/AI/blank), visual builder, preview draft, share. | Draft → preview → export `.mapp` berjalan end-to-end. | missing |
+| **Fase 3 Delight** | Clay UI menyeluruh, AI assist, galeri template, polish a11y. | axe bersih, budget performa lulus, clay diterapkan. | missing |
 
-## 3. Langkah Eksekusi
+## 3. Fase 1 Foundation
 
-Setiap langkah wajib lulus: `node scripts/check-docs.mjs --strict`, `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`; untuk area Rust/Flutter/Go ditambah `cargo test`, `cargo clippy -- -D warnings`, `flutter analyze`, `flutter test`, `go test ./...`, `go vet ./...`.
-
-### 3.1 Phase 0 — Rekonsiliasi dokumen
-
-| Langkah | Isi | Status |
+| Langkah | Pekerjaan | Bukti |
 |---|---|---|
-| P0.1 | ADR-0011…0016, pembaruan dokumen kanonik, roadmap, kolom Phase matriks | done |
-| P0.2 | Template evidence fase dan tautan dari indeks serta release gates | done |
+| 1.1 | Boot shell non-blocking, skeleton, offline indicator. | Playwright offline + LCP. |
+| 1.2 | Identitas otomatis tanpa modal; frasa ditunda. | Vitest identity + FLOW-01. |
+| 1.3 | Host DB SQLite WASM/OPFS, migrasi, FTS5. | Vitest data + test-migrations. |
+| 1.4 | Sandbox iframe, MUIP, bridge, watchdog. | Vitest runtime-web. |
+| 1.5 | Package import/verifikasi/signature. | mapp-tool verify + Vitest. |
+| 1.6 | Backup/restore terenkripsi. | Vitest round-trip. |
+| 1.7 | Permission JIT, cage, audit. | Vitest permissions. |
+| 1.8 | Route target shell dan redirect settings lama. | Playwright route audit. |
 
-### 3.2 Phase 1 — Host Shell, Rust core, sandbox runtime
+## 4. Fase 2 Builder
 
-| Langkah | Isi | Status |
+| Langkah | Pekerjaan | Bukti |
 |---|---|---|
-| P1.1 | Migrasi ke npm workspaces `apps/*`, `packages/*`, CI, gitignore | done |
-| P1.2 | `core-rust`: crypto, identity, manifest, `.mapp`, HLC, audit, guard | done |
-| P1.3 | `runtime-web`: sandbox opaque origin, bridge, MUIP, loader `.mapp` | done |
-| P1.4 | Host DB worker SQLite WASM, migrasi, repository, FTS5 | done |
-| P1.5 | Identitas lokal, onboarding, PWA, i18n, MADS shell | done |
-| P1.6 | Permission broker, Vault, audit, offline cage, storage manager | done |
-| P1.7 | Instalasi `.mapp`, runner app, error boundary | done |
-| P1.8 | Pencarian, widget, intent, deep link, launcher, command palette | partial |
-| P1.9 | Migrasi Phase 0, backup terenkripsi, notifikasi lokal | done |
-| P1.10 | Host Flutter, `runtime-native`, MADS Flutter | pending |
-| P1.11 | Gate fase 1, evidence, tag `v0.1.0-phase1` | partial |
+| 2.1 | Galeri template dan preview template. | Playwright template flow. |
+| 2.2 | Magic Create dengan BYOK dan fallback. | Playwright mock provider. |
+| 2.3 | Blank create (Form/List/Dashboard). | Playwright blank flow. |
+| 2.4 | Canvas, palette 48/120, inspector token. | Playwright builder + Vitest palette. |
+| 2.5 | Autosave, undo/redo, guard. | Vitest fake timer. |
+| 2.6 | Preview draft di sandbox. | Playwright preview. |
+| 2.7 | Share sheet dan ekspor `.mapp`. | mapp-tool pack/verify. |
 
-### 3.3 Phase 2 — Studio IDE, data layer, CLI
+## 5. Fase 3 Delight
 
-| Langkah | Isi | Status |
+| Langkah | Pekerjaan | Bukti |
 |---|---|---|
-| P2.1 | Model project Studio, shell, mesin AST dua arah | pending |
-| P2.2 | Canvas Flex/Grid, breakpoint, properties panel | pending |
-| P2.3 | MADS 120 komponen web dan Flutter | pending |
-| P2.4 | Monaco offline, diagnostik, linter keamanan, DevTools | pending |
-| P2.5 | Schema designer, migrasi, FTS5 dan `sqlite-vec` | pending |
-| P2.6 | Integrasi Git dan visual diff | pending |
-| P2.7 | Export/import `.mapp`, CLI, template | pending |
-| P2.8 | Gate fase 2, evidence, tag `v0.2.0-phase2` | pending |
+| 3.1 | Terapkan token clay dan komponen core. | Visual regression 3 tema. |
+| 3.2 | Motion, reduced motion, blob latar. | Playwright reducedMotion. |
+| 3.3 | AI assist dengan rencana yang ditinjau. | Playwright plan review. |
+| 3.4 | Galeri template dan polish copy. | Review konten + i18n. |
+| 3.5 | Audit aksesibilitas dan performa. | axe + Lighthouse. |
 
-### 3.4 Phase 3 — AI, workflow, sync
+## 6. Gate per Fase
 
-| Langkah | Isi | Status |
-|---|---|---|
-| P3.1 | Adapter AI lokal/BYOK dan pengaturan | pending |
-| P3.2 | Workflow engine offline dan editor graph | pending |
-| P3.3 | CRDT/HLC, mutation log, konflik, schema staging | pending |
-| P3.4 | Pairing, transport, protokol sync, restore snapshot | pending |
-| P3.5 | Multiplayer Yjs dan LAN QR hot reload | pending |
-| P3.6 | Gate fase 3, evidence, tag `v0.3.0-phase3` | pending |
+1. `node scripts/check-docs.mjs --strict` dan `node scripts/generate-catalog.mjs --check` lulus.
+2. `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` lulus.
+3. E2E fase terkait lulus; axe bersih untuk layar yang berubah.
+4. Tidak ada requirement fase tersebut berstatus `missing` tanpa pengecualian tertulis.
+5. Baseline evidence diperbarui.
 
-### 3.5 Phase 4 — Registry terfederasi
+## 7. Status dan Pelaporan
 
-| Langkah | Isi | Status |
-|---|---|---|
-| P4.1 | Index registry, sumber, cache, pencarian | pending |
-| P4.2 | Signature, TOFU, reproducible build, scanner, rollback | pending |
-| P4.3 | Publish CLI, instalasi Git, template registry statis | pending |
-| P4.4 | Gate fase 4, evidence, tag `v0.4.0-phase4` | pending |
+- Status per requirement ada di [prd-compliance-matrix.md](prd-compliance-matrix.md).
+- Fakta implementasi ada di [implementation-status.md](implementation-status.md).
+- Roadmap tidak boleh dipakai untuk mengklaim fitur sudah ada; hanya urutan pekerjaan.
 
-### 3.6 Phase 5 — Self-host, air-gap, governance
+## 8. Verifikasi
 
-| Langkah | Isi | Status |
-|---|---|---|
-| P5.1 | Server Go Lite dan sync hub | pending |
-| P5.2 | Profil Standard/Cluster, SSO, RBAC, plugin host | pending |
-| P5.3 | Deploy Compose/Helm/air-gap, SBOM | pending |
-| P5.4 | Gate fase 5, audit akhir, tag `v2.0.0-rc.1` | pending |
-
-## 4. Urutan Commit dan Push
-
-1. Commit `docs:` lebih dulu bila langkah mengubah perilaku atau kontrak.
-2. Satu commit satu tujuan atomik, format `type(scope): summary` dengan summary ≤ 72 karakter.
-3. Setiap commit menyebut spec: `Spec: docs/<path>#<ID>`.
-4. Push ke `development` setelah gate langkah hijau; tidak menumpuk lebih dari satu langkah tanpa push.
-5. Tag annotated hanya dibuat setelah evidence fase ditulis dan status matriks diperbarui.
-
-## 4.1 Catatan Status Fase 1
-
-- Gate otomatis fase 1 hijau pada `scripts/verify-phase-1.mjs` untuk lingkup host web + Rust core: docs, migrasi, unit, typecheck, lint, build, `build:core`, `cargo test`, `cargo clippy`, dan E2E Playwright (first run offline, instalasi `.mapp` bertanda tangan, isolasi sandbox, backup terenkripsi, migrasi Phase 0, isolasi crash).
-- P1.8 selesai sebagian: pencarian FTS, intent consent, deep link, pemulihan launcher, dan command palette ada; **widget board** belum punya UI (query DB app per widget belum dijalankan).
-- P1.10 belum dikerjakan: `apps/host-flutter` dan `packages/runtime-native` belum ada, sehingga requirement `FR-SBX-*` di matriks tetap `partial`.
-- P1.11: evidence ditulis dan matriks diperbarui lewat `scripts/apply-status.mjs`; tag `v0.1.0-phase1` **belum** dibuat karena fase 1 belum lengkap (P1.8 widget, P1.10 Flutter, gate perangkat).
-
-## 5. Aturan Status
-
-- Status langkah dan fase hanya berubah setelah `scripts/verify-phase-<n>.mjs` menulis `docs/08-quality/evidence/phase-<n>.json` dan `.md`.
-- `scripts/apply-status.mjs --evidence <file>` adalah satu-satunya cara mengubah kolom Status matriks; skrip menolak ID tak dikenal dan status tanpa bukti.
-- Gate perangkat atau layanan yang tidak tersedia dicatat `partial` atau `blocked` beserta bukti manual; tidak pernah `implemented`.
-- Status tidak boleh diturunkan tanpa catatan alasan pada PR.
-
-## 6. Referensi
-
-- [PRD v2.0](PRD-v2.0.md) §8 — fase dan gate produk.
-- [implementation-status.md](implementation-status.md) — fakta kode saat ini.
-- [prd-compliance-matrix.md](prd-compliance-matrix.md) — status per requirement.
-- [08-quality/release-gates.md](../08-quality/release-gates.md) — perintah gate per fase.
-- [08-quality/evidence](../08-quality/evidence/README.md) — record bukti per fase.
+| Pemeriksaan | Cara |
+|---|---|
+| Gate dokumen | `npm run docs:check` |
+| Gate kode | `npm test`, `npm run typecheck`, `npm run lint`, `npm run build` |
+| Gate rilis | [release-gates.md](../08-quality/release-gates.md) |
+| Bukti | [baseline.md](../08-quality/evidence/baseline.md) |

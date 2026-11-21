@@ -3,86 +3,94 @@ id: FOUND-STATUS
 title: Status Implementasi
 status: accepted
 owner: product
-prd_refs: ["§2.1", "§3 Modul 1", "§8"]
+prd_refs: ["§5 Fitur", "§10 Roadmap"]
 ---
 
 # Status Implementasi
 
-Dokumen ini mencatat **fakta kode saat ini** dan jaraknya terhadap target PRD. Status di sini adalah satu-satunya tempat selain [prd-compliance-matrix.md](prd-compliance-matrix.md) yang boleh menyatakan tingkat implementasi.
+Dokumen ini mencatat **fakta kode saat ini** dan jaraknya terhadap PRD v3.0. Status di sini dan di [prd-compliance-matrix.md](prd-compliance-matrix.md) adalah satu-satunya tempat yang boleh menyatakan tingkat implementasi.
 
-## 1. Ringkasan Eksekusi
+## 1. Ringkasan Terverifikasi
 
-| Aspek | Fakta terverifikasi |
+| Aspek | Fakta |
 |---|---|
-| Repo | `microapp-studio`, branch `development`, npm workspaces (`apps/*`, `packages/*`) |
-| Kontrak target | ADR-0011…ADR-0016 (database host, identitas/Vault, manifest/signature, sandbox/bridge, backup/workflow/CRDT/server, fase dan bukti) |
-| Paket | `apps/studio-web` (Next.js 16 App Router, React 19), `packages/core-rust` (`microapp-core`), `packages/runtime-web`, `packages/ui-kit` |
-| Route host | `/`, `/app/[appId]`, `/settings/{permissions,storage,vault,sync,backup}`, `/registry`, `/studio`, `/studio/[projectId]`, `/dev/tools`, `/admin` |
-| Persistence | SQLite WASM di OPFS lewat worker (`journal_mode=TRUNCATE`), DDL kanonik §5 `data-model.md`, FTS5 `search_index` |
-| Identitas | 24 kata BIP39, verifikasi pemulihan tanpa hash mnemonic, frasa disimpan terenkripsi dengan `CryptoKey` non-extractable di IndexedDB |
-| Sandbox | Iframe `sandbox="allow-scripts"` + MUIP renderer di dalam iframe, bootstrap inline ber-nonce, broker bridge, watchdog |
-| Eksekusi logika | Tidak ada `eval`/`new Function`/`innerHTML` di runtime produksi; ESLint menolak polanya |
-| Backup | `.mapp-backup` (`MAPPBK01`) AES-256-GCM + Argon2id, checksum per section, restore tidak menimpa tanpa konfirmasi |
-| Migrasi Phase 0 | Dexie v6 dibaca read-only, app menjadi `studio_project` draft, `legacy_record_map` idempoten |
-| Test | Vitest 15 berkas / 152 test (`apps/studio-web`), 7 berkas / 69 test (`packages/runtime-web`), 1 berkas / 33 test (`packages/ui-kit`); Rust 52 test; Playwright 5 E2E |
-| Server/Flutter/CLI | Belum ada (`apps/selfhost-server`, `apps/host-flutter`, `packages/cli` belum dibuat) |
-| Sync/CRDT/AI/Registry install | Belum ada; registry baru menyimpan sumber, sinkronisasi fase 3, AI fase 3, instalasi registry fase 4 |
+| Repo | `microapp-studio`, npm workspaces (`apps/*`, `packages/*`) |
+| Stack | Next.js 16 App Router, React 19, TypeScript, Tailwind v4 |
+| Paket nyata | `apps/studio-web`, `packages/runtime-web`, `packages/ui-kit`, `packages/core-rust` (WASM) |
+| Route nyata | `/`, `/app/[appId]`, `/studio`, `/studio/[projectId]`, `/registry`, `/settings`, `/settings/permissions`, `/settings/storage`, `/settings/vault`, `/settings/sync`, `/settings/backup`, `/settings/notifications`, `/dev/tools`, `/admin` |
+| Route target belum ada | `/templates`, `/packages`, `/packages/import`, `/create`, `/settings/general`, `/settings/ai`, `/settings/about`, `/settings/dev`, `/settings/data` |
+| Shell | App Router, PWA/service worker, i18n `id-ID`/`en-US`, workspace switcher, pencarian FTS5, notifikasi, storage pins |
+| Identitas | 24 kata BIP39 dengan konfirmasi 3 kata sebagai gate; `CryptoKey` non-extractable; identity worker |
+| Data | SQLite WASM + OPFS lewat worker, migrasi 001/002, FTS5; DB per app belum dibuka di runner |
+| Sandbox | Iframe `sandbox="allow-scripts"`, MUIP renderer, bridge broker, watchdog, crash isolation |
+| Package | Verifikasi/instalasi `.mapp` lokal dengan signature dan contentHash; registry baru menyimpan sumber, belum ada cache/install dari index |
+| Backup | `.mapp-backup` header `MAPPBK01`, AES-256-GCM + Argon2id, checksum per section |
+| Permission/Vault | Broker, consent, grant/revoke, vault Argon2id wrap, auto-lock, audit chain |
+| Studio | Draft project (create/list/detail); visual builder, template, AI, preview builder belum ada |
+| Design | Token MADS lama (teal/neutral); komponen ui-kit terbatas; claymorphism belum diterapkan |
+| Test | Vitest 15 berkas/153 test (`apps/studio-web`), 7/69 (`packages/runtime-web`), 1/33 (`packages/ui-kit`); Rust 53 test; Playwright 5 E2E |
+| Tidak ada | `apps/host-flutter`, `apps/selfhost-server`, `packages/runtime-native`, `packages/sdk`, `packages/ai-bridge`, `packages/cli`, `deploy/`; tidak ada CRDT/P2P/sync/workflow |
 
-## 2. Status per Modul PRD
+Angka test berasal dari `npm test` dan `cargo test` pada baseline refactor ini. Bila berbeda saat dijalankan ulang, perbaiki dokumen ini lebih dulu.
 
-Status: `implemented` (acceptance verifikasi lulus), `partial` (sebagian ada, belum sesuai kontrak), `missing` (belum ada), `blocked` (butuh keputusan atau prasyarat).
+## 2. Status per Area
 
-| Modul PRD | Target | Current | Gap | Blocking | Phase |
-|---|---|---|---|---|---|
-| **§3 Modul 1** Host Shell | Local Identity, PWA offline, home grid/folder/dock/widget, omni-search FTS5, multitasking, intent bus, vault, notifikasi lokal, storage manager | Identity + recovery, PWA + service worker, home + FTS + command palette + deep link, permission broker, vault (Argon2id wrap + auto-lock), notifikasi lokal, storage manager, backup | Widget board UI, folder/dock UI, split-screen/PiP, `sqlite-vec` | — | 1 |
-| **§3 Modul 2** Studio IDE | Canvas Flexbox/Grid, 120 komponen, token/theme, Monaco + LSP, two-way AST sync, AI lokal/BYOK, Git, Yjs multiplayer, QR LAN | Draft project + daftar; editor visual/AI belum ada | Seluruh editor, AST, AI, Git, multiplayer | Fase 2–3 | 2–3 |
-| **§3 Modul 3** Sandbox Runtime | Iframe opaque origin + Worker + WASM, QuickJS/Wasmtime native, capability broker, offline cage, kuota, watchdog 5 detik, lifecycle | Web: opaque-origin iframe, renderer + validator MUIP, broker dengan urutan validasi, watchdog, crash isolation, CSP ketat. Native: belum ada | Host Flutter + engine QuickJS/Wasmtime | `apps/host-flutter`, `runtime-native` | 1 |
-| **§3 Modul 4** Data & Automation | SQLite per micro-app, FTS5, sqlite-vec, SQLCipher, schema designer, migrasi, CRDT HLC, functions, workflow graph, outbox, connector | Host SQLite + FTS5 + migrasi forward/rollback; DB per app belum dibuka di runner; tanpa workflow/CRDT | App DB runtime, schema designer, workflow, CRDT | Fase 2–3 | 2–3 |
-| **§3 Modul 5** Registry | Multi-source registry, cache offline, 4 cara install, reproducible build, scanner, signature, TOFU, delta, pin, rollback | Instalasi `.mapp` lokal bertanda tangan + verifikasi contentHash/signature di Rust; sumber registry dapat didaftarkan | Cache index, TOFU, scanner, delta, rollback, publish | Fase 4 | 4 |
-| **§3 Modul 6** Sync & Backup | E2EE, 4 transport, conflict history, schema staging, export SQLite/JSONL/CSV/Markdown/snapshot, restore, revoke | Backup `.mapp-backup` terenkripsi + restore terverifikasi | Seluruh sync dan transport | Fase 3 | 3 |
-| **§3 Modul 7** Self-Host | Lite/Standard/Cluster, auto-HTTPS, Compose, Helm, air-gap, OIDC/SAML/LDAP, RBAC/ABAC, audit chain, branding | Tidak ada | Seluruh server dan operasi | Fase 5 | 5 |
-| **§3 Modul 8** DevTools/CLI/SDK | Profiler lokal, analytics opt-in, `microapp` CLI, plugin/driver API, SDK | `/dev/tools` status lokal; `mapp-tool` (Rust) untuk pack/verify/keygen/inspect; tanpa CLI `microapp`, SDK, plugin | CLI, SDK, profiler | Fase 2–5 | 2–4 |
+| Area | Status | Gap |
+|---|---|---|
+| Boot dan shell | partial | Boot belum diukur < 1 s; skeleton belum lengkap. |
+| Local identity otomatis | partial | Identitas ada, tetapi onboarding masih meminta 24 kata sebelum Home. |
+| Home dan library | partial | Library dan pencarian ada; empty state tiga jalur belum ada. |
+| Create (template/AI/blank) | missing | Belum ada galeri template, Magic Create, atau blank flow. |
+| Visual builder | missing | Hanya draft create/list/detail; canvas, palette, inspector belum ada. |
+| Preview/runner | partial | Runner sandbox ada; preview builder belum memakai draft. |
+| Data | partial | Host DB dan migrasi ada; DB per app belum dibuka di runner. |
+| Package | partial | Import/verifikasi lokal ada; index statis dan update/rollback belum. |
+| Backup | partial | Backup/restore ada; recovery phrase belum ditunda sesuai target. |
+| Permission | implemented | Zero privilege, consent, revoke, cage, audit. |
+| Settings | partial | Sebagian route target belum ada; tema clay belum. |
+| DevTools | partial | Panel status ada; inspeksi package/bridge/error belum lengkap. |
+| Clay design system | missing | Token dan komponen clay belum diimplementasikan. |
+| i18n dan a11y | partial | id/en ada; audit axe dan RTL belum lengkap. |
 
-## 3. Yang Tidak Boleh Diklaim Sudah Ada
+## 3. Yang Tidak Boleh Diklaim
 
 Daftar berikut wajib dipakai reviewer untuk menolak klaim palsu pada README, dokumen, PR, atau materi promosi:
 
-- Host Flutter native, engine QuickJS/Wasmtime, dan MADS Flutter.
-- CRDT, HLC runtime, mutation log, conflict history, sinkronisasi apa pun.
-- Registry remote, cache index, TOFU, scanner, reproducible build, delta update, publish.
-- Workflow engine, outbox runtime, connector.
-- AI lokal/WebLLM/Ollama maupun BYOK.
-- Server self-hosted, SSO, RBAC, audit chain server, branding.
-- CLI `microapp`, SDK, plugin API.
-- Multiplayer, Git integration, LAN hot reload.
-- DB per app yang benar-benar dibuka di runner; widget board; `sqlite-vec`.
-- Klaim memory isolation yang ketat di web (lihat `FR-SBX-014`/`FR-SBX-015` partial).
+- Visual builder, template gallery, Magic Create, AI assist, atau preview builder yang sudah berjalan.
+- Claymorphism yang sudah diterapkan di UI produksi.
+- DB per app yang benar-benar dibuka di runner.
+- Index package statis dengan cache/install otomatis.
+- Update/rollback package, publish pipeline, atau marketplace.
+- Akun, cloud sync, CRDT, P2P, atau multiplayer.
+- Aplikasi native, Flutter, self-host server, CLI, atau SDK.
+- Telemetry atau analytics.
+- Isolasi memori tingkat OS pada iframe; yang ada adalah origin isolation.
 
-## 4. Utang Keamanan yang Sudah Dihapus dan Sisa
+## 4. Utang Keamanan yang Sudah Dihapus
 
 | Item | Status |
 |---|---|
-| JWT hardcoded + auth localStorage | Dihapus; route login/register dan dependency `jose`/`bcryptjs` dihapus. |
+| JWT hardcoded + auth localStorage | Dihapus; route login/register dan dependency terkait dihapus. |
 | `new Function` untuk logika micro-app | Dihapus; bundle berjalan di iframe opaque origin. |
-| `innerHTML`/HTML mentah pada render | Dihapus; renderer MUIP hanya `textContent`, ESLint menolak `innerHTML`. |
-| Backup plaintext | Diganti `.mapp-backup` AES-256-GCM + Argon2id dengan checksum per section. |
-| CSP longgar | Host memakai header keamanan + COOP/COEP; sandbox memakai CSP `default-src 'none'` dengan nonce. |
-| Dexie v6 lama | Masih ada sebagai sumber migrasi read-only; dihapus hanya oleh pengguna setelah migrasi sukses. |
+| `innerHTML` pada render | Dihapus; renderer MUIP memakai `textContent`. |
+| Backup plaintext | Diganti `.mapp-backup` AES-256-GCM + Argon2id. |
+| CSP longgar | Diganti CSP ketat + COOP/COEP pada host dan sandbox. |
+| Dexie v6 | Dipertahankan sebagai sumber migrasi read-only. |
 
-## 5. Peta Migrasi ke Target
+## 5. Peta ke Target
 
 | Langkah | Dari | Ke | Flow |
 |---|---|---|---|
-| 1 | `src/` monolit | `apps/studio-web/src` dalam npm workspaces | [13-phase0-migration](../04-flows/13-phase0-migration.md) |
-| 2 | Dexie `apps`/`content`/`runHistory` | SQLite WASM + OPFS, skema per micro-app | [13-phase0-migration](../04-flows/13-phase0-migration.md) |
-| 3 | `AppSchema` + `new Function` | Manifest v2, project draft Studio, modul sandbox | [04-visual-code-sync](../04-flows/04-visual-code-sync.md) |
-| 4 | Auth localStorage | Local Identity + pairing | [01-first-run](../04-flows/01-first-run.md) |
-| 5 | Backup JSON v1 | Snapshot terenkripsi + ekspor terbuka | [07-backup-recovery](../04-flows/07-backup-recovery.md) |
-| 6 | Deploy Vercel | PWA self-host + desktop bundle | [10-selfhost-airgap](../04-flows/10-selfhost-airgap.md) |
+| 1 | Identitas dengan gate mnemonic | Identitas otomatis, frasa ditunda | [FLOW-01](../04-flows/01-first-run.md) |
+| 2 | Draft tanpa builder | Create + visual builder | [FLOW-02](../04-flows/02-create-app.md) |
+| 3 | Runner tanpa preview draft | Preview di sandbox yang sama | [FLOW-03](../04-flows/03-edit-preview.md) |
+| 4 | Import package lokal | Share/install dengan verifikasi penuh | [FLOW-04](../04-flows/04-share-install.md) |
+| 5 | Backup tanpa frasa ditunda | Backup + recovery opsional | [FLOW-05](../04-flows/05-backup-recovery.md) |
+| 6 | Dexie v6 | Impor read-only idempoten | [FLOW-08](../04-flows/08-migration.md) |
 
-## 6. Aturan Pembaruan Status
+## 6. Aturan Pembaruan
 
-1. Status hanya dinaikkan setelah `## 8. Verifikasi` pada spec terkait dijalankan dan hasilnya dicatat.
-2. Setiap kenaikan status wajib disertai commit `docs(status):` dan pembaruan baris matriks.
-3. Status tidak boleh diturunkan tanpa catatan alasan pada PR.
-4. Angka dan fakta pada §1 wajib diverifikasi ulang setiap release; bila berbeda, perbaiki dokumen ini lebih dulu.
+1. Status naik hanya setelah verifikasi pada spec dijalankan dan hasilnya dicatat di [baseline.md](../08-quality/evidence/baseline.md).
+2. Setiap kenaikan status disertai commit `docs(status):` dan pembaruan baris matriks.
+3. Status tidak boleh turun tanpa catatan alasan pada PR.
+4. Angka pada §1 wajib diverifikasi ulang setiap rilis.

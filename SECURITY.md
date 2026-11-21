@@ -1,74 +1,57 @@
-# Keamanan
+---
+id: DOC-SECURITY
+title: Security Policy
+status: accepted
+owner: security
+prd_refs: ["§8 Data dan Privasi", "§11 Risiko"]
+---
 
-## 1. Cakupan
+# Security Policy
 
-Laporan keamanan mencakup seluruh artefak resmi:
+## Ruang Lingkup
 
-- Host Shell web/PWA dan Flutter (Android, iOS, Linux, Windows, macOS).
-- Sandbox runtime dan capability broker.
-- `core-rust`: kriptografi, signature, parser `.mapp`, CRDT/HLC, sandbox guard.
-- Studio IDE, CLI, dan SDK.
-- Server self-host, sync hub, registry internal, auth, RBAC/ABAC, audit chain.
-- Registry publik dan pipeline reproducible build.
+Berlaku untuk aplikasi web, package `.mapp`, backup, identitas lokal, dan tooling di repo ini. Tidak ada server produksi milik proyek yang menyimpan data pengguna; data berada di perangkat.
 
-## 2. Versi yang Didukung
+## Melaporkan Kerentanan
 
-| Versi | Dukungan keamanan |
-|---|---|
-| Rilis stabil terbaru | Ya |
-| Satu minor sebelumnya | Ya, perbaikan kritis |
-| Lebih lama | Tidak; pengguna diminta upgrade |
+Jangan membuka issue publik untuk kerentanan yang belum diperbaiki. Kirim laporan privat ke maintainer melalui kanal yang tercantum di profil organisasi, dengan:
 
-## 3. Cara Melaporkan
+- Deskripsi dampak dan komponen terdampak.
+- Langkah reproduksi minimal.
+- Versi/commit.
+- Bukti konsep bila ada, tanpa data pengguna nyata.
 
-**Jangan** membuka issue publik untuk kerentanan.
+Kami mengakui laporan dalam 3 hari kerja dan menargetkan perbaikan untuk kerentanan kritis dalam 14 hari.
 
-Gunakan GitHub private advisory:
+## Prioritas
 
-```text
-https://github.com/Reinvy/microapp-studio/security/advisories/new
-```
+| Tingkat | Contoh | Target |
+|---|---|---|
+| Kritis | Sandbox escape, eksekusi kode di host, pencurian kunci | 72 jam untuk mitigasi, 14 hari perbaikan |
+| Tinggi | Permission bypass, signature package dilewati, backup dapat didekripsi tanpa passphrase | 7 hari |
+| Sedang | XSS terbatas, kebocoran log, CSP melemah | 30 hari |
+| Rendah | Hardening, pesan error informatif | Rilis berikutnya |
 
-Sertakan bila tersedia: versi, platform, langkah reproduksi, dampak, dan bukti konsep minimal. Jangan menyertakan data pengguna nyata atau kunci privat.
+## Cakupan
 
-## 4. SLA
+Di dalam cakupan: `apps/studio-web`, `packages/runtime-web`, `packages/ui-kit`, `packages/core-rust`, format `.mapp`, `.mapp-backup`, bridge, permission, audit, dan dokumentasi.
 
-| Tahap | Target |
-|---|---|
-| Konfirmasi penerimaan | ≤ 48 jam |
-| Triase dan severity | ≤ 5 hari kerja |
-| Perbaikan critical (sandbox escape, kebocoran kunci, RCE, auth bypass) | ≤ 7 hari |
-| Perbaikan high | ≤ 30 hari |
-| Perbaikan medium | ≤ 90 hari |
-| Disclosure publik | Setelah perbaikan tersedia dan pengguna diberi waktu upgrade |
+Di luar cakupan: serangan yang memerlukan kontrol perangkat fisik, browser yang sudah tidak didukung, social engineering, dan layanan pihak ketiga yang tidak dikendalikan proyek.
 
-Severity mengikuti CVSS 3.1 dengan penyesuaian: sandbox escape, signing key compromise, dan kegagalan E2EE selalu minimal `high`.
+## Prinsip
 
-## 5. Safe Harbor
+- Zero privilege untuk micro-app.
+- Signature dan digest diverifikasi sebelum instalasi.
+- CSP ketat dan iframe opaque origin.
+- Tidak ada `eval`, `new Function`, atau HTML mentah.
+- Secret tidak boleh masuk log, fixture, atau dokumen.
 
-Aktivitas berikut dianggap penelitian keamanan yang diizinkan selama tidak merusak data, tidak mengakses data pengguna lain, dan tidak menguji pada instance produksi milik pihak lain tanpa izin:
+## Setelah Perbaikan
 
-- Pengujian pada instance self-host milik sendiri.
-- Fuzzing parser `.mapp`, MUIP, dan bridge pada build lokal.
-- Analisis statis dan dinamis terhadap artefak rilis.
+Kami dapat mempublikasikan advisori tanpa detail eksploitasi yang membahayakan pengguna. Kredit diberikan bila diminta.
 
-## 6. Yang Tidak Termasuk
+## Referensi
 
-- Kerentanan pada dependency tanpa dampak yang dapat ditunjukkan ke MicroApp Studio.
-- Laporan hasil scanner otomatis tanpa reproduksi.
-- Serangan sosial terhadap kontributor.
-- Kelemahan yang memerlukan akses fisik penuh dan perangkat sudah di-root/jailbreak, kecuali melewati batas kriptografi.
-
-## 7. Setelah Perbaikan
-
-Maintainer akan:
-
-1. Menerbitkan advisory dengan kredit pelapor (kecuali meminta anonim).
-2. Menandatangani rilis perbaikan dan menyertakan SBOM serta checksum.
-3. Mencatat pelajaran pada [incident response](docs/09-operations/incident-response.md).
-4. Merotasi kunci bila ada indikasi kompromi.
-
-## 8. Kontak
-
-- Kerentanan: GitHub private advisory di atas.
-- Pertanyaan kebijakan keamanan: issue dengan label `security-question` tanpa detail eksploitasi.
+- [Threat model](docs/01-architecture/threat-model.md)
+- [Security test plan](docs/08-quality/security-test-plan.md)
+- [Incident response](docs/09-operations/incident-response.md)

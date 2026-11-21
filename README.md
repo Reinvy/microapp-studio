@@ -1,59 +1,67 @@
+---
+id: DOC-README
+title: MicroApp Studio
+status: accepted
+owner: product
+prd_refs: ["§1 Visi dan Prinsip", "§2 Ruang Lingkup"]
+---
+
 # MicroApp Studio
 
-Platform micro-app open-source, offline-first, dan self-hostable. Repo ini saat ini berisi **prototipe Phase 0** (web) dan **paket dokumentasi SDD** yang menjadi kontrak untuk target PRD v2.0.
+Satu situs untuk membuat, menjalankan, dan membagikan micro-app. **Web-only PWA**: desktop, tablet, dan mobile browser. Tanpa akun, tanpa server wajib, tanpa telemetry.
 
-> Status: prototipe web. Local Identity, sandbox, SQLite/OPFS, CRDT, registry, AI lokal, dan server self-host **belum ada**. Lihat [implementation-status.md](docs/00-foundation/implementation-status.md) sebelum mengklaim kemampuan apa pun.
+## Status
 
-## 1. Apa yang Benar-Benar Ada
+Dokumen di repo ini adalah kontrak untuk implementasi berikutnya. Banyak fitur target belum ada; lihat [status implementasi](docs/00-foundation/implementation-status.md) dan [matriks kepatuhan](docs/00-foundation/prd-compliance-matrix.md). Jangan mengklaim fitur yang belum terverifikasi.
 
-| Area | Kondisi saat ini |
+## Stack
+
+| Lapisan | Teknologi |
 |---|---|
-| Web app | Next.js 16 App Router, React 19, TypeScript, Tailwind v4 |
-| Halaman | `/`, `/app`, `/builder`, `/dev`, `/login`, `/register`, `/run/[id]` |
-| Builder | Canvas drag-and-drop (`@dnd-kit`) untuk 9 tipe field + properties panel |
-| Prompt parser | Pola terbatas (calculator, form, survey, todo, budget, counter, validator) |
-| Runner | Render form dari JSON schema, validasi, eksekusi node logika |
-| Editor | Monaco di halaman `/dev` (tanpa LSP) |
-| Penyimpanan | Dexie/IndexedDB `MicroAppStudio` v6: `apps`, `content`, `runHistory` |
-| Backup | JSON `microapp-studio-backup` v1 (belum terenkripsi) |
-| Auth | Akun lokal di localStorage + JWT (utang keamanan, akan dihapus) |
-| Test | Vitest |
+| App | Next.js 16 App Router, React 19, TypeScript, Tailwind v4 |
+| Runtime | Iframe `sandbox="allow-scripts"`, MUIP renderer, bridge broker, watchdog |
+| Data | SQLite WASM + OPFS lewat worker, FTS5 |
+| Core | `packages/core-rust` dikompilasi ke WASM untuk kripto dan package |
+| UI | `packages/ui-kit` dengan token MADS v3 Clay |
 
-Tidak ada: server, Rust core, Flutter host, sandbox, permission broker, sinkronisasi, registry, workflow engine, CLI, SDK.
-
-## 2. Quick Start (Phase 0)
+## Quick Start
 
 ```bash
-git clone https://github.com/Reinvy/microapp-studio.git
-cd microapp-studio
 npm install
-npm run dev      # http://localhost:3000
-npm test
-npm run build
+npm run dev:setup
+npm run dev
 ```
 
-## 3. Dokumentasi
+Buka `http://localhost:3000`. Tidak ada akun, environment variable wajib, atau database eksternal.
 
-Dokumen adalah sumber kebenaran. Mulai dari [docs/README.md](docs/README.md).
+## Perintah
 
-| Topik | Dokumen |
+| Perintah | Kegunaan |
 |---|---|
-| Visi, prinsip, persona, mode operasi | [docs/00-foundation/product-foundation.md](docs/00-foundation/product-foundation.md) |
-| SDD dan status implementasi | [docs/00-foundation/sdd-workflow.md](docs/00-foundation/sdd-workflow.md), [docs/00-foundation/implementation-status.md](docs/00-foundation/implementation-status.md) |
-| Arsitektur dan ADR | [docs/01-architecture/system-overview.md](docs/01-architecture/system-overview.md) |
-| Design system dan 120 komponen | [docs/02-design/design-system.md](docs/02-design/design-system.md) |
-| Spec normatif (FR/NFR/SEC) | [docs/03-specs/01-host-shell.md](docs/03-specs/01-host-shell.md) |
-| Flow | [docs/04-flows/README.md](docs/04-flows/README.md) |
-| Aturan agen dan kontribusi | [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Keamanan | [SECURITY.md](SECURITY.md) |
+| `npm run dev` | Jalankan studio-web. |
+| `npm test` | Vitest semua workspace. |
+| `npm run typecheck` | TypeScript strict. |
+| `npm run lint` | ESLint. |
+| `npm run build` | Build sandbox, SQLite WASM, dan semua workspace. |
+| `npm run e2e` | Playwright. |
+| `npm run docs:check` | Checker dokumentasi strict. |
+| `npm run verify:web` | Semua gate + baseline evidence. |
 
-## 4. Target PRD v2.0
+## Peta Dokumen
 
-Target: Host Shell offline-first (Flutter + PWA), Studio IDE hybrid, sandbox QuickJS/WASM dengan permission broker, SQLite per micro-app + CRDT, registry terfederasi dengan reproducible build, sync E2EE, dan server self-host Lite/Standard/Cluster. Roadmap dan exit gate ada di [docs/00-foundation/product-foundation.md](docs/00-foundation/product-foundation.md).
+- [PRD v3.0](docs/00-foundation/PRD-v3.0.md)
+- [DESIGN.md](DESIGN.md) — claymorphism kanonik
+- [Indeks dokumentasi](docs/README.md)
+- [Arsitektur](docs/01-architecture/system-overview.md)
+- [Spec](docs/03-specs/01-app-shell.md)
+- [Flow](docs/04-flows/README.md)
+- [Rules](docs/07-rules/README.md)
+- [Quality](docs/08-quality/test-strategy.md)
 
-Deployment web saat ini hanya untuk demo prototipe; target distribusi adalah PWA self-host dan bundel desktop. Tidak ada URL produksi yang dijanjikan oleh dokumen ini.
+## Batas Klaim
 
-## 5. Lisensi
+Produk ini **tidak** memiliki aplikasi native, Flutter, Go/self-host server, desktop bundle, akun, cloud sync, CRDT/P2P, marketplace, publish pipeline, CLI, atau SDK. AI bersifat opsional dengan BYOK; template dan builder tetap berfungsi offline.
 
-- Apache-2.0 untuk core, Host, Studio, server, dan runtime ([LICENSE](LICENSE)).
-- MIT untuk SDK, CLI, UI kit, dan template micro-app (dokumen lisensi ditambahkan saat paket di-scaffold).
+## Lisensi
+
+Apache-2.0. Lihat [LICENSE](LICENSE).

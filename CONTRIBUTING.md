@@ -1,78 +1,63 @@
-# Berkontribusi
+---
+id: DOC-CONTRIBUTING
+title: Contributing
+status: accepted
+owner: dx
+prd_refs: ["§10 Roadmap", "§12 Definisi Selesai"]
+---
 
-Terima kasih telah berkontribusi. Proyek ini memakai **Spec-Driven Development (SDD)**: dokumen adalah sumber kebenaran, kode mengikuti dokumen.
+# Contributing
 
-## 1. Sebelum Menulis Kode
+## Sebelum Mulai
 
-1. Baca [docs/05-agents/AGENTS.md](docs/05-agents/AGENTS.md) dan [docs/00-foundation/sdd-workflow.md](docs/00-foundation/sdd-workflow.md).
-2. Cari spec untuk area yang ingin diubah di [docs/03-specs](docs/03-specs/01-host-shell.md).
-3. Bila perilaku belum ada di spec, tulis spec/flow terlebih dahulu. Jangan menebak.
-4. Perubahan kontrak (manifest, host bridge, sync/CRDT, permission, crypto, registry) wajib melalui [RFC](docs/10-contributing/rfc-process.md).
+Baca [AGENTS.md](AGENTS.md), [PRD v3.0](docs/00-foundation/PRD-v3.0.md), dan rules yang relevan. Produk ini web-only; jangan menambahkan platform native, server wajib, akun, atau telemetry.
 
-## 2. Urutan Commit
+## Alur
 
-Satu PR boleh memuat beberapa commit, tetapi urutannya wajib:
+1. Buka issue dengan masalah, persona, dan dampak.
+2. Perbarui spec/flow lebih dulu bila perilaku berubah.
+3. Branch dari `development`: `docs/*`, `feat/*`, `fix/*`, atau `sec/*`.
+4. Commit dokumen terpisah dari commit kode.
+5. Jalankan gate verifikasi.
+6. Buka PR dengan bukti dan risiko.
 
-```text
-docs: <spec/flow/acceptance yang berubah>
-feat|fix: <implementasi>
-docs(status): <status implementasi dan matriks>
-```
-
-## 3. Branch dan Commit
-
-| Branch | Pola |
-|---|---|
-| Fitur | `feat/<area>-<slug>` |
-| Perbaikan | `fix/<area>-<slug>` |
-| Dokumentasi | `docs/<area>-<slug>` |
-
-Format commit:
-
-```text
-type(scope): ringkasan imperatif
-
-Spec: docs/03-specs/03-sandbox-runtime.md#FR-SBX-016
-```
-
-Tipe: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `security`, `chore`. Sertakan `Signed-off-by` (DCO).
-
-## 4. Checklist PR
-
-- [ ] `Spec:` menautkan requirement, atau `docs-not-needed` beserta alasan.
-- [ ] Acceptance criteria yang terdampak dijalankan dan hasilnya dicatat.
-- [ ] `npm run docs:check` lulus.
-- [ ] `npm test` lulus; test baru menangkap bug yang mungkin terlihat pengguna.
-- [ ] Tidak ada `new Function`, `eval`, atau HTML mentah pada runtime produksi.
-- [ ] Tidak ada secret, token, atau data pengguna pada diff.
-- [ ] a11y dan i18n dipertimbangkan untuk perubahan UI.
-- [ ] Risiko dan rollback dijelaskan.
-
-Template PR: [.github/pull_request_template.md](.github/pull_request_template.md).
-
-## 5. Perintah
+## Gate
 
 ```bash
-npm install
-npm run dev
-npm test
-npm run build
-npm run docs:check
 node scripts/check-docs.mjs --strict
+node scripts/generate-catalog.mjs --check
+npm test
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-## 6. Review
+`RUN_E2E=1 npm run e2e` untuk perubahan UI atau runtime. `npm run verify:web` menjalankan semua gate wajib dan menulis baseline evidence.
 
-- Minimal satu reviewer untuk perubahan non-kontrak, dua untuk kontrak.
-- Reviewer menolak PR tanpa spec atau dengan klaim fitur yang belum terverifikasi.
-- Merge memakai squash; branch harus up to date dengan `development`.
+## Aturan Commit
 
-## 7. Lisensi dan Kode Etik
+| Tipe | Dipakai untuk |
+|---|---|
+| `docs(scope):` | Dokumen, spec, flow, rules |
+| `feat(scope):` | Fitur baru |
+| `fix(scope):` | Perbaikan bug |
+| `sec(scope):` | Perbaikan keamanan |
+| `test(scope):` | Test |
+| `chore(scope):` | Tooling |
 
-- Core, Host, Studio, server, dan runtime: Apache-2.0.
-- SDK, CLI, UI kit, dan template: MIT.
-- Dengan berkontribusi, Anda menyetujui [DCO](https://developercertificate.org/) dan [Kode Etik](CODE_OF_CONDUCT.md).
+Satu commit satu tujuan. Jangan mencampur refactor dokumen dengan perubahan runtime.
 
-## 8. Keamanan
+## Review
 
-Jangan membuka issue publik untuk kerentanan. Ikuti [SECURITY.md](SECURITY.md).
+- Dua reviewer untuk perubahan keamanan, kripto, manifest, atau permission.
+- Satu reviewer untuk perubahan UI; design memeriksa token dan a11y.
+- Reviewer menolak klaim status tanpa bukti.
+- Reviewer menolak dependency yang memerlukan server, telemetry, atau akun.
+
+## Definisi Selesai
+
+Lihat [definition-of-done.md](docs/08-quality/definition-of-done.md) dan [release-gates.md](docs/08-quality/release-gates.md). PR tidak digabung bila gate wajib gagal.
+
+## Lisensi
+
+Dengan berkontribusi, kamu menyetujui lisensi Apache-2.0 dan DCO pada [governance.md](docs/10-contributing/governance.md).
