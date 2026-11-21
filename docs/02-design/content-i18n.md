@@ -3,350 +3,345 @@ id: DESIGN-I18N
 title: Konten dan Internasionalisasi
 status: accepted
 owner: design
-prd_refs: ["§6"]
+prd_refs: ["§4", "§6"]
 ---
 
 # Konten dan Internasionalisasi
 
 ## 1. Tujuan dan Ruang Lingkup
 
-Dokumen ini menetapkan voice, tone, struktur berkas locale, format data, dan alur terjemahan untuk seluruh string Host Shell, Studio, micro-app bawaan, pesan error, dan dokumentasi bantuan. Target normatif ada di [nfr.md](../03-specs/nfr.md) pada NFR-I18N-001 dan NFR-I18N-002.
+Dokumen ini menetapkan voice, tone, copy kanonik, formula pesan error, struktur kunci locale, pluralisasi, format tanggal/angka, dan aturan RTL untuk produk web-only MicroApp Studio. Copy yang dirujuk layar ada di [screen-specs.md](screen-specs.md); aturan tampilan ada di [accessibility.md](accessibility.md) dan [design-system.md](design-system.md).
 
-Cakupan: string web (PWA) dan Flutter, pesan error sesuai [error-codes.md](../03-specs/error-codes.md), label aksesibilitas ([accessibility.md](accessibility.md)), serta copy pada 22 layar ([screen-specs.md](screen-specs.md)).
-
-Di luar cakupan: penerjemahan dokumentasi pemasaran dan isi micro-app pihak ketiga; keduanya mengikuti aturan yang sama bila dibundel sebagai bagian produk.
+Locale wajib: `id-ID` (default) dan `en-US` (FR-SET-002, NFR-I18N-001). Tidak ada locale lain yang dirilis tanpa pembaruan dokumen ini.
 
 ## 2. Prinsip
 
-| Prinsip | Ketentuan |
+| Prinsip | Konsekuensi |
 |---|---|
-| Dua locale first-class | `id-ID` dan `en-US` MUST lengkap 100% pada setiap rilis; tidak ada string yang hanya ada di salah satunya. |
-| Sumber tunggal | Semua string UI MUST berasal dari berkas locale; string hardcoded di komponen dilarang. |
-| Tanpa jaringan | Berkas locale MUST dibundel di aplikasi; tidak ada pemuatan string dari CDN atau server saat runtime. |
-| Tanpa telemetry | Tidak ada pengiriman teks yang diketik pengguna ke layanan terjemahan otomatis. |
-| Makna di atas kata | Terjemahan MUST menyampaikan maksud dan tindakan, bukan terjemahan kata per kata. |
-| Konteks eksplisit | Setiap kunci MUST memiliki konteks (layar, komponen, state) yang cukup bagi penerjemah tanpa membaca kode. |
+| Jelas sebelum ringkas | Kalimat pendek yang utuh lebih baik daripada singkatan yang membingungkan. |
+| Tenang | Tidak ada tanda seru berlebihan, humor pada error, atau kata yang menyalahkan pengguna. |
+| Spesifik | Sebut apa yang terjadi, apa akibatnya, dan apa langkah berikutnya. |
+| Konsisten | Satu istilah untuk satu konsep di seluruh layar, dokumen, dan pesan error. |
+| Dapat diterjemahkan | Tidak ada string yang dirangkai dari potongan kalimat; tidak ada teks di dalam gambar. |
+| Tanpa klaim berlebih | Tidak menjanjikan sinkronisasi, akun, atau penyimpanan cloud yang tidak ada. |
 
 ## 3. Voice dan Tone
 
-| Aspek | `id-ID` | `en-US` |
-|---|---|---|
-| Sapaan | "Anda" untuk pengguna; hindari "kamu" dan "kalian". | "you" huruf kecil di tengah kalimat. |
-| Nada | Tenang, langsung, membantu; tidak menyalahkan pengguna. | Calm, direct, helpful; tidak menyalahkan pengguna. |
-| Kalimat aksi | Imperatif: "Simpan perubahan", "Pilih berkas". | Imperative: "Save changes", "Choose a file". |
-| Kapitalisasi | Sentence case untuk judul, label, dan tombol. | Sentence case; title case hanya untuk nama produk. |
-| Tanda baca | Titik pada kalimat penuh; tanpa titik pada label dan tombol. | Sama; tanpa tanda seru. |
-| Istilah teknis | Pakai istilah kanonik dari [glossary.md](../00-foundation/glossary.md). | Pakai istilah kanonik yang sama, bukan sinonim. |
-| Angka dalam kalimat | "5 detik", "128 MB", "24 kata". | "5 seconds", "128 MB", "24 words". |
-| Larangan | Sarkasme, humor pada error, ancaman, dan "silakan" berulang. | Sama. |
-
-Contoh penerapan:
-
-| Konteks | `id-ID` | `en-US` |
-|---|---|---|
-| Tombol simpan | Simpan perubahan | Save changes |
-| Konfirmasi hapus | Hapus micro-app ini? Data lokalnya juga dihapus. | Delete this micro-app? Its local data will also be deleted. |
-| Status sinkronisasi | Tersinkron 2 menit lalu | Synced 2 minutes ago |
-| Offline | Anda sedang offline. Perubahan disimpan dan dikirim saat koneksi kembali. | You are offline. Changes are saved and sent when the connection returns. |
-| Izin kamera | Izinkan akses kamera untuk memindai kode QR. | Allow camera access to scan QR codes. |
-
-## 4. Formula Pesan Error
-
-Setiap pesan error MUST terdiri dari tiga bagian berurutan: **[apa yang terjadi] + [mengapa] + [langkah berikut]**. Bagian kedua boleh diringkas bila penyebab tidak diketahui pengguna, tetapi tidak boleh dihilangkan tanpa alasan.
-
-| Aturan | Ketentuan |
-|---|---|
-| Struktur | `message` memuat apa yang terjadi dan mengapa; `recovery` memuat langkah berikut. |
-| Panjang | Maksimal 2 kalimat untuk `message` dan 1 kalimat untuk `recovery`. |
-| Kode | Kode `E-<DOMAIN>-<NNN>` ditampilkan terpisah, tidak disisipkan ke dalam kalimat. |
-| Larangan | PII, token, path internal, stack trace, dan nama tabel database MUST NOT muncul. |
-| Nada | Netral dan Tidak menyalahkan; hindari "kesalahan Anda" dan "invalid input" tanpa penjelasan. |
-| Aksi | Setiap error MUST memiliki minimal satu aksi yang dapat dijalankan pengguna. |
-| Lokalisasi | Pesan ditulis ulang per locale, bukan diterjemahkan kata per kata. |
-
-Contoh pemetaan ke kode terdaftar:
-
-| Kode | Kunci pesan | `id-ID` | `en-US` |
+| Aspek | Aturan | Contoh benar | Contoh salah |
 |---|---|---|---|
-| E-REG-001 | `error.registry.signature_invalid` | "Aplikasi tidak dapat dipasang karena tanda tangan paket tidak valid. Paket mungkin berubah setelah dipublikasikan. Unduh ulang dari sumber resmi atau hubungi penerbit." | "The app can't be installed because the package signature is invalid. The package may have changed after it was published. Download it again from the official source or contact the publisher." |
-| E-SBX-003 | `error.sandbox.frozen` | "Aplikasi dihentikan karena tidak merespons selama 5 detik. Terjadi perulangan tanpa akhir di dalam sandbox. Muat ulang aplikasi atau ekspor datanya." | "The app was stopped because it didn't respond for 5 seconds. An endless loop ran inside the sandbox. Reload the app or export its data." |
-| E-NET-003 | `error.net.server_unreachable` | "Server tidak dapat dijangkau. Jaringan terputus atau server sedang tidak aktif. Perubahan disimpan dan dikirim otomatis saat server tersedia." | "The server can't be reached. The network is down or the server is offline. Changes are saved and sent automatically when the server is available." |
-| E-AUTH-002 | `error.auth.recovery_phrase_invalid` | "Frasa pemulihan tidak cocok. Satu atau beberapa kata mungkin salah urutan. Periksa kembali 24 kata Anda; setelah 5 percobaan gagal, tunggu 1 menit." | "The recovery phrase doesn't match. One or more words may be out of order. Check your 24 words again; after 5 failed attempts, wait 1 minute." |
-| E-DATA-002 | `error.data.migration_failed` | "Migrasi database gagal. Skema versi baru tidak dapat diterapkan pada data Anda. Data dikembalikan ke snapshot sebelumnya; laporkan kode ini agar diperiksa." | "The database migration failed. The new schema couldn't be applied to your data. Your data was restored to the previous snapshot; report this code so it can be investigated." |
+| Sapa | Netral, tanpa "Anda" berulang; gunakan "kamu" pada `id-ID` dan "you" pada `en-US` untuk petunjuk langsung | "Pilih template untuk memulai." | "Anda harus memilih template terlebih dahulu." |
+| Nada error | Membantu dan factful | "File tidak dapat diverifikasi. Coba unduh ulang." | "Oops! Terjadi kesalahan fatal!" |
+| Nada sukses | Rendah hati, singkat | "Tersimpan." | "Yeay! Berhasil luar biasa!" |
+| Aksi | Kata kerja di awal, konsisten | "Buat micro-app" | "Pembuatan micro-app" |
+| Teknis | Hanya bila pengguna membutuhkannya | "Signature tidak cocok" | "Ed25519 verify failed at offset 0x2f" |
+| Kapitalisasi | Sentence case untuk judul dan tombol | "Buat backup" | "BUAT BACKUP" |
 
-Aturan tambahan untuk error yang dapat dicoba ulang: sebutkan bahwa percobaan ulang otomatis berjalan dan berapa lama, tanpa menyuruh pengguna menekan tombol yang sama berulang kali. Error kritis yang memblokir akses MUST menampilkan aksi pemulihan, bukan hanya kode.
+Panjang maksimum: judul layar 48 karakter, label tombol 24 karakter, deskripsi empty state 140 karakter, pesan error 180 karakter. Teks yang lebih panjang dipindahkan ke panel bantuan, bukan dialog.
 
-## 5. Terminologi
+## 4. Copy Utama
 
-| Istilah kanonik | Terjemahan `id-ID` | Catatan |
+### 4.1 Create
+
+| Kunci | id-ID | en-US |
 |---|---|---|
-| micro-app | micro-app | Tidak diterjemahkan; tidak memakai "mikro aplikasi". |
-| Host Shell | Host Shell | Nama produk. |
-| Studio | Studio | Nama produk. |
-| Workspace | Workspace | Tidak diterjemahkan pada UI. |
-| Registry | Registry | Tidak diterjemahkan. |
-| Vault | Vault | Tidak diterjemahkan. |
-| Outbox | Outbox | Tidak diterjemahkan pada pesan teknis. |
-| Permission | izin | Pada UI pengguna; "permission" hanya di dokumen teknis. |
-| Local Identity | Identitas Lokal | Pada UI. |
-| Recovery Phrase | Frasa Pemulihan | Pada UI; "recovery phrase" hanya di dokumen teknis. |
-| Sandbox | sandbox | Huruf kecil di tengah kalimat. |
-| micro-app id | ID micro-app | "ID" kapital. |
-| Sync | sinkronisasi | Kata kerja "menyinkronkan". |
-| Update | pembaruan | Bukan "update" pada UI. |
-| Install | pasang | Bukan "instalasi" pada tombol. |
+| `create.title` | Buat micro-app | Create a micro-app |
+| `create.ai.label` | Ceritakan app yang kamu butuhkan | Describe the app you need |
+| `create.ai.placeholder` | Contoh: kasir untuk warung, bisa tambah produk dan cetak struk | Example: a till for my shop, with products and receipts |
+| `create.ai.action` | Buat | Create |
+| `create.ai.noKey` | AI belum diatur. Kamu tetap bisa memakai template atau mulai kosong. | AI is not set up. You can still use a template or start blank. |
+| `create.ai.planTitle` | Rencana | Plan |
+| `create.ai.apply` | Buat aplikasi | Create app |
+| `create.ai.revise` | Ubah | Revise |
+| `create.template.action` | Pakai template | Use template |
+| `create.blank.title` | Pilih titik awal | Choose a starting point |
+| `create.blank.form` | Form | Form |
+| `create.blank.list` | List | List |
+| `create.blank.dashboard` | Dashboard | Dashboard |
+| `create.name.default` | Micro-app Baru | New Micro-app |
 
-Sinonim terlarang mengikuti [glossary.md](../00-foundation/glossary.md); "store", "mini app", "akun lokal", dan "seed phrase" MUST NOT muncul pada UI.
+### 4.2 Empty state
 
-## 6. Struktur Berkas Locale
+| Kunci | id-ID | en-US |
+|---|---|---|
+| `home.empty.title` | Belum ada micro-app | No micro-apps yet |
+| `home.empty.body` | Mulai dari template, ceritakan idemu, atau buat kosong. | Start from a template, describe your idea, or start blank. |
+| `home.empty.template` | Template | Templates |
+| `home.empty.ai` | Magic Create | Magic Create |
+| `home.empty.blank` | Mulai kosong | Start blank |
+| `templates.empty` | Tidak ada template di kategori ini. | No templates in this category. |
+| `packages.empty` | Belum ada package terpasang. | No installed packages yet. |
+| `backup.empty` | Belum ada backup. | No backups yet. |
+| `search.empty` | Tidak ada hasil. Coba kata lain atau buat app baru. | No results. Try another word or create a new app. |
 
-Web memakai JSON per namespace; Flutter memakai ARB per locale. Keduanya berbagi kunci dan urutan namespace.
+Empty state selalu memiliki satu aksi utama dan tidak menampilkan kode error.
+
+### 4.3 Error
+
+| Kunci | id-ID | en-US |
+|---|---|---|
+| `error.generic` | Terjadi masalah. Coba lagi. | Something went wrong. Try again. |
+| `error.retry` | Coba lagi | Try again |
+| `error.export` | Ekspor data | Export data |
+| `error.home` | Kembali ke Home | Back to Home |
+| `error.pack.signature` | File tidak dapat diverifikasi. Periksa file atau minta ulang ke pengirim. | The file could not be verified. Check it or ask the sender for a new copy. |
+| `error.pack.digest` | Isi file berubah setelah ditandatangani. Unduh ulang file aslinya. | The file changed after signing. Download the original again. |
+| `error.backup.passphrase` | Passphrase salah. Periksa ejaan lalu coba lagi. | Wrong passphrase. Check the spelling and try again. |
+| `error.storage.full` | Penyimpanan hampir penuh. Ekspor data atau bersihkan cache. | Storage is almost full. Export data or clear the cache. |
+| `error.network.cage` | Akses jaringan diblokir oleh Offline Cage. Kamu dapat mengubahnya di Settings. | Network access is blocked by Offline Cage. You can change it in Settings. |
+| `error.ai.noKey` | AI belum diatur. Tambahkan kunci di Settings atau pakai template. | AI is not set up. Add a key in Settings or use a template. |
+
+Pesan error tidak pernah memuat stack trace, path absolut, nama token, kunci, atau detail kripto.
+
+### 4.4 Consent
+
+| Kunci | id-ID | en-US |
+|---|---|---|
+| `consent.title` | {app} meminta akses | {app} is asking for access |
+| `consent.permission.storage` | Penyimpanan lokal - baca dan tulis | Local storage - read and write |
+| `consent.reason.storage` | Untuk menyimpan daftar produk dan transaksi. | To save products and transactions. |
+| `consent.risk.low` | Risiko rendah - data tetap di perangkat ini. | Low risk - data stays on this device. |
+| `consent.risk.medium` | Risiko sedang - data tetap di perangkat ini. | Medium risk - data stays on this device. |
+| `consent.risk.high` | Risiko tinggi - app dapat mengirim data keluar perangkat. | High risk - the app can send data off this device. |
+| `consent.deny` | Tolak | Deny |
+| `consent.once` | Izinkan sekali | Allow once |
+| `consent.always` | Selalu izinkan | Always allow |
+| `consent.audit` | Pilihan ini dicatat di perangkatmu. | This choice is recorded on your device. |
+
+Alasan consent memakai kalimat pengguna, bukan nama method internal seperti `storage.write`. Risk tier selalu disertai teks.
+
+### 4.5 Aksi dan Hasil
+
+| Kunci | id-ID | en-US |
+|---|---|---|
+| `action.share` | Bagikan | Share |
+| `action.export` | Unduh .mapp | Download .mapp |
+| `action.import` | Impor .mapp | Import .mapp |
+| `action.install` | Pasang | Install |
+| `action.save` | Simpan | Save |
+| `status.saving` | Menyimpan... | Saving... |
+| `status.saved` | Tersimpan | Saved |
+| `status.offline` | Offline - data lokal | Offline - local data |
+| `status.ephemeral` | Mode sementara - data belum dapat dipulihkan | Ephemeral mode - data cannot be recovered yet |
+| `toast.undone` | Dibatalkan: {action} | Undone: {action} |
+| `toast.installed` | {app} terpasang. | {app} installed. |
+| `toast.backupCreated` | Backup dibuat. Simpan file dan passphrase-mu. | Backup created. Keep the file and your passphrase safe. |
+
+## 5. Formula Pesan Error
+
+Setiap error mengikuti urutan:
 
 ```text
-apps/studio-web/src/locales/
-  id-ID/
-    common.json
-    host.json
-    studio.json
-    sandbox.json
-    data.json
-    registry.json
-    sync.json
-    server.json
-    errors.json
-    devtools.json
-    a11y.json
-  en-US/
-    (namespace yang sama, lengkap)
-
-apps/host-flutter/lib/l10n/
-  app_id.arb
-  app_en.arb
-  l10n.yaml
+<apa yang terjadi> <apa langkah berikutnya> Kode: <E-DOMAIN-NNN>
 ```
-
-| Namespace | Isi | Contoh kunci |
-|---|---|---|
-| `common` | Aksi umum, satuan, status navigasi | `common.action.save` |
-| `host` | Home, workspace, pencarian, vault | `host.home.empty.title` |
-| `studio` | Canvas, editor, AI copilot, publish | `studio.canvas.palette.title` |
-| `sandbox` | Error boundary, permission, lifecycle | `sandbox.boundary.restart` |
-| `data` | Database, migrasi, workflow | `data.migration.pending.body` |
-| `registry` | Registry, install, update | `registry.install.consent.title` |
-| `sync` | Pairing, konflik, transport | `sync.conflict.review.title` |
-| `server` | Self-host, admin, audit | `server.audit.export.title` |
-| `errors` | Pesan error per kode | `error.registry.signature_invalid` |
-| `devtools` | Profiler, log, inspector | `devtools.profiler.memory.title` |
-| `a11y` | Label khusus screen reader dan live region | `a11y.host.grid.itemCount` |
-
-Aturan berkas:
-
-1. Setiap namespace MUST ada di setiap locale dengan struktur identik; kunci yang hilang MUST gagal pada pemeriksaan build.
-2. Nilai MUST berupa string tunggal atau objek datar berisi `title`, `body`, `recovery`, atau `label`; objek bersarang lebih dari satu tingkat ditolak.
-3. Kunci `errors` MUST sama persis dengan *Message key* di [error-codes.md](../03-specs/error-codes.md); tidak ada alias.
-4. Setiap entri MAY memiliki metadata konteks (`.meta.json` per namespace) berisi deskripsi, batas panjang, dan tangkapan layar; metadata tidak disimpan di dalam nilai terjemahan.
-5. ARB Flutter memakai `@@locale`, `@key` untuk `description` dan `placeholders`; nilai `description` MUST diisi agar penerjemah memahami konteks.
-6. Berkas locale MUST diurutkan berdasarkan kunci agar diff stabil dan tidak menimbulkan konflik palsu.
-
-Contoh JSON web:
-
-```json
-{
-  "registry.install.consent.title": "Izinkan akses berikut?",
-  "registry.install.consent.body": "{appName} meminta {count} izin. Anda dapat mencabutnya kapan saja di Pengaturan.",
-  "registry.install.action": "Pasang"
-}
-```
-
-Contoh ARB Flutter:
-
-```json
-{
-  "@@locale": "id",
-  "syncConflictTitle": "Ada konflik data",
-  "@syncConflictTitle": {
-    "description": "Judul dialog saat dua perangkat mengubah kolom yang sama.",
-    "placeholders": {
-      "appName": { "type": "String" }
-    }
-  },
-  "syncConflictBody": "{appName} punya {count, plural, other{{count} perubahan yang perlu ditinjau}}."
-}
-```
-
-## 7. Penamaan Kunci
-
-Pola: `<namespace>.<area>.<komponen>[.<state>][.<bagian>]`, segmen `lowerCamelCase`, maksimal lima segmen.
-
-| Aturan | Ketentuan | Contoh benar | Contoh salah |
-|---|---|---|---|
-| Namespace | Segmen pertama sama dengan nama berkas | `host.home.empty.title` | `home.empty.title` |
-| Segmen | Huruf kecil, tanpa spasi, tanpa strip | `studio.canvas.palette.title` | `studio.canvas-palette.Title` |
-| State | `title`, `body`, `action`, `hint`, `error`, `empty`, `loading` | `registry.install.error.title` | `registry.install.errorText` |
-| Placeholder | Nama deskriptif, tidak disingkat | `{appName}`, `{count}`, `{retryAfterSeconds}` | `{a}`, `{n}`, `{x}` |
-| Dilarang | Nomor urut, teks asli, dan nama pengembang | `host.home.title` | `host.text42`, `host.judulBaru` |
-| Stabilitas | Kunci tidak diubah setelah rilis; perubahan kunci MUST memperbarui semua locale dan test | — | Mengganti kunci hanya di satu locale |
-
-Kunci yang tidak lagi dipakai MUST dihapus pada PR yang sama; kunci yatim menggagalkan pemeriksaan.
-
-## 8. Pluralisasi, Seleksi, dan ICU
-
-| Kasus | Aturan | Contoh `id-ID` | Contoh `en-US` |
-|---|---|---|---|
-| Jumlah | Wajib memakai `plural` ICU; tidak boleh menyambung angka dan kata | `{count, plural, other{{count} berkas}}` | `{count, plural, =0{No files} one{{count} file} other{{count} files}}` |
-| Nol khusus | Gunakan `=0` bila makna berubah | `=0{Tidak ada berkas}` | `=0{No files}` |
-| Gender | Hindari; gunakan `select` hanya bila diperlukan | — | — |
-| Status | `select` untuk enumerasi yang berubah bentuk kalimat | `{mode, select, offline{Offline} syncing{Menyinkronkan} other{Siap}}` | Sama dengan nilai Inggris |
-| Rentang | Gunakan dua placeholder bertipe number, bukan plural | `{from}–{to} menit` | `{from}–{to} minutes` |
-| Daftar | Gabungkan dengan `Intl.ListFormat`/`toBeginningOfSentenceCase`; jangan menyambung manual | "A, B, dan C" | "A, B, and C" |
-| Pilihan pengguna | Jangan membangun kalimat dengan konkatenasi; seluruh varian harus menjadi pesan utuh | — | — |
-
-`id-ID` hanya memiliki kategori plural `other` di CLDR; karena itu nilai `one` MUST NOT ditambahkan untuk locale ini meskipun terjemahan Inggris membutuhkannya. Test MUST memverifikasi bahwa pemanggilan `plural` pada `id-ID` tidak menampilkan bentuk yang salah.
-
-## 9. Tanggal, Angka, Mata Uang, dan Satuan
-
-| Jenis | Aturan | `id-ID` | `en-US` |
-|---|---|---|---|
-| Tanggal pendek | `Intl.DateTimeFormat` sesuai locale | 20/11/2026 | 11/20/2026 |
-| Tanggal panjang | Bulan ditulis penuh | 20 November 2026 | November 20, 2026 |
-| Waktu | 24 jam untuk `id-ID`, 12 jam untuk `en-US` | 14.05 | 2:05 PM |
-| Zona waktu | Ditampilkan bila relevan dan berbeda dari perangkat | WIB (UTC+7) | GMT+7 |
-| Angka | Pemisah ribuan dan desimal per locale | 1.200.000,5 | 1,200,000.5 |
-| Persentase | Simbol mengikuti locale | 12,5% | 12.5% |
-| Mata uang | Simbol dan posisi mengikuti locale; nilai asli tidak dibulatkan diam-diam | Rp1.200.000 | IDR 1,200,000 |
-| Ukuran berkas | Satuan biner `KiB`/`MiB`/`GiB`, satu desimal maksimal | 8,0 MiB | 8.0 MiB |
-| Durasi | Kata satuan diterjemahkan, angka mengikuti locale | 5 detik | 5 seconds |
-| Rentang tanggal | Pemisah en dash tanpa spasi ganda | 1–7 Desember 2026 | December 1–7, 2026 |
-
-Nilai teknis berikut MUST NOT dilokalisasi: versi (`2.4.0`), hash, `Site ID`, `HLC`, ID micro-app, nama field JSON, kode error, dan path berkas.
-
-## 10. RTL dan Teks Campuran
-
-| Aspek | Ketentuan |
-|---|---|
-| Arah | `dir`/`Directionality` diatur dari locale; komponen tidak menetapkan arah sendiri. |
-| Layout | Properti logis wajib; padding dan margin fisik dilarang. |
-| Ikon | Ikon arah dicerminkan; ikon merek, jam, play, dan media tidak dicerminkan. |
-| Teks campuran | Nama micro-app, ID, dan path dibungkus isolasi bidi agar tidak mengubah urutan kalimat. |
-| Angka | Angka tetap memakai digit Barat; tidak diubah ke digit Arab kecuali locale secara eksplisit meminta. |
-| Pemenggalan | Gunakan pemenggalan per kata (`overflow-wrap: anywhere` hanya untuk ID dan path), bukan `word-break: break-all` pada prosa. |
-| Cermin dialog | Tombol aksi utama tetap di sisi end; urutan aksi tidak dibalik secara manual. |
-| Uji | Pseudo-locale RTL dan locale `ar` diuji pada 22 layar. |
-
-## 11. Resolusi Locale dan Fallback
-
-Urutan resolusi MUST deterministik:
-
-1. Override manual pengguna di Pengaturan, bila ada.
-2. Locale sistem yang cocok persis (`id-ID`, `en-US`).
-3. Locale sistem yang cocok pada tingkat bahasa (`id`, `en`).
-4. Fallback `en`.
 
 Aturan:
 
-| Aturan | Ketentuan |
+1. Ringkasan maksimum 120 karakter, satu kalimat.
+2. Langkah pemulihan berupa satu aksi konkret, bukan "hubungi administrator".
+3. Kode selalu ditampilkan di akhir dengan format `E-<DOMAIN>-<NNN>` dan tidak dijadikan label tombol.
+4. Tidak ada istilah internal, stack trace, path, atau detail kripto.
+5. Nada tidak menyalahkan pengguna dan tidak memakai humor.
+6. Setiap kode memiliki padanan `id-ID` dan `en-US` ([error-codes.md](../03-specs/error-codes.md)).
+
+Contoh penerapan:
+
+| Kode | Pesan id-ID |
 |---|---|
-| Default | Mengikuti locale sistem operasi pada peluncuran pertama. |
-| Persistensi | Override disimpan lokal per profil Host, bukan di server. |
-| Perubahan | Mengubah locale MUST langsung memperbarui string tanpa restart; konten dinamis dimuat ulang. |
-| Format | Tanggal, angka, dan mata uang mengikuti locale aktif, bukan locale sistem. |
-| Fallback kunci | Kunci yang tidak ada di locale aktif MUST jatuh ke `en-US` dan dicatat sebagai kegagalan build, bukan ditampilkan sebagai kunci mentah. |
-| Bahasa dokumen | `lang`/`Locale` root selalu sama dengan locale aktif. |
-| Tanpa campuran | Satu layar MUST NOT menampilkan dua bahasa sekaligus kecuali nama produk dan istilah kanonik. |
+| `E-SHELL-001` | Data lokal tidak dapat dibuka. Coba muat ulang. Kode: E-SHELL-001 |
+| `E-CREATE-002` | AI belum diatur. Tambahkan kunci di Settings atau pakai template. Kode: E-CREATE-002 |
+| `E-STUDIO-003` | Komponen tidak dapat diletakkan di sana. Pilih area lain. Kode: E-STUDIO-003 |
+| `E-RUN-001` | Aplikasi berhenti merespons. Muat ulang app. Kode: E-RUN-001 |
+| `E-PACK-003` | Isi file berubah setelah ditandatangani. Unduh ulang file aslinya. Kode: E-PACK-003 |
+| `E-DATA-002` | Penyimpanan hampir penuh. Ekspor data atau bersihkan cache. Kode: E-DATA-002 |
+| `E-BACKUP-002` | File backup rusak. Coba file lain. Kode: E-BACKUP-002 |
+| `E-AUTH-002` | Frasa pemulihan tidak cocok. Periksa tiga kata yang diminta. Kode: E-AUTH-002 |
+| `E-SET-001` | Nilai tidak valid. Kembalikan ke nilai sebelumnya. Kode: E-SET-001 |
+| `E-NET-001` | Akses jaringan diblokir oleh Offline Cage. Kamu dapat mengubahnya di Settings. Kode: E-NET-001 |
 
-## 12. Pseudo-locale dan Pengujian Ekspansi
+## 6. Terminologi
 
-| Item | Ketentuan |
-|---|---|
-| Nama | `en-XA` untuk ekspansi teks, `ar-XB` untuk RTL semu. |
-| Isi | Setiap karakter diberi aksen dan panjang ditambah sekitar 30%; placeholder dipertahankan. |
-| Build | Hanya tersedia pada build development dan test; MUST NOT dikirim pada rilis. |
-| Tujuan | Mengungkap teks terpotong, layout kaku, dan string hardcoded. |
-| Gate | Snapshot 22 layar pada `en-XA` dan `ar-XB` wajib lulus tanpa overflow sebelum rilis. |
+| Istilah kanonik | Definisi untuk pengguna | Jangan dipakai |
+|---|---|---|
+| micro-app | Aplikasi kecil yang berjalan di dalam Studio | "program", "modul" |
+| package | File `.mapp` bertanda tangan yang dapat dipasang | "bundle", "installer" |
+| template | Kerangka micro-app siap pakai | "starter", "boilerplate" |
+| project | Draft yang sedang dibangun | "workspace", "repo" |
+| workspace | Kumpulan app dan data lokal pada perangkat | "akun", "tenant" |
+| identitas lokal | Kunci yang dibuat di perangkat, tanpa akun | "profil", "login" |
+| frasa pemulihan | 24 kata untuk memulihkan akses ke data | "seed", "mnemonic" |
+| backup | Salinan terenkripsi data lokal | "snapshot", "cloud backup" |
+| Offline Cage | Pengaturan yang memblokir jaringan untuk app | "firewall", "sandbox jaringan" |
+| DevTools | Panel diagnostik lokal | "console", "debugger" |
 
-## 13. Alur Terjemahan
+Istilah teknis seperti `manifest`, `signature`, `checksum`, dan `OPFS` hanya muncul di layar lanjutan atau DevTools, dengan penjelasan singkat saat pertama muncul.
 
-```mermaid
-flowchart LR
-  A[String baru di id-ID] --> B[PR dengan kunci dan konteks]
-  B --> C[Ekstraksi ke Weblate]
-  C --> D[Terjemahan en-US]
-  C --> E[Terjemahan locale lain]
-  D --> F[Review locale reviewer]
-  E --> F
-  F --> G[PR terjemahan otomatis]
-  G --> H[CI cek kunci lengkap dan pseudo-locale]
-  H --> I[Rilis]
+## 7. Struktur Kunci dan Berkas Locale
+
+Berkas locale dibundel lokal sebagai JSON dan tidak diambil dari jaringan saat runtime.
+
+```text
+apps/studio-web/locales/
+  id-ID/
+    common.json
+    create.json
+    studio.json
+    packages.json
+    settings.json
+    errors.json
+  en-US/
+    common.json
+    create.json
+    studio.json
+    packages.json
+    settings.json
+    errors.json
 ```
 
-| Tahap | Ketentuan |
-|---|---|
-| Sumber | `id-ID` adalah bahasa sumber untuk penulisan copy baru. |
-| Ekstraksi | Kunci baru dan metadata konteks diekstrak otomatis; tidak ada pengeditan langsung di platform terjemahan untuk kunci sumber. |
-| Platform | Weblate dipakai untuk `en-US` dan locale tambahan; string beku selama masa rilis. |
-| Review | Setiap locale memiliki minimal satu reviewer; `en-US` direview oleh penutur asli atau editor teknis. |
-| Kualitas | Terjemahan mesin tanpa review MUST NOT dirilis. |
-| Sinkronisasi | Terjemahan masuk sebagai PR terpisah; PR fitur tidak mencampur terjemahan baru kecuali `id-ID` dan `en-US` lengkap. |
-| Rilis | `id-ID` dan `en-US` wajib 100%; locale lain boleh kurang dan akan fallback ke `en-US`. |
-| Perubahan makna | Bila string sumber berubah makna, kunci baru dibuat dan kunci lama dihapus; jangan mengubah nilai sumber di tempat tanpa penanda. |
+Aturan kunci:
 
-## 14. Larangan String Hardcoded dan Enforcement
+- Format `domain.subjek.aksi` dengan `camelCase` pada segmen; contoh `create.ai.apply`.
+- Kunci identik di kedua locale; tidak ada kunci yang hanya ada di satu bahasa.
+- Tidak ada string yang dirangkai dengan `+`; gunakan interpolation atau plural.
+- Placeholder memakai nama bermakna: `{app}`, `{count}`, `{action}`, bukan `{0}`.
+- Kunci tidak boleh memuat teks yang terlihat; nilai tidak boleh memuat HTML.
+- Perubahan nilai tidak boleh mengubah nama kunci; kunci yang dihapus harus dihapus dari kedua locale dan dari kode.
 
-| Lapisan | Ketentuan |
-|---|---|
-| Web | Semua teks melalui fungsi terjemahan; ESLint `no-literal-string` pada komponen UI. |
-| Flutter | Semua teks melalui `AppLocalizations`; `custom_lint` menolak `Text('...')` literal pada widget UI. |
-| Pesan error | Hanya kunci dari `errors` yang dipakai; tidak ada string error di kode. |
-| Label a11y | Label screen reader berasal dari namespace `a11y` dan dihubungkan ke komponen terkait. |
-| Pemeriksaan | CI memverifikasi kunci lengkap, tidak ada kunci yatim, tidak ada nilai kosong, dan placeholder identik antar locale. |
-| Exception | Nama produk, istilah kanonik yang tidak diterjemahkan, dan nilai teknis (§9) boleh literal dan MUST tercatat di allowlist. |
+Contoh:
 
-## 15. Checklist Review Copy
+```json
+{
+  "home.empty.title": "Belum ada micro-app",
+  "home.empty.body": "Mulai dari template, ceritakan idemu, atau buat kosong.",
+  "consent.title": "{app} meminta akses",
+  "packages.count": "{count, plural, other {# package}}"
+}
+```
 
-| No | Butir | Wajib |
-|---|---|---|
-| 1 | Mengikuti voice dan tone §3 pada kedua locale | Ya |
-| 2 | Error memenuhi formula §4 dan memiliki aksi | Ya |
-| 3 | Istilah sesuai glosarium; tidak ada sinonim terlarang | Ya |
-| 4 | Kunci mengikuti pola §7 dan unik | Ya |
-| 5 | Placeholder dan plural identik antar locale | Ya |
-| 6 | Tanggal dan angka diformat lewat API locale | Ya |
-| 7 | Tidak ada konkatenasi kalimat | Ya |
-| 8 | Label aksesibilitas jelas di luar konteks | Ya |
-| 9 | Panjang teks muat pada target layar dan pseudo-locale | Ya |
-| 10 | Tidak ada PII, token, atau path internal pada pesan | Ya |
-| 11 | Konteks untuk penerjemah tersedia di metadata | Ya |
-| 12 | Tidak ada string yang hanya ada di satu locale | Ya |
+## 8. Pluralisasi dan Pemilihan
 
-## 16. Acceptance Criteria
+- Gunakan ICU MessageFormat untuk jumlah, gender, dan pilihan; jangan menyusun bentuk jamak manual.
+- `id-ID` tidak membedakan tunggal/jamak secara gramatikal; tetap gunakan kategori `other` dan hindari `one` yang tidak perlu.
+- `en-US` wajib memiliki `one` dan `other`.
+- Angka di dalam pesan plural memakai `#` agar mengikuti format locale.
+- Jangan memakai plural untuk nilai yang tidak dihitung (misalnya "1 pengaturan" yang selalu tunggal).
 
-| ID | Given | When | Then |
+Contoh:
+
+```text
+id-ID: {count, plural, other {# app}}
+en-US: {count, plural, one {# app} other {# apps}}
+```
+
+Pilihan berbasis nilai memakai `select`, bukan if/else di komponen:
+
+```text
+{risk, select,
+  low {Risiko rendah}
+  medium {Risiko sedang}
+  high {Risiko tinggi}
+  other {Risiko tidak diketahui}}
+```
+
+## 9. Format Tanggal, Angka, Ukuran, dan Mata Uang
+
+| Nilai | id-ID | en-US | API |
 |---|---|---|---|
-| AC-I18N-01 | Aplikasi dijalankan dengan locale `id-ID` atau `en-US` | Membuka 22 layar | Tidak ada string hardcoded dan tidak ada kunci mentah |
-| AC-I18N-02 | String sumber berubah | Menjalankan pemeriksaan build | Kunci hilang atau placeholder berbeda menggagalkan build |
-| AC-I18N-03 | Pesan error ditampilkan | Membaca pesan | Memuat apa yang terjadi, penyebab, dan langkah berikut |
-| AC-I18N-04 | Daftar berisi 0, 1, dan banyak item | Merender pada kedua locale | Bentuk plural benar sesuai aturan CLDR locale |
-| AC-I18N-05 | Locale RTL dipilih | Membuka 22 layar | Layout tercermin dan tidak ada teks terpotong |
-| AC-I18N-06 | Build development memakai `en-XA` | Membuka 22 layar | Tidak ada overflow atau teks terpotong |
-| AC-I18N-07 | Pengguna mengganti locale di Pengaturan | Kembali ke layar sebelumnya | String dan format langsung berubah tanpa restart |
-| AC-I18N-08 | Kunci ada di `id-ID` tetapi tidak di `en-US` | Menjalankan CI | CI gagal dengan daftar kunci yang hilang |
+| Tanggal pendek | 21 Nov 2026 | Nov 21, 2026 | `Intl.DateTimeFormat` |
+| Tanggal dan waktu | 21 Nov 2026, 14.05 | Nov 21, 2026, 2:05 PM | `Intl.DateTimeFormat` |
+| Waktu relatif | 3 hari lalu | 3 days ago | `Intl.RelativeTimeFormat` |
+| Angka | 1.234,56 | 1,234.56 | `Intl.NumberFormat` |
+| Persen | 62% | 62% | `Intl.NumberFormat` dengan `style: "percent"` |
+| Ukuran file | 1,4 MB | 1.4 MB | `Intl.NumberFormat` + satuan biner |
+| Checksum | 9c1e4b... | 9c1e4b... | Teks LTR, mono, tidak dipisah ribuan |
 
-## 17. Verifikasi
+Aturan:
 
-1. Jalankan pemeriksaan kunci locale pada CI untuk kedua locale wajib; tidak ada kunci hilang, yatim, atau placeholder berbeda.
-2. Jalankan uji snapshot `en-XA` dan `ar-XB` pada 22 layar.
-3. Uji pluralisasi dan format tanggal/angka dengan nilai 0, 1, 2, dan 1.000.000 pada kedua locale.
-4. Jalankan uji lint string hardcoded pada web dan Flutter.
-5. Tinjau 10 pesan error acak terhadap formula §4 dan [error-codes.md](../03-specs/error-codes.md).
-6. Perbarui [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md) untuk NFR-I18N bila cakupan berubah.
+- Jangan menulis tanggal atau angka secara hardcoded di komponen.
+- Ukuran file memakai basis 1024 dengan label KB, MB, GB; angka mengikuti locale.
+- Mata uang hanya ditampilkan bila micro-app mendefinisikannya; Host tidak mengasumsikan IDR.
+- Zona waktu mengikuti perangkat; label zona hanya muncul bila relevan.
+- Rentang tanggal memakai `formatRange` agar tidak menghindari pemisah yang salah.
 
-## 18. Referensi
+## 10. RTL dan Teks Campuran
 
-- [nfr.md](../03-specs/nfr.md) — NFR-I18N-001 dan NFR-I18N-002
-- [error-codes.md](../03-specs/error-codes.md) — Message key dan pemulihan error
-- [accessibility.md](accessibility.md) — label screen reader, RTL, dan zoom
-- [design-system.md](design-system.md) — token tipografi dan breakpoint
-- [screen-specs.md](screen-specs.md) — copy per layar
-- [interaction-patterns.md](interaction-patterns.md) — durasi toast dan dialog
-- [glossary.md](../00-foundation/glossary.md) — istilah kanonik
-- [component-catalog.md](component-catalog.md) — label dan state komponen MADS
+- `dir` ditentukan oleh locale atau konten; `id-ID` dan `en-US` memakai `ltr`, tetapi komponen harus siap `rtl` untuk konten yang minta.
+- Gunakan properti logis CSS; jangan memakai `left`/`right` untuk layout.
+- Ikon arah (kembali, chevron, panah) dibalik; ikon media, centang, dan jam tidak dibalik.
+- Nama package, versi, checksum, dan ID dibungkus `<bdi>` agar tidak mengacaukan arah kalimat.
+- Jangan menggabungkan fragmen kalimat yang diterjemahkan; kirim satu pesan utuh dengan placeholder.
+- Teks campuran Latin dan Arab tetap terbaca; tidak ada clipping pada 320 px.
+- Angka dan tanda baca mengikuti locale, bukan arah teks.
+
+## 11. Resolusi Locale dan Fallback
+
+Urutan resolusi:
+
+1. Preferensi pengguna di Settings.
+2. `navigator.language` yang cocok dengan `id-ID` atau `en-US`.
+3. Default `id-ID`.
+
+Aturan:
+
+- Perubahan locale berlaku tanpa reload dan tidak menghapus state layar.
+- Kamus dimuat dari bundel lokal; tidak ada request jaringan untuk terjemahan.
+- Bila kunci hilang, tampilkan kunci `en-US`; bila tetap hilang, tampilkan kunci mentah hanya di build pengembangan dan catat peringatan.
+- Tidak ada fallback otomatis ke bahasa ketiga.
+- Tanggal, angka, dan arah teks dihitung ulang saat locale berubah.
+
+## 12. Istilah yang Tidak Dipakai
+
+Produk ini web-only dan berjalan di browser. Copy tidak boleh menyiratkan hal yang tidak ada:
+
+- Tidak ada akun, login, atau sinkronisasi antarperangkat.
+- Tidak ada server aplikasi, unggahan otomatis, atau penyimpanan cloud.
+- Tidak ada aplikasi desktop, pemasangan dari toko aplikasi, atau bundel platform.
+- Tidak ada marketplace, publikasi otomatis, atau pendapatan dari penjualan.
+- Tidak ada kolaborasi real-time atau pengeditan bersama.
+
+Frasa seperti "tersinkron", "di cloud", "akunmu", "unduh dari store", dan "kolaborasi tim" MUST NOT muncul di UI. Bila pengguna membutuhkan pemindahan data, gunakan **backup**, **ekspor `.mapp`**, dan **impor**.
+
+## 13. Checklist Review Copy
+
+- [ ] Tidak ada string hardcoded di komponen; semua lewat kamus.
+- [ ] Kunci identik di `id-ID` dan `en-US`.
+- [ ] Tidak ada placeholder-only label.
+- [ ] Pesan error memuat kode dan satu langkah pemulihan.
+- [ ] Tidak ada istilah terlarang atau klaim platform yang tidak ada.
+- [ ] Panjang teks muat pada 320 px tanpa terpotong.
+- [ ] Plural dan tanggal memakai ICU/Intl, bukan logika manual.
+- [ ] Nada konsisten: tenang, spesifik, tidak menyalahkan.
+- [ ] Placeholder `{app}`, `{count}`, `{action}` terisi di semua jalur.
+- [ ] Teks tidak memuat HTML atau markup yang dapat disisipkan.
+
+## 14. Acceptance Criteria
+
+- [ ] Seluruh layar menampilkan copy `id-ID` dan `en-US` dari kamus yang sama.
+- [ ] Setiap pesan error memiliki kode `E-*` dan satu aksi pemulihan.
+- [ ] Dialog consent memakai alasan plain-language dan label tombol yang konsisten.
+- [ ] Tanggal, angka, dan ukuran file mengikuti locale tanpa hardcode.
+- [ ] Tidak ada istilah akun, cloud, server, atau platform non-web di UI.
+- [ ] Layout RTL dan teks campuran tidak terpotong.
+
+## 15. Verifikasi
+
+| Pemeriksaan | Cara |
+|---|---|
+| Kelengkapan kunci | Skrip membandingkan kunci `id-ID` dan `en-US`; gagal bila berbeda |
+| String hardcoded | ESLint aturan i18n pada komponen |
+| Placeholder | Vitest: setiap kunci yang memakai `{app}`/`{count}` diisi |
+| Panjang teks | Snapshot 320 px untuk copy terpanjang |
+| Error | Vitest: 27 kode memiliki pesan di dua locale, tanpa path/token |
+| RTL | Playwright dengan `dir="rtl"` pada 12 layar |
+| Istilah terlarang | Pencarian otomatis pada kamus untuk daftar istilah §12 |
+
+## 16. Referensi
+
+- [screen-specs.md](screen-specs.md)
+- [accessibility.md](accessibility.md)
+- [interaction-patterns.md](interaction-patterns.md)
+- [design-system.md](design-system.md)
+- [error-codes.md](../03-specs/error-codes.md)
+- [07-settings.md](../03-specs/07-settings.md)
+- [nfr.md](../03-specs/nfr.md)
+- [FLOW-02 Create App](../04-flows/02-create-app.md)
+- [FLOW-06 Permission Consent](../04-flows/06-permission-consent.md)

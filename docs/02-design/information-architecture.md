@@ -3,245 +3,196 @@ id: DESIGN-IA
 title: Arsitektur Informasi
 status: accepted
 owner: design
-prd_refs: ["§3 Modul 1", "§3 Modul 2"]
+prd_refs: ["§4", "§6"]
 ---
 
 # Arsitektur Informasi
 
 ## 1. Tujuan dan Ruang Lingkup
 
-Dokumen ini menetapkan struktur navigasi Host dan Studio: peta situs, route web, pemetaan deep link, model workspace, pola navigasi desktop dan mobile, inventaris 22 layar, matriks responsif, mode jendela, state global, dan cakupan pencarian. Semua layar dirinci di [screen-specs.md](screen-specs.md); token visual mengikuti [design-system.md](design-system.md).
+Dokumen ini menetapkan peta situs, route, model layar, pola navigasi, dan state global untuk MicroApp Studio versi web. Semua layar dirinci di [screen-specs.md](screen-specs.md); token visual mengikuti [design-system.md](design-system.md), dengan `DESIGN.md` di root repo sebagai sumber visual kanonik.
 
-Di luar lingkup: isi wireframe per layar (screen-specs), perilaku mikro per kontrol ([interaction-patterns.md](interaction-patterns.md)), dan kontrak render micro-app ([ui-protocol.md](../03-specs/ui-protocol.md)).
+Di dalam: 12 layar kanonik `SCR-01` sampai `SCR-12`, route Next.js App Router, navigasi desktop/tablet/mobile, state global, state layar, pencarian, dan deep link. Di luar: wireframe per layar ([screen-specs.md](screen-specs.md)), perilaku mikro kontrol ([interaction-patterns.md](interaction-patterns.md)), dan kontrak render micro-app ([ui-protocol.md](../03-specs/ui-protocol.md)).
 
 ## 2. Prinsip
 
 | Prinsip | Konsekuensi |
 |---|---|
-| Satu jalur pulang | Setiap layar dapat kembali ke Home maksimum dua aksi; `Esc` menutup lapisan teratas. |
-| Tanpa login | Tidak ada route autentikasi; identitas lokal sudah ada sebelum layar pertama dirender (FR-HOST-001). |
-| Konteks workspace terlihat | Workspace aktif selalu tampil di header/sidebar; tidak ada pencarian lintas workspace tanpa perpindahan eksplisit. |
-| State dapat dipulihkan | Route, filter, posisi scroll, dan panel yang terbuka dipulihkan setelah restart (FR-HOST-024). |
-| Offline adalah normal | Navigasi inti MUST NOT menampilkan spinner jaringan atau halaman error koneksi. |
-| Satu layar, satu tujuan | Layar baru hanya dibuat bila memiliki tujuan, state, dan acceptance yang berbeda. |
+| Satu jalur pulang | Setiap layar kembali ke Home maksimum dua aksi; `Esc` menutup lapisan teratas. |
+| Tanpa akun dan tanpa gate | Tidak ada route login, registrasi, atau onboarding yang memblokir Home (FR-SHELL-002). |
+| Satu aksi utama per layar | Hanya satu tombol `primary` per layar; aksi sekunder memakai `secondary` atau `ghost`. |
+| Offline adalah normal | Kerangka layar, navigasi, dan app terpasang tidak pernah menunggu jaringan (FR-SHELL-003, NFR-REL-001). |
+| State dapat dipulihkan | Route, filter, device frame, dan posisi scroll dipulihkan setelah reload (FR-SHELL-016). |
+| Layar punya tujuan tunggal | Layar baru hanya dibuat bila tujuan, state, dan acceptance berbeda. |
 
 ## 3. Peta Situs
 
 ```mermaid
 graph TD
-  L["Launch"] --> G{"Local Identity ada?"}
-  G -- belum --> S1["SCR-01 FirstRun/Identity"]
-  G -- sudah --> H["SCR-02 Home /"]
-  S1 --> H
-  H --> F["SCR-03 Folder /?folder=id"]
-  H --> W["SCR-04 WidgetBoard /?view=widgets"]
-  H --> V["SCR-17 Vault /settings/vault"]
-  H --> P["SCR-05 CommandPalette overlay"]
-  H --> A["SCR-06 AppRunner /app/:id"]
-  H --> ST["SCR-07..12 Studio /studio/:id?panel=..."]
-  H --> R["SCR-13 RegistryBrowser /registry"]
-  R --> D["SCR-14 AppDetailInstall /registry?app=id"]
-  H --> SET["SCR-18 Settings /settings"]
-  SET --> PERM["SCR-15 Permissions /settings/permissions"]
-  SET --> SYNC["SCR-16 SyncPeers /settings/sync"]
-  SET --> STO["SCR-19 StorageManager /settings/storage"]
-  SET --> VLT["SCR-17 Vault /settings/vault"]
-  SET --> DEV["SCR-20 DevTools /dev/tools"]
-  SET --> ADM["SCR-21 AdminConsole /admin"]
-  A --> CR["SCR-22 CrashRecovery overlay"]
-  ST --> CR
+  BOOT["Buka situs /"] --> ID["Boot shell + local identity otomatis"]
+  ID --> HOME["SCR-02 Home/Library /"]
+  ID -.-> WELCOME["SCR-01 Welcome overlay di /"]
+  HOME --> TEMPLATES["SCR-03 Templates /templates"]
+  HOME --> CTAI["SCR-04 Create /create?mode=ai"]
+  HOME --> CTBL["SCR-04 Create /create?mode=blank"]
+  TEMPLATES --> CTAI
+  TEMPLATES --> CTBL
+  CTAI --> BUILDER["SCR-05 Builder /studio/[projectId]"]
+  CTBL --> BUILDER
+  BUILDER --> PREVIEW["SCR-06 Preview /studio/[projectId]?preview=1"]
+  BUILDER --> PACKAGES["SCR-08 Packages /packages"]
+  HOME --> PACKAGES
+  HOME --> RUNNER["SCR-07 App Runner /app/[appId]"]
+  PACKAGES --> IMPORT["SCR-09 Import /packages/import"]
+  IMPORT --> RUNNER
+  HOME --> SETTINGS["SCR-11 Settings /settings"]
+  SETTINGS --> BACKUP["SCR-10 Backup/Restore /settings/data"]
+  RUNNER -.-> CONSENT["SCR-12 Consent overlay"]
+  PREVIEW -.-> CONSENT
+  CONSENT -.-> RUNNER
 ```
+
+Tidak ada node terpisah untuk riwayat, akun, atau konsol admin. Semua tujuan dapat dicapai dari Home, sidebar, atau command palette.
 
 ## 4. Route Web
 
-Web memakai satu entry point Host Shell `/` dengan state turunan melalui query param; router internal memakai hash (`/#` → `/`) agar tetap berfungsi saat dibuka sebagai PWA dari filesystem, static host, atau webview desktop. Kedua bentuk MUST memetakan ke state yang sama dan MUST NOT menjadi dua model navigasi berbeda.
-
-| Route | Layar | Konten | Guard |
+| Route | Layar | Surface | Guard |
 |---|---|---|---|
-| `/` (state `first-run`) | SCR-01 | Gate first-run; tanpa identity, onboarding mengambil alih seluruh viewport | Hanya bila belum ada identity |
-| `/` | SCR-02 | Home: grid, folder, dock, search bar, status offline | Workspace aktif wajib ada |
-| `/?folder=<id>` | SCR-03 | Isi folder, breadcrumb, aksi folder | `folder` milik workspace aktif |
-| `/?view=widgets` | SCR-04 | Widget board dan penataan widget | Minimal satu widget atau empty state |
-| `/app/:id` | SCR-06 | Runtime micro-app dalam iframe sandbox | App terpasang; route internal diteruskan ke app |
-| `/studio/:id` | SCR-07 | Dashboard project: status, preview, aksi build | Project draft ada |
-| `/studio/:id?panel=visual` | SCR-08 | Visual builder | Project draft ada |
-| `/studio/:id?panel=code` | SCR-09 | Editor kode dan panel masalah | Project draft ada |
-| `/studio/:id?panel=data` | SCR-10 | Schema dan data designer | Project draft ada |
-| `/studio/:id?panel=workflow` | SCR-11 | Editor workflow | Project draft ada |
-| `/studio/:id?panel=ai` | SCR-12 | AI copilot dan riwayat generasi | Provider AI dipilih eksplisit |
-| `/registry` | SCR-13 | Daftar sumber registry dan katalog | Registry lokal atau cache offline |
-| `/registry?app=<id>` | SCR-14 | Detail app, permission, tombol install/update; state terpilih, bukan route baru | Entri index valid |
-| `/settings` | SCR-18 | Indeks pengaturan | — |
-| `/settings/permissions` | SCR-15 | Daftar app dan grant | — |
-| `/settings/permissions?app=<id>` | SCR-15 | Grant per app | App terpasang |
-| `/settings/sync` | SCR-16 | Peer, transport, status sync | — |
-| `/settings/vault` | SCR-17 | Daftar item Vault; terkunci sampai unlock | Identitas ada |
-| `/settings/storage` | SCR-19 | Pemakaian per app dan pembersihan cache | — |
-| `/settings/general` | SCR-18 | Tema, bahasa, densitas, tentang | — |
-| `/dev/tools` | SCR-20 | Profiler, log, bridge monitor | Build dev/internal saja; flag developer |
-| `/admin` | SCR-21 | Ringkasan instance self-host | Hanya saat terhubung ke server |
-| `/admin/users`, `/admin/registry`, `/admin/audit`, `/admin/branding`, `/admin/health` | SCR-21 | Subtab konsol admin | Role admin server |
-| Overlay global | SCR-05, SCR-22, consent | Command palette, crash recovery, consent | Lapisan di atas route mana pun, tanpa mengubah URL |
+| `/` | SCR-02 Home/Library, dengan SCR-01 sebagai overlay sekali tampil | Halaman | Workspace default selalu ada (FR-SHELL-015) |
+| `/templates` | SCR-03 Templates | Halaman | — |
+| `/create?mode=ai` | SCR-04 Create jalur AI | Halaman | Provider opsional; tanpa key tetap dapat memakai fallback |
+| `/create?mode=blank` | SCR-04 Create jalur kosong | Halaman | — |
+| `/studio/[projectId]` | SCR-05 Builder | Halaman tanpa sidebar | `projectId` milik workspace aktif |
+| `/studio/[projectId]?preview=1` | SCR-06 Preview | State dari SCR-05 | Draft dapat dibuka |
+| `/app/[appId]` | SCR-07 App Runner | Halaman sandbox | App terpasang dan manifest valid |
+| `/packages` | SCR-08 Packages/Share | Halaman | — |
+| `/packages/import` | SCR-09 Import/Install | Modal di atas `/packages`, dapat dimuat langsung | File atau URL index dipilih pengguna |
+| `/settings` | SCR-11 Settings | Halaman | — |
+| `/settings/general` | SCR-11 Settings — tema, locale, gerak | Halaman | — |
+| `/settings/permissions` | SCR-11 Settings — grant dan revoke | Halaman | — |
+| `/settings/ai` | SCR-11 Settings — BYOK | Halaman | — |
+| `/settings/data` | SCR-10 Backup/Restore, storage, reset | Halaman | — |
+| `/settings/about` | SCR-11 Settings — versi dan lisensi | Halaman | — |
+| `/settings/dev` | SCR-11 Settings — DevTools lokal | Halaman | Flag DevTools aktif (FR-SET-010) |
+| Overlay global | SCR-12 Permission Consent | Lapisan di atas route mana pun | Panggilan bridge belum di-grant |
 
 Aturan route:
 
-- Hash hosting (`/#`) MUST memakai struktur query yang identik; perpindahan antara `/` dan `/#` MUST mempertahankan state.
-- Route yang tidak cocok MUST menampilkan layar "tidak ditemukan" di dalam shell, dengan tautan Home; MUST NOT memuat ulang aplikasi.
-- Route `/studio/*` MUST memaksa simpan otomatis sebelum pindah panel; perubahan yang belum tersimpan ditandai di judul.
-- Route `/app/:id` MUST memakai `id` dari manifest yang terpasang, bukan nama tampilan.
-- Route `/admin/*` MUST gagal tertutup (fail closed) tanpa sesi server yang valid.
+- Route tidak dikenal menampilkan surface "Tidak ditemukan" di dalam shell dengan tautan Home; tidak memuat ulang aplikasi.
+- `/studio/[projectId]` dan `/app/[appId]` memakai ID stabil, bukan nama tampilan.
+- Query `?preview=1` tidak membuat dokumen baru; ia hanya mengganti surface kanvas dengan sandbox.
+- `/packages/import` selalu dapat ditutup dengan `Esc`; penutupan membatalkan verifikasi yang belum selesai.
 - Tidak ada route yang membutuhkan jaringan untuk merender kerangka layar.
-- Detail app dan detail grant adalah state terpilih, bukan route baru, agar tombol kembali tidak melintasi dialog.
+- Route lama `/registry`, `/settings/vault`, `/settings/sync`, dan `/settings/storage` dialihkan ke route di atas tanpa kehilangan data ([07-settings.md](../03-specs/07-settings.md)).
 
-## 5. Deep Link
+## 5. Model Layar
 
-Format kanonik: `microapp://<registry-or-local>/<app-id>/<route>?params=...` (FR-HOST-015). `registry-or-local` adalah nama registry terdaftar atau literal `local` untuk app yang belum dipublikasikan.
+| ID | Nama | Route | Tujuan | Entry point |
+|---|---|---|---|---|
+| SCR-01 | Welcome/First Run | Overlay di `/` | Menyambut pengguna baru, menyatakan identitas lokal sudah dibuat, menawarkan CTA create | First load setelah identitas dibuat |
+| SCR-02 | Home/Library | `/` | Meluncurkan app, mencari, melihat draft terbaru, impor package | Boot, sidebar, Home |
+| SCR-03 | Templates | `/templates` | Menjelajah template per kategori dan melihat preview | Home, sidebar |
+| SCR-04 | Create | `/create?mode=ai` atau `?mode=blank` | Membuat draft dari prompt AI atau layout kosong | Home, Templates |
+| SCR-05 | Builder | `/studio/[projectId]` | Menyusun UI dengan palette, kanvas, dan inspector | Create, Home |
+| SCR-06 | Preview | `/studio/[projectId]?preview=1` | Menguji draft di sandbox dan device frame | Builder |
+| SCR-07 | App Runner | `/app/[appId]` | Menjalankan app terpasang dengan permission JIT dan boundary | Home, Import, deep link |
+| SCR-08 | Packages/Share | `/packages` | Melihat package terpasang, mengekspor `.mapp`, mengelola sumber index | Sidebar, Builder |
+| SCR-09 | Import/Install | `/packages/import` | Memverifikasi file `.mapp`, meninjau permission, memasang | Home, Packages |
+| SCR-10 | Backup/Restore | `/settings/data` | Membuat backup terenkripsi, restore, storage, reset | Settings, pengingat backup |
+| SCR-11 | Settings | `/settings` dan subroute | Tema, locale, permission, BYOK, recovery, about, DevTools | Sidebar |
+| SCR-12 | Permission Consent | Overlay global | Meminta consent JIT dengan default tolak | Bridge call pertama |
+
+## 6. Navigasi
+
+### 6.1 Desktop (≥ 1024 px)
+
+Sidebar tetap selebar **264 px** berisi:
+
+1. Wordmark dan workspace switcher (hanya tampil bila ada lebih dari satu workspace).
+2. Item utama: **Home**, **Templates**, **Packages**, **Settings**.
+3. Tombol `primary` **Buat** yang membuka SCR-04 dengan mode terakhir dipakai.
+4. Footer: badge penyimpanan, indikator offline, dan status identitas.
+
+Konten memakai lebar maksimum 1200 px pada breakpoint `xl` (≥ 1280 px). Sidebar dapat diciutkan menjadi rail 80 px; status ciut disimpan di preferensi lokal.
+
+### 6.2 Tablet (768–1023 px)
+
+Rail **80 px** hanya ikon dengan tooltip dan `aria-label`. Empat item yang sama; tombol **Buat** menjadi FAB bulat 56 px di kanan bawah konten. Panel inspector atau detail menjadi sheet samping selebar 360 px.
+
+### 6.3 Mobile (< 768 px)
+
+Bottom dock berisi empat item: **Home**, **Templates**, **Packages**, **Settings**, ditambah FAB **Buat** di atas dock. Header hanya memuat judul layar, tombol kembali, dan aksi kontekstual. Pencarian dibuka sebagai overlay penuh dari ikon search. Tidak ada sidebar, split view, picture-in-picture, atau window manager.
+
+### 6.4 Builder
+
+SCR-05 menyembunyikan sidebar utama dan memakai:
+
+- **Top bar**: kembali, nama project inline, status simpan, undo/redo, device switcher, **Preview**, **Bagikan**.
+- **Desktop**: palette kiri 280 px, kanvas tengah, inspector kanan 320 px.
+- **Tablet**: palette menjadi sheet kiri 320 px; inspector sheet kanan.
+- **Mobile**: kanvas penuh; panel bawah memakai tab **Tambah**, **Layer**, **Atur** dan dapat ditarik setinggi 50% atau 90%.
+
+## 7. State Global
+
+| State | Nilai | Sumber | Tampilan |
+|---|---|---|---|
+| Workspace | ID dan nama workspace aktif; default tunggal | SQLite `workspaces` | Switcher hanya muncul bila jumlah > 1 |
+| Tema | `light`, `dark`, `high-contrast` dengan komponen clay | Settings; `prefers-color-scheme` hanya memilih light/dark | `data-theme` pada `<html>`; token berubah tanpa reload (FR-SET-001) |
+| Locale | `id-ID` atau `en-US`; arah teks `ltr`/`rtl` | Settings + `navigator.language` | Semua string dari kamus; `dir` pada `<html>` (FR-SET-002) |
+| Offline | `online`, `offline`, `cache-only` | `navigator.onLine` + service worker | `OfflineBanner` global, tidak menghalangi navigasi (FR-SHELL-011) |
+| Storage | Estimasi pemakaian, kuota, status kritis | `navigator.storage.estimate()` | Badge di sidebar/footer; peringatan > 80% (FR-SHELL-012) |
+| Active app | `appId`, lifecycle, focus, consent scope | Router + runtime | Menentukan header runner, audit, dan binding consent |
+| Save status | `saved`, `saving`, `dirty`, `error` | Builder | Teks status di top bar; tidak ada tombol Save wajib (FR-STUDIO-011) |
+| Consent queue | Daftar permintaan bridge yang menunggu | Broker | Satu sheet pada satu waktu; sisanya antre (SEC-003) |
+| Install job | File, tahap verifikasi, hasil | Package service | Progress di SCR-09; dapat dibatalkan |
+
+State global MUST disimpan secara lokal. Tidak ada state yang dikirim ke host lain, dan tidak ada telemetry (SEC-013).
+
+## 8. State Layar
+
+| State | Aturan | Contoh |
+|---|---|---|
+| Loading | Skeleton berbentuk layout final; tidak ada spinner layar penuh > 300 ms | Kartu library, baris tabel, kerangka builder |
+| Empty | Ilustrasi clay ringan, satu kalimat penjelas, satu aksi utama | Home tanpa app: tiga kartu create |
+| Error | Kode `E-*`, ringkasan aman, satu aksi pemulihan, retry | `E-PACK-001` pada impor |
+| Offline | Tetap menampilkan data lokal; banner tipis; aksi yang butuh jaringan diberi label | Import dari URL index saat offline |
+| Partial | Bagian yang gagal menampilkan inline error; bagian lain tetap berfungsi | Satu kartu preview gagal dimuat |
+| Read-only | Banner alasan; kontrol tulis `disabled` dengan tooltip | Restore sedang berjalan |
+
+Setiap state MUST diumumkan lewat live region dan MUST NOT bergantung pada warna saja ([accessibility.md](accessibility.md)).
+
+## 9. Pencarian dan Command Palette
+
+- Satu kolom pencarian di Home dan header mobile, dengan hasil terkelompok: **App**, **Project**, **Record**, **Aksi**.
+- Pencarian memakai FTS5 lokal; target < 100 ms untuk 100.000 record (FR-SHELL-005).
+- `Cmd/Ctrl+K` membuka command palette dari layar mana pun, termasuk builder; hasil mencakup navigasi, aksi builder, dan app.
+- Pencarian tidak pernah memicu jaringan dan tidak mencampur hasil antar workspace.
+- Hasil kosong menampilkan saran aksi, bukan halaman kosong.
+
+## 10. Deep Link
+
+Format kanonik: `microapp://<source>/<appId>/<route>?<params>`. Padanan web: `https://<host>/?target=<encoded microapp URL>`.
 
 | Skenario | Perilaku |
 |---|---|
-| App terpasang | Buka `/app/:id`, teruskan `<route>` dan `params` ke router internal app setelah `onMount` |
-| App tidak terpasang, paket ada di registry cache | Tampilkan SCR-14 dengan penawaran install; setelah install, lanjutkan ke tujuan |
-| App tidak terpasang, tidak ada jaringan | Tampilkan penawaran install dengan status "paket tidak tersedia offline"; aksi salin tautan |
-| Registry tidak dikenal | Tampilkan dialog pemilihan sumber; MUST NOT otomatis menambah registry |
-| Param tidak valid | Buang param, buka route dasar, tampilkan toast peringatan |
+| App terpasang | Buka `/app/[appId]` dan teruskan route setelah `onMount` |
+| App belum terpasang, file tersedia lokal | Buka SCR-09 dengan penawaran pasang, lalu lanjutkan |
+| App belum terpasang, tidak ada file | Tampilkan penjelasan offline dan aksi salin tautan |
+| Route atau param tidak valid | Buang param, buka route dasar, tampilkan toast |
+| Target berasal dari app lain | Wajib melewati consent (SCR-12) sebelum diteruskan |
 
-Web memakai padanan `https://<host>/?target=<encoded microapp URL>` (atau `https://<host>/#/?target=<encoded>` pada hash hosting); micro-app MUST NOT menerima URL mentah, hanya route dan param yang sudah divalidasi Host. Deep link lintas app MUST melewati dialog consent (FR-HOST-014), bukan langsung membuka.
+Host hanya meneruskan route dan param yang lolos validasi; URL mentah tidak pernah diberikan ke micro-app ([host-bridge.md](../03-specs/host-bridge.md)).
 
-## 6. Model Workspace
-
-| Konsep | Definisi | Invariant |
-|---|---|---|
-| Workspace | Konteks terisolasi berisi app, folder tree, widget board, database, registry cache, grant permission, dan peer sync | Tidak ada query lintas workspace (FR-HOST-007) |
-| Workspace aktif | Satu workspace per jendela; tersimpan di launcher state | Dipulihkan setelah cold start (FR-HOST-024) |
-| Nav stack | Riwayat route per workspace | Berpindah workspace menyimpan stack lama dan memulihkannya saat kembali |
-| Folder tree | Struktur maksimum tiga level; folder tidak dapat memuat workspace | Folder lintas workspace ditolak |
-| Dock | Maksimum 8 app yang di-pin | Urutan persisten per workspace |
-| Scratch | Area kerja sementara untuk draft Studio | Tidak disinkronkan sampai dipromosikan menjadi project |
-
-Pembuatan workspace baru MUST memulai dari kondisi kosong (tanpa app, tanpa grant) dan MUST NOT menyalin Vault. Penghapusan workspace MUST menawarkan ekspor `.mapp-backup` dan konfirmasi eksplisit (FR-HOST-008).
-
-## 7. Navigasi
-
-### 7.1 Desktop dan tablet
-
-| Breakpoint | Struktur | Perilaku |
-|---|---|---|
-| large (≥ 1440) | Sidebar 280 + konten + panel kanan opsional | Sidebar dapat diciutkan menjadi rail; panel kanan menampung properti/inspektur |
-| expanded (1024–1439) | Sidebar 280 + konten | Panel kanan menjadi overlay |
-| medium (600–1023) | Rail 72 + konten | Rail hanya ikon dengan tooltip dan label aksesibel; panel menjadi sheet |
-| compact (< 600) | Header + tab bar bawah | Empat tab tetap; pencarian memakai field header |
-
-Urutan item sidebar tetap: Home, Studio, Registry, Settings; daftar workspace berada di atas item tetap. Widget board dibuka dari Home (`?view=widgets`) dan Vault dari dock atau Settings. Studio memakai sidebar sekunder berisi project, file, dan komponen; sidebar sekunder MUST NOT menggantikan sidebar utama.
-
-### 7.2 Mobile
-
-Tab bar bawah: Home, Studio, Registry, Settings. Field pencarian di header membuka SCR-05 sebagai layar penuh. Vault diakses dari Home (dock) dan Settings. Split view tidak tersedia; PiP video tetap tersedia. Gesture kembali mengikuti OS dan MUST memetakan ke aksi `Esc` yang sama.
-
-## 8. Inventaris Layar
-
-| ID | Nama | Route/Overlay | Tujuan utama | Entry point |
-|---|---|---|---|---|
-| SCR-01 | FirstRun/Identity | `/` state `first-run` | Membuat Local Identity, Recovery Phrase, dan workspace default | Launch tanpa identity |
-| SCR-02 | Home | `/` | Meluncurkan app, folder, widget, pencarian | Launch, breadcrumb |
-| SCR-03 | Folder | `/?folder=<id>` | Mengelola isi folder dan subfolder | Home |
-| SCR-04 | WidgetBoard | `/?view=widgets` | Menata live widget per workspace | Home |
-| SCR-05 | CommandPalette | Overlay | Menjalankan aksi dan navigasi dari keyboard | `Cmd/Ctrl+K`, Search |
-| SCR-06 | AppRunner | `/app/:id` | Menjalankan micro-app dan menampilkan error boundary | Home, deep link |
-| SCR-07 | StudioDashboard | `/studio/:id` | Status project, preview, build, publish | Sidebar, Home |
-| SCR-08 | VisualBuilder | `/studio/:id?panel=visual` | Menyusun UI visual dan mengedit properti | StudioDashboard |
-| SCR-09 | CodeEditor | `/studio/:id?panel=code` | Mengedit kode, melihat diagnostik dan AST | StudioDashboard |
-| SCR-10 | DataDesigner | `/studio/:id?panel=data` | Merancang schema, migrasi, dan data | StudioDashboard |
-| SCR-11 | WorkflowEditor | `/studio/:id?panel=workflow` | Menyusun graph workflow dan trigger | StudioDashboard |
-| SCR-12 | AICopilot | `/studio/:id?panel=ai` | Prompt-to-app, saran, dan riwayat generasi | StudioDashboard |
-| SCR-13 | RegistryBrowser | `/registry` | Menjelajah sumber dan katalog app | Sidebar, Home |
-| SCR-14 | AppDetailInstall | `/registry?app=<id>` | Meninjau permission, signature, dan install/update | SCR-13, deep link |
-| SCR-15 | Permissions | `/settings/permissions` | Mengelola grant, mock, dan offline cage | Settings, dialog consent |
-| SCR-16 | SyncPeers | `/settings/sync` | Pairing peer, transport, status, revoke | Settings, status sync |
-| SCR-17 | Vault | `/settings/vault` | Menyimpan dan membagikan item rahasia | Settings, dock |
-| SCR-18 | Settings | `/settings` | Indeks pengaturan umum, tema, bahasa | Sidebar |
-| SCR-19 | StorageManager | `/settings/storage` | Melihat pemakaian dan membersihkan cache | Settings, error penyimpanan |
-| SCR-20 | DevTools | `/dev/tools` | Profiler, log, bridge, sync queue | Settings (build dev) |
-| SCR-21 | AdminConsole | `/admin/*` | Mengelola instance self-host | Settings, URL admin |
-| SCR-22 | CrashRecovery | Overlay global | Memulihkan setelah crash/freeze | Watchdog, launch setelah crash |
-
-Setiap layar MUST memiliki state loading, empty, error, dan offline yang eksplisit. Layar tanpa data MUST menampilkan empty state dengan aksi berikutnya (FR-HOST-025), bukan area kosong.
-
-## 9. Matriks Responsif
-
-| Layar | compact | medium | expanded | large |
-|---|---|---|---|---|
-| SCR-01 | Satu kolom, langkah penuh | Kolom 480 px di tengah | Kolom 480 px + ilustrasi | Kolom 560 px + ilustrasi |
-| SCR-02 | Grid 2 kolom, tab bar | Grid 6 kolom, rail | Grid 8 kolom, sidebar | Grid 10 kolom, sidebar + panel |
-| SCR-03 | Daftar satu kolom | Grid 6 kolom | Grid 8 kolom | Grid 10 kolom |
-| SCR-04 | Widget satu kolom | Widget 2 kolom | Widget 3 kolom | Widget 4 kolom |
-| SCR-05 | Layar penuh | Dialog 640 px | Dialog 640 px | Dialog 640 px |
-| SCR-06 | Penuh, header ringkas | Penuh + rail | Penuh + sidebar | Split dengan panel inspektur |
-| SCR-07 | Kartu bertumpuk | 2 kolom kartu | 3 kolom kartu | 3 kolom + panel aktivitas |
-| SCR-08 | Canvas + sheet properti | Canvas + panel bawah | Canvas + panel kanan | Canvas + panel kanan + layer tree |
-| SCR-09 | Editor penuh, tab file sheet | Editor + tab file | Editor + file tree | Editor + file tree + panel masalah |
-| SCR-10 | Tabel horizontal scroll | Tabel + detail sheet | Tabel + detail panel | Tabel + detail + schema tree |
-| SCR-11 | Graph pan/zoom, toolbar bawah | Graph + palette sheet | Graph + palette kiri | Graph + palette + inspektur |
-| SCR-12 | Chat penuh | Chat + riwayat sheet | Chat + riwayat | Chat + riwayat + diff |
-| SCR-13 | Kartu satu kolom | Kartu 2 kolom | Kartu 3 kolom | Kartu 4 kolom + filter samping |
-| SCR-14 | Penuh, aksi sticky bawah | 2 kolom | 2 kolom + sidebar | 2 kolom + sidebar + riwayat versi |
-| SCR-15 | Daftar + sheet detail | Daftar + detail | Daftar + detail | Daftar + detail + audit |
-| SCR-16 | Daftar peer | Daftar + detail | Daftar + detail | Daftar + detail + transport |
-| SCR-17 | Daftar item, unlock sheet | Daftar + detail | Daftar + detail | Daftar + detail + audit |
-| SCR-18 | Daftar grup | Daftar + panel | Sidebar grup + panel | Sidebar + panel + pencarian |
-| SCR-19 | Meter bertumpuk | Meter + tabel | Tabel + detail | Tabel + detail + grafik |
-| SCR-20 | Tab (perf/log/network) | Tab + filter | Panel ganda | Panel ganda + timeline |
-| SCR-21 | Kartu ringkas | Tabel ringkas | Tabel + filter | Tabel + filter + detail |
-| SCR-22 | Kartu diagnostik penuh | Kartu + log | Kartu + log | Kartu + log + aksi pemulihan |
-
-## 10. Mode Jendela
-
-| Mode | Ketersediaan | Aturan state | Batas |
-|---|---|---|---|
-| Single | Semua platform | Satu instance per app | — |
-| Split | expanded dan large | Dua pane, satu instance state per app (FR-HOST-013) | Maksimum 2 pane; pane minimum 360 px |
-| Tab | expanded dan large | Satu tab aktif per pane; tab menyimpan scroll dan filter | Maksimum 12 tab per jendela |
-| PiP | desktop dan tablet | Floating di atas shell, tidak fokus input kecuali diklik | Maksimum 1 PiP; ukuran 320 × 180 minimum |
-| Widget | Home | Render read-only, query ≤ 1 per 5 detik (FR-HOST-006) | Tidak menerima input keyboard |
-
-Menutup pane, tab, atau PiP MUST NOT menghentikan micro-app; state tetap hidup sampai app dihentikan eksplisit atau hibernasi 30 detik berlaku. Layar yang sama pada dua pane MUST memakai satu sumber state, bukan dua salinan.
-
-## 11. State Global
-
-| State | Pemicu | Tampilan | Perilaku |
-|---|---|---|---|
-| Loading awal | Render pertama | Skeleton dengan bentuk layout final | Tidak menampilkan spinner layar penuh > 300 ms |
-| Loading data | Query lokal lambat | Skeleton baris/tabel | Tetap dapat dibatalkan dengan `Esc` |
-| Empty | Tidak ada data | Ilustrasi + penjelasan + satu aksi utama | Aksi fokus otomatis |
-| Error terbatas | Satu widget/panel gagal | Inline error dengan kode `E-*` dan retry | Bagian lain tetap berfungsi |
-| Error fatal | Shell/DB worker gagal | Error surface layar penuh (FR-HOST-027) | Data tidak dihapus; tombol restart |
-| Offline | Jaringan hilang | Banner offline global + jumlah operasi tertunda (FR-HOST-026) | Tidak menghalangi navigasi |
-| Permission denied | Broker menolak | Badge dan pesan di app, bukan dialog berulang | Tautan ke SCR-15 |
-| Sync degraded | Peer/server tidak tersedia | Indikator status sync kuning | Antrean tetap berjalan lokal |
-| Read-only | Server/backup dalam mode pemulihan | Banner read-only | Aksi tulis dinonaktifkan dengan alasan |
-
-Semua state MUST diumumkan melalui live region dan MUST NOT bergantung pada warna saja (NFR-A11Y-003).
-
-## 12. Cakupan Pencarian
-
-| Cakupan | Sumber | Ketersediaan | Catatan |
-|---|---|---|---|
-| Micro-app | Nama, deskripsi manifest, tag | Lokal | Hasil pertama untuk pencocokan nama |
-| Folder dan workspace | Nama folder, nama workspace | Lokal | Workspace lain hanya muncul sebagai saran pindah, bukan hasil data |
-| Record | FTS5 judul, isi catatan, nilai formulir (FR-HOST-009) | Lokal | Dibatasi ke app dengan grant baca |
-| Aksi dan pengaturan | Command registry, label pengaturan | Lokal | Hasil diberi label "Aksi" |
-| Registry | Nama dan ringkasan app pada index cache (FR-HOST-010 untuk vektor) | Cache offline | Tidak memicu fetch saat query |
-| Vault | Label item saat Vault terbuka | Lokal | Item terkunci MUST NOT masuk indeks |
-| File | Nama berkas di storage app | Lokal | Tanpa membaca isi biner |
-
-Pencarian MUST memakai satu kotak dengan filter cepat (Semua, App, Record, Aksi, Registry). Pencarian MUST NOT mengakses jaringan, tidak mengindeks isi Vault yang terkunci, dan tidak mencampur hasil antar workspace. Target latensi: < 100 ms untuk 100.000 record pada perangkat referensi; hasil kosong menampilkan saran aksi, bukan halaman kosong.
-
-## 13. Referensi
+## 11. Referensi
 
 - [screen-specs.md](screen-specs.md)
-- [design-system.md](design-system.md)
 - [interaction-patterns.md](interaction-patterns.md)
+- [accessibility.md](accessibility.md)
+- [design-system.md](design-system.md)
 - [component-catalog.md](component-catalog.md)
-- [01-host-shell.md](../03-specs/01-host-shell.md)
-- [02-studio-ide.md](../03-specs/02-studio-ide.md)
+- [01-app-shell.md](../03-specs/01-app-shell.md)
+- [02-studio.md](../03-specs/02-studio.md)
+- [07-settings.md](../03-specs/07-settings.md)
 - [host-bridge.md](../03-specs/host-bridge.md)
-- [permissions.md](../03-specs/permissions.md)
+- [FLOW-01 First Run](../04-flows/01-first-run.md)
+- [FLOW-02 Create App](../04-flows/02-create-app.md)
