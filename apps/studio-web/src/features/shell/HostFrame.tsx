@@ -27,7 +27,7 @@ import { UpdateBanner } from './UpdateBanner';
 const FULL_SCREEN_PREFIXES = ['/studio', '/app'];
 
 /** Routes that still render their own standalone chrome (removed as rewritten). */
-const LEGACY_PREFIXES = ['/registry', '/admin', '/dev', '/settings'];
+const LEGACY_PREFIXES = ['/registry', '/dev'];
 
 const STORAGE_WARN_RATIO = 0.8;
 
@@ -102,17 +102,17 @@ export function HostFrame({ children }: { children: ReactNode }): ReactElement {
     return estimate.usage / estimate.quota > STORAGE_WARN_RATIO;
   }, [host.storageEstimate]);
 
-  // Time is read after mount: computing it during render is impure and would
-  // also make the server and client markup disagree.
+  // Time is read after mount (it is impure during render), but both nudges have a
+  // time-independent answer for a fresh install, so they render server-side too.
+  // That keeps the first paint identical on both sides and gives the page a large
+  // text block early — the LCP budget depends on it.
   const now = useMountedTimestamp();
-  const showRecovery =
-    now !== null &&
-    !host.prefs.recoverySecured &&
-    (host.prefs.recoveryNudgeDismissedAt === null || now - host.prefs.recoveryNudgeDismissedAt > NUDGE_INTERVAL_MS);
+  const recentlyDismissed = (at: number | null): boolean =>
+    at !== null && now !== null && now - at <= NUDGE_INTERVAL_MS;
+  const showRecovery = !host.prefs.recoverySecured && !recentlyDismissed(host.prefs.recoveryNudgeDismissedAt);
   const showBackup =
-    now !== null &&
-    (host.prefs.lastBackupAt === null || now - host.prefs.lastBackupAt > NUDGE_INTERVAL_MS) &&
-    !(host.prefs.backupNudgeDismissedAt !== null && now - host.prefs.backupNudgeDismissedAt <= NUDGE_INTERVAL_MS);
+    !recentlyDismissed(host.prefs.backupNudgeDismissedAt) &&
+    (host.prefs.lastBackupAt === null || now === null || now - host.prefs.lastBackupAt > NUDGE_INTERVAL_MS);
 
   if (fullScreen || legacy) {
     // Legacy pages own their own chrome until they are rewritten; full-screen

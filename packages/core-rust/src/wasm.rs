@@ -81,6 +81,39 @@ pub fn identity_recover(
     .to_string())
 }
 
+/// Public identity signing key (hex) for the current phrase and salt.
+#[wasm_bindgen]
+pub fn identity_public(
+    phrase: &str,
+    passphrase: &str,
+    hkdf_salt_hex: &str,
+) -> Result<String, JsValue> {
+    let salt = parse_hex32(hkdf_salt_hex)?;
+    let identity = identity::identity_from_phrase(phrase, passphrase, Some(salt)).map_err(err_to_js)?;
+    Ok(hex_lower(&identity.identity_pubkey))
+}
+
+/// Sign an arbitrary message with the identity key; returns base64.
+///
+/// `message_base64` carries the exact bytes to sign (the JCS manifest), so the
+/// authoring path never re-serializes JSON in TypeScript.
+#[wasm_bindgen]
+pub fn identity_sign_message(
+    phrase: &str,
+    passphrase: &str,
+    hkdf_salt_hex: &str,
+    message_base64: &str,
+) -> Result<String, JsValue> {
+    use base64::Engine;
+    let salt = parse_hex32(hkdf_salt_hex)?;
+    let message = base64::engine::general_purpose::STANDARD
+        .decode(message_base64)
+        .map_err(|e| JsValue::from_str(&format!("E-CLI-001|{e}")))?;
+    let identity = identity::identity_from_phrase(phrase, passphrase, Some(salt)).map_err(err_to_js)?;
+    let signature = crate::crypto::ed25519_sign(&identity.signing_key(), &message);
+    Ok(base64::engine::general_purpose::STANDARD.encode(signature))
+}
+
 /// Create a signed CBOR device certificate; returns the raw certificate bytes.
 #[wasm_bindgen]
 pub fn device_cert_create(
@@ -203,41 +236,46 @@ fn entries_from_json(json: &str) -> Result<Vec<MappEntry>, JsValue> {
     Ok(entries)
 }
 
-/// Pack a `.mapp`; seeds are hex Ed25519 seeds (`authorSeedHex` is required).
+/// Prepare a package: fill per-file digests and `contentHash`, then return the
+/// manifest and the base64 signature message for the identity worker to sign.
 #[wasm_bindgen]
-pub fn mapp_pack(
-    manifest_json: &str,
-    entries_json: &str,
-    author_seed_hex: &str,
-    registry_seed_hex: &str,
-) -> Result<Vec<u8>, JsValue> {
+pub fn mapp_prepare_v2(manifest_json: &str, entries_json: &str) -> Result<String, JsValue> {
+    use base64::Engine;
     let entries = entries_from_json(entries_json)?;
-    let author_seed = parse_hex32(author_seed_hex)?;
-    let author_key = signing_key_from_seed(&author_seed);
-    let registry_key = if registry_seed_hex.is_empty() {
-        None
-    } else {
-        let seed = parse_hex32(registry_seed_hex)?;
-        Some(signing_key_from_seed(&seed))
-    };
-    mapp::pack(manifest_json, entries, Some(&author_key), registry_key.as_ref()).map_err(err_to_js)
+    let prepared = mapp::prepare_manifest(manifest_json, &entries).map_err(err_to_js)?;
+    Ok(serde_json::json!({
+        "manifestJson": prepared.manifest_json,
+        "signatureMessageBase64": base64::engine::general_purpose::STANDARD
+            .encode(&prepared.signature_message),
+    })
+    .to_string())
 }
 
-/// Verify a `.mapp` and return the verified manifest plus digest.
+/// Finalize a prepared package with an external signature and return the ZIP.
+///
+/// The signature must verify against `author_pubkey_hex`; otherwise `E-PACK-002`.
 #[wasm_bindgen]
-pub fn mapp_verify(
+pub fn mapp_finalize_v2(
+    manifest_json: &str,
+    entries_json: &str,
+    signature_base64: &str,
+    author_pubkey_hex: &str,
+) -> Result<Vec<u8>, JsValue> {
+    let entries = entries_from_json(entries_json)?;
+    mapp::finalize_with_signature(manifest_json, &entries, signature_base64, author_pubkey_hex)
+        .map_err(err_to_js)
+}
+
+/// Verify a `.mapp` v2 and return the verified manifest plus digest metadata.
+#[wasm_bindgen]
+pub fn mapp_verify_v2(
     bytes: &[u8],
     source: &str,
     author_pubkey_hex: &str,
     registry_pubkey_hex: &str,
 ) -> Result<String, JsValue> {
-    let source = match source {
-        "local" => InstallSource::Local,
-        "registry" => InstallSource::Registry,
-        "enterprise" => InstallSource::Enterprise,
-        "git" => InstallSource::Git,
-        other => return Err(JsValue::from_str(&format!("E-CLI-001|unknown source {other}"))),
-    };
+    use base64::Engine;
+    let source = InstallSource::parse(source).map_err(err_to_js)?;
     let author = if author_pubkey_hex.is_empty() {
         None
     } else {
@@ -249,21 +287,14 @@ pub fn mapp_verify(
         Some(parse_hex32(registry_pubkey_hex)?)
     };
     let verified = mapp::verify(bytes, source, author.as_ref(), registry.as_ref()).map_err(err_to_js)?;
-    use base64::Engine;
-    let encode = |signature: &Option<Vec<u8>>| -> Option<String> {
-        signature
-            .as_ref()
-            .map(|bytes| base64::engine::general_purpose::STANDARD.encode(bytes))
-    };
     Ok(serde_json::json!({
         "manifest": verified.manifest,
         "digest": hex_lower(&verified.digest),
+        "authorPubkeyHex": author_pubkey_hex.to_ascii_lowercase(),
+        "authorSignatureBase64": base64::engine::general_purpose::STANDARD
+            .encode(&verified.author_signature),
         "entryCount": verified.entry_count,
         "decompressedBytes": verified.decompressed_bytes,
-        "hasAuthorSignature": verified.author_signature.is_some(),
-        "hasRegistrySignature": verified.registry_signature.is_some(),
-        "authorSignatureBase64": encode(&verified.author_signature),
-        "registrySignatureBase64": encode(&verified.registry_signature),
     })
     .to_string())
 }
@@ -508,16 +539,23 @@ pub fn vault_open_wrapped(
     envelope_open(&key, crate::crypto::LABEL_VAULT, &aad, envelope).map_err(err_to_js)
 }
 
-/// Seal backup bytes with a passphrase (Argon2id parameters embedded).
+/// Seal a v2 `.mapp-backup` container.
+///
+/// `sections_json` is `[{name, plaintextBase64}]`; the manifest is generated
+/// inside the core from the sealed ciphertexts.
 #[wasm_bindgen]
-pub fn backup_seal(passphrase: &str, plaintext: &[u8]) -> Result<Vec<u8>, JsValue> {
-    crate::crypto::seal_with_passphrase(passphrase, plaintext).map_err(err_to_js)
+pub fn backup_seal_v2(
+    passphrase: &str,
+    sections_json: &str,
+    created_at_ms: f64,
+) -> Result<Vec<u8>, JsValue> {
+    crate::backup::seal(passphrase, sections_json, created_at_ms).map_err(err_to_js)
 }
 
-/// Open a backup blob; wrong passphrase fails without distinguishing the cause.
+/// Open a v2 `.mapp-backup`, verifying every section checksum first.
 #[wasm_bindgen]
-pub fn backup_open(passphrase: &str, blob: &[u8]) -> Result<Vec<u8>, JsValue> {
-    crate::crypto::open_with_passphrase(passphrase, blob).map_err(err_to_js)
+pub fn backup_open_v2(passphrase: &str, bytes: &[u8]) -> Result<String, JsValue> {
+    crate::backup::open(passphrase, bytes).map_err(err_to_js)
 }
 
 /// Canonical (JCS) SHA-256 of a JSON document, hex encoded.

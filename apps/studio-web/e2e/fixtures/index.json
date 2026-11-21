@@ -1,20 +1,29 @@
 {
-  "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+  "authorPublicKey": "697a704ffe6e6cd957b2513dec0d2f64b87280b5c777deeb3a815a47271cc385",
   "fixtures": [
     {
+      "file": "valid.mapp",
+      "sha256": "3993f73512427bc8ebbb22e5e1ef3be4a4e97a5bcb8f51278cb9cc07e7d3b325"
+    },
+    {
       "file": "escape.mapp",
-      "sha256": "48578b88f64ac25d239bfa9978471c2bdb02b38c3644b1fd42e76d833696cd3f",
-      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+      "sha256": "e41b583aa8a731f573af9251d395266b5af1189983f3b4e9a5ec3853e6b9f8ad"
     },
     {
       "file": "loop.mapp",
-      "sha256": "c9ed834c627b1c42e065c3c451c509f04f48e81420cda81f1c88779b11aaefcb",
-      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+      "sha256": "3e3d09932cb265f9e63d55752419b496741a3928c91474bb5f1ebf0943bdfc03"
     },
     {
       "file": "crash.mapp",
-      "sha256": "3ec45115d38b2eb438b1a0da84f4d0b29ebdf34f69317bf40a5760cd7800d6d7",
-      "authorPublicKey": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737"
+      "sha256": "c9400b19e3c5a5703efa74f03d54da6d506b7cc365816ca8bd2341b5a7e88f82"
+    },
+    {
+      "file": "consent.mapp",
+      "sha256": "34ab29b3ddf7e3b4dd2f3330a49b8585a1254384100a91d465ae60457f93ed7a"
+    },
+    {
+      "file": "unsigned.mapp",
+      "sha256": "3db8c0af108e9942d09b5bd69ffb70332e2ae43259e270a86327d125195219c9"
     }
   ]
 }

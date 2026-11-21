@@ -6,6 +6,7 @@
 //! verification tooling all call into this crate.
 
 pub mod audit;
+pub mod backup;
 pub mod crypto;
 pub mod error;
 pub mod guard;

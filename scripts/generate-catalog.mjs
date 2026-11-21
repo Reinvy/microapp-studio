@@ -41,7 +41,13 @@ for (const line of lines) {
     console.error(`unknown component category: ${id}`);
     process.exit(1);
   }
-  entries.push({ id, name, category });
+  const level = cells[4];
+  if (level !== 'core' && level !== 'advanced') {
+    console.error(`unknown component level for ${id}: ${level ?? '(missing)'}`);
+    process.exit(1);
+  }
+  const useCase = cells[5] ?? '';
+  entries.push({ id, name, category, level, useCase });
 }
 
 const unique = new Map();
@@ -58,10 +64,16 @@ if (unique.size !== 120) {
   process.exit(1);
 }
 
+const core = [...unique.values()].filter((entry) => entry.level === 'core');
+if (core.length !== 48) {
+  console.error(`expected 48 core components, found ${core.length}`);
+  process.exit(1);
+}
+
 const body = [...unique.values()]
   .map(
     (entry) =>
-      `  { id: '${entry.id}', name: '${entry.name}', category: '${entry.category}', introducedIn: '2.0.0' },`,
+      `  { id: '${entry.id}', name: '${entry.name}', category: '${entry.category}', level: '${entry.level}', introducedIn: '2.0.0' },`,
   )
   .join('\n');
 
@@ -80,10 +92,14 @@ export type ComponentCategory =
   | 'platform'
   | 'ai';
 
+/** core is the 48-component clay palette; advanced renders a placeholder. */
+export type ComponentLevel = 'core' | 'advanced';
+
 export interface CatalogComponent {
   readonly id: string;
   readonly name: string;
   readonly category: ComponentCategory;
+  readonly level: ComponentLevel;
   /** First host version that MUST render the component (U-02/U-12). */
   readonly introducedIn: string;
 }
@@ -93,6 +109,9 @@ ${body}
 ];
 
 export const CATALOG_SIZE = COMPONENT_CATALOG.length;
+
+/** The 48 fully specified clay components used as the builder's default palette. */
+export const CORE_CATALOG_SIZE = COMPONENT_CATALOG.filter((component) => component.level === 'core').length;
 
 const BY_NAME = new Map(COMPONENT_CATALOG.map((component) => [component.name, component]));
 

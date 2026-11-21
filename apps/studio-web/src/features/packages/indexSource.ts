@@ -8,7 +8,6 @@
  * rather than silently dropped.
  */
 
-import { z } from 'zod';
 import type { WorkerHostDb } from '@/db/client';
 import { uuidv7 } from '@/db/ids';
 import { bytesToHex, hexToBytes, sha256HexOfText } from '@/lib/bytes';
@@ -24,31 +23,90 @@ export const PERMISSION_IDS = [
   'share.export',
 ] as const;
 
-const indexEntrySchema = z
-  .object({
-    id: z.string().regex(/^[a-z][a-z0-9]*(\.[a-z0-9]+){1,4}$/),
-    name: z.string().min(1).max(80).optional(),
-    version: z.string().regex(/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/),
-    url: z.string().url().startsWith('https://'),
-    sha256: z.string().regex(/^[a-f0-9]{64}$/),
-    signature: z.string().min(16).max(512),
-    publicKey: z.string().min(8).max(256).optional(),
-    permissions: z.array(z.enum(PERMISSION_IDS)).max(PERMISSION_IDS.length),
-    description: z.string().max(280).optional(),
-  })
-  .strict();
+type PermissionId = (typeof PERMISSION_IDS)[number];
 
-export const indexSchema = z
-  .object({
-    schemaVersion: z.literal(1),
-    name: z.string().min(1).max(80),
-    updatedAt: z.string().datetime(),
-    apps: z.array(indexEntrySchema).max(500),
-  })
-  .strict();
+export interface IndexEntry {
+  id: string;
+  name?: string;
+  version: string;
+  url: string;
+  sha256: string;
+  signature: string;
+  publicKey?: string;
+  permissions: PermissionId[];
+  description?: string;
+}
 
-export type IndexEntry = z.infer<typeof indexEntrySchema>;
-export type PackageIndex = z.infer<typeof indexSchema>;
+export interface PackageIndex {
+  schemaVersion: 1;
+  name: string;
+  updatedAt: string;
+  apps: IndexEntry[];
+}
+
+const ID_PATTERN = /^[a-z][a-z0-9]*(\.[a-z0-9]+){1,4}$/;
+const SEMVER_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const ENTRY_KEYS = new Set(['id', 'name', 'version', 'url', 'sha256', 'signature', 'publicKey', 'permissions', 'description']);
+const INDEX_KEYS = new Set(['schemaVersion', 'name', 'updatedAt', 'apps']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Strict, dependency-free validation of a cached index entry.
+ * Every unknown key is a rejection: the index is a trust boundary, so a field we
+ * do not understand is a field we cannot honour.
+ */
+function parseEntry(raw: unknown): { entry: IndexEntry } | { error: string } {
+  if (!isRecord(raw)) return { error: 'entry is not an object' };
+  for (const key of Object.keys(raw)) {
+    if (!ENTRY_KEYS.has(key)) return { error: `unknown field ${key}` };
+  }
+  if (typeof raw.id !== 'string' || !ID_PATTERN.test(raw.id)) return { error: 'invalid id' };
+  if (raw.name !== undefined && (typeof raw.name !== 'string' || raw.name.length === 0 || raw.name.length > 80)) {
+    return { error: 'invalid name' };
+  }
+  if (typeof raw.version !== 'string' || !SEMVER_PATTERN.test(raw.version)) return { error: 'invalid version' };
+  if (typeof raw.url !== 'string' || !raw.url.startsWith('https://')) return { error: 'url must be https' };
+  if (typeof raw.sha256 !== 'string' || !SHA256_PATTERN.test(raw.sha256)) return { error: 'invalid sha256' };
+  if (typeof raw.signature !== 'string' || raw.signature.length < 16 || raw.signature.length > 512) {
+    return { error: 'invalid signature' };
+  }
+  if (raw.publicKey !== undefined && (typeof raw.publicKey !== 'string' || raw.publicKey.length > 256)) {
+    return { error: 'invalid publicKey' };
+  }
+  if (raw.description !== undefined && (typeof raw.description !== 'string' || raw.description.length > 280)) {
+    return { error: 'invalid description' };
+  }
+  if (!Array.isArray(raw.permissions)) return { error: 'invalid permissions' };
+  const permissions: PermissionId[] = [];
+  for (const permission of raw.permissions) {
+    if (typeof permission !== 'string' || !(PERMISSION_IDS as readonly string[]).includes(permission)) {
+      return { error: 'unknown permission' };
+    }
+    if (!permissions.includes(permission as PermissionId)) permissions.push(permission as PermissionId);
+  }
+  const entry: IndexEntry = {
+    id: raw.id,
+    version: raw.version,
+    url: raw.url,
+    sha256: raw.sha256,
+    signature: raw.signature,
+    permissions,
+  };
+  if (typeof raw.name === 'string') entry.name = raw.name;
+  if (typeof raw.publicKey === 'string') entry.publicKey = raw.publicKey;
+  if (typeof raw.description === 'string') entry.description = raw.description;
+  return { entry };
+}
+
+export interface IndexValidation {
+  index: PackageIndex | null;
+  unavailable: Array<{ index: number; reason: string }>;
+}
 
 export interface IndexSource {
   id: string;
@@ -70,27 +128,33 @@ const MAX_INDEX_BYTES = 512 * 1024;
 
 /**
  * Validate an index payload entry-by-entry so one bad row does not hide the rest.
- * The document envelope itself must be strict.
+ * The envelope itself must be strict.
  */
 export function validateIndex(payload: unknown): IndexValidation {
-  if (!payload || typeof payload !== 'object') {
-    throw new Error('E-PACK-001 index is not an object');
+  if (!isRecord(payload)) throw new Error('E-PACK-001 index is not an object');
+  for (const key of Object.keys(payload)) {
+    if (!INDEX_KEYS.has(key)) throw new Error(`E-PACK-001 unknown field ${key}`);
   }
-  const record = payload as Record<string, unknown>;
-  const apps = Array.isArray(record.apps) ? record.apps : [];
+  if (payload.schemaVersion !== 1) throw new Error('E-PACK-001 unsupported index version');
+  if (typeof payload.name !== 'string' || payload.name.length === 0 || payload.name.length > 80) {
+    throw new Error('E-PACK-001 index name is invalid');
+  }
+  if (typeof payload.updatedAt !== 'string' || !ISO_DATE.test(payload.updatedAt)) {
+    throw new Error('E-PACK-001 index updatedAt is invalid');
+  }
+  if (!Array.isArray(payload.apps) || payload.apps.length > 500) {
+    throw new Error('E-PACK-001 index apps must be an array of at most 500 entries');
+  }
+
   const unavailable: IndexValidation['unavailable'] = [];
-  const good: unknown[] = [];
-  apps.forEach((entry, index) => {
-    const parsed = indexEntrySchema.safeParse(entry);
-    if (parsed.success) good.push(entry);
-    else unavailable.push({ index, reason: parsed.error.issues[0]?.message ?? 'invalid entry' });
+  const apps: IndexEntry[] = [];
+  payload.apps.forEach((raw, index) => {
+    const result = parseEntry(raw);
+    if ('error' in result) unavailable.push({ index, reason: result.error });
+    else apps.push(result.entry);
   });
-  const envelope = indexSchema.safeParse({ ...record, apps: good });
-  if (!envelope.success) {
-    // The envelope is broken (wrong schema version / name / timestamp): fail closed.
-    throw new Error(`E-PACK-001 ${envelope.error.issues[0]?.message ?? 'index is invalid'}`);
-  }
-  return { index: envelope.data, unavailable };
+
+  return { index: { schemaVersion: 1, name: payload.name, updatedAt: payload.updatedAt, apps }, unavailable };
 }
 
 export async function listSources(db: WorkerHostDb, workspaceId: string): Promise<IndexSource[]> {
@@ -113,8 +177,8 @@ export async function listSources(db: WorkerHostDb, workspaceId: string): Promis
     let cached: PackageIndex | null = null;
     if (row.cached_index_json) {
       try {
-        const parsed = indexSchema.safeParse(JSON.parse(row.cached_index_json) as unknown);
-        cached = parsed.success ? parsed.data : null;
+        // A cached row is accepted only if it still passes the strict envelope.
+        cached = validateIndex(JSON.parse(row.cached_index_json) as unknown).index;
       } catch {
         cached = null;
       }

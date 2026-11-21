@@ -735,7 +735,7 @@ describe('vault', () => {
         keyId: bytes(16, 9),
         nonce,
       }),
-    ).rejects.toThrow(/E-CRYPTO-001/);
+    ).rejects.toThrow(/E-AUTH-001/);
   });
 
   it('keeps one active key wrap per workspace', async () => {

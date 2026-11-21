@@ -1,338 +1,379 @@
 'use client';
 
+/*
+ * `react-hooks/refs` (React Compiler) treats any value returned by a custom hook
+ * that also returns a ref as a ref, so it flags plain state reads and even
+ * `ref={sandbox.iframeRef}`. Returning the iframe ref from `useSandboxApp` is the
+ * documented pattern; the hook itself keeps every ref access off the render path.
+ */
+/* eslint-disable react-hooks/refs */
+
 /**
- * App runner: loads the verified bundle from OPFS, mounts it inside an opaque
- * origin iframe, proxies bridge calls through the broker, and enforces the
- * watchdog restart budget.
+ * Runner page (SCR: `/app/[appId]`).
+ *
+ * Thin surface over `useSandboxApp`: a banner header with the app identity,
+ * status badges, and the runner menu; the sandbox itself; and the crash
+ * boundary. Every sandbox decision (consent, watchdog, hibernation, bridge
+ * handlers) lives in the hook — this file only renders state and navigation.
  */
 
-import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
-import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Badge, Button, EmptyState, Menu, Modal, type MenuItem } from '@microapp/ui-kit';
+import { SANDBOX_IFRAME_ATTRIBUTES } from '@microapp/runtime-web';
 import { useHost } from '@/features/host/HostProvider';
-import { BridgeBroker, buildSandboxDocument, FREEZE_MS, type AuditEvent } from '@microapp/runtime-web';
-import { permissionDecision } from '@/db/repositories/permissions';
-import { getApp, type InstalledApp } from '@/db/repositories/apps';
+import { appPolicy } from '@/db/repositories/apps';
+import { readOpfsFile } from '@/features/storage/opfs';
+import { downloadBytes, parseManifestFacts } from '@/features/runner/sandboxCore';
+import { useSandboxApp } from '@/features/runner/useSandboxApp';
 
-interface CrashState {
-  code: string;
-  message: string;
+const formatBytes = (value: number, locale: string): string =>
+  new Intl.NumberFormat(locale, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 }).format(
+    value / (1024 * 1024),
+  );
+
+interface RunnerPolicy {
+  offlineCage: boolean;
+  mockPermissions: string[];
 }
 
-async function readBundle(app: InstalledApp): Promise<{ bytes: Uint8Array; bundlePath: string }> {
-  const manifest = JSON.parse(app.manifestJson) as { entry?: { bundle?: string } };
-  const bundlePath = manifest.entry?.bundle ?? 'dist/app.bundle.js';
-  const segments = [app.bundlePath, bundlePath].join('/').split('/').filter(Boolean);
-  let directory = await navigator.storage.getDirectory();
-  for (const segment of segments.slice(0, -1)) {
-    directory = await directory.getDirectoryHandle(segment);
-  }
-  const name = segments.at(-1);
-  if (!name) throw new Error('E-DATA-001 invalid bundle path');
-  const handle = await directory.getFileHandle(name);
-  const file = await handle.getFile();
-  return { bytes: new Uint8Array(await file.arrayBuffer()), bundlePath };
-}
+const FAIL_CLOSED_POLICY: RunnerPolicy = { offlineCage: true, mockPermissions: [] };
 
 export default function AppRunnerPage(): ReactElement {
   const host = useHost();
+  const router = useRouter();
   const params = useParams<{ appId: string }>();
   const appId = typeof params?.appId === 'string' ? decodeURIComponent(params.appId) : '';
-  const [app, setApp] = useState<InstalledApp | null>(null);
-  const [crash, setCrash] = useState<CrashState | null>(null);
-  const [consent, setConsent] = useState<{
-    target: string;
-    intent: string;
-    route: string;
-    resolve: (decision: 'granted' | 'denied') => void;
-  } | null>(null);
-  const [status, setStatus] = useState<string>('loading');
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const lastBeatRef = useRef<number>(0);
-  const startedRef = useRef<number>(0);
-  const restartsRef = useRef<number[]>([]);
-  const brokerRef = useRef<BridgeBroker | null>(null);
 
+  const hostRef = useRef(host);
+  useEffect(() => {
+    hostRef.current = host;
+  });
   const t = host.t;
 
-  const kill = useCallback(
-    async (code: string, message: string): Promise<void> => {
-      const iframe = iframeRef.current;
-      if (iframe) {
-        iframe.remove();
-        iframeRef.current = null;
-      }
-      setCrash({ code, message });
-      await host.stopApp(appId);
-      await host.audit('sandbox.kill', appId, { code });
-    },
-    [appId, host],
+  const app = useMemo(() => host.apps.find((candidate) => candidate.appId === appId) ?? null, [host.apps, appId]);
+  const manifest = useMemo(() => parseManifestFacts(app?.manifestJson), [app?.manifestJson]);
+
+  const [policyRow, setPolicyRow] = useState<{ installId: string; policy: RunnerPolicy } | null>(null);
+  const [storageOpen, setStorageOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [clock, setClock] = useState<number | null>(null);
+
+  const reloadButtonRef = useRef<HTMLButtonElement | null>(null);
+  const exportButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const appInstallId = app?.id ?? null;
+  const workspaceId = host.workspace?.id ?? null;
+
+  // Policy is per app: the cage defaults to on until the row says otherwise.
+  // Keyed on the install id, never the row object, so a launch refresh cannot
+  // re-run the query in a loop.
+  useEffect(() => {
+    if (!host.db || !workspaceId || !appInstallId) return undefined;
+    const db = host.db;
+    let cancelled = false;
+    void appPolicy(db, workspaceId, appInstallId)
+      .then((row) => {
+        if (!cancelled) setPolicyRow({ installId: appInstallId, policy: row });
+      })
+      .catch(() => {
+        if (!cancelled) setPolicyRow({ installId: appInstallId, policy: FAIL_CLOSED_POLICY });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [host.db, workspaceId, appInstallId]);
+
+  const policy = policyRow && policyRow.installId === app?.id ? policyRow.policy : FAIL_CLOSED_POLICY;
+
+  // Lifecycle: register the launch, release the runtime session on unmount.
+  // `appInstallId` is a scalar: `launchApp` refreshes `host.apps`, and depending
+  // on the row object would stop and relaunch the app on its own refresh.
+  useEffect(() => {
+    if (host.phase !== 'ready' || !appInstallId) return undefined;
+    void hostRef.current.launchApp(appId);
+    return () => {
+      void hostRef.current.stopApp(appId);
+    };
+  }, [appId, appInstallId, host.phase]);
+
+  const bundleSource = useCallback(async (): Promise<string> => {
+    if (!app) throw new Error('E-RUN-002 app not installed');
+    const entry = manifest.bundle ?? 'bundle/index.js';
+    const bytes = await readOpfsFile(`${app.bundlePath}/${entry}`);
+    if (!bytes) throw new Error('E-RUN-002 app bundle missing');
+    return new TextDecoder().decode(bytes);
+  }, [app, manifest.bundle]);
+
+  const sandbox = useSandboxApp({
+    workspaceId: host.workspace?.id ?? '',
+    workspaceSlug: host.workspace?.slug ?? '',
+    appInstallId: app?.id ?? `uninstalled:${appId}`,
+    appId,
+    bundleSource,
+    declaredPermissions: manifest.permissions,
+    mode: 'run',
+    offlineCage: policy.offlineCage,
+  });
+
+  const blockedUntil = sandbox.app.restartBlockedUntil;
+  const restartBlocked = blockedUntil !== null && (clock === null || clock < blockedUntil);
+  const remainingSeconds =
+    blockedUntil === null || clock === null ? 0 : Math.max(0, Math.ceil((blockedUntil - clock) / 1000));
+
+  // Countdown while the budget is exhausted; no timer otherwise.
+  useEffect(() => {
+    if (blockedUntil === null) return undefined;
+    const kickoff = setTimeout(() => setClock(Date.now()), 0);
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => {
+      clearTimeout(kickoff);
+      clearInterval(timer);
+    };
+  }, [blockedUntil]);
+
+  const goHome = useCallback((): void => {
+    if (sandbox.app.status === 'running' && typeof window !== 'undefined') {
+      if (!window.confirm(hostRef.current.t('runner.leaveConfirm'))) return;
+    }
+    router.push('/');
+  }, [router, sandbox.app.status]);
+
+  // Boundary focus: "Muat ulang app" first, or the export action while blocked.
+  useEffect(() => {
+    if (!sandbox.app.crash) return;
+    const target = restartBlocked ? exportButtonRef.current : reloadButtonRef.current;
+    target?.focus();
+  }, [sandbox.app.crash, restartBlocked]);
+
+  // Esc from the boundary always means "back home"; status is crashed, so no
+  // unsaved-work confirmation is needed.
+  useEffect(() => {
+    if (!sandbox.app.crash) return undefined;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      router.push('/');
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [router, sandbox.app.crash]);
+
+  const exportData = useCallback(async (): Promise<void> => {
+    if (!app) return;
+    setActionError(null);
+    try {
+      const text = await hostRef.current.exportAppData(app.id, 'json');
+      downloadBytes(`${app.appId}-data.json`, new TextEncoder().encode(text));
+    } catch {
+      setActionError('E-DATA-002');
+    }
+  }, [app]);
+
+  const emptyApp = app !== null && manifest.bundle === null;
+  const ready = host.phase === 'ready';
+  const missing = ready && app === null;
+
+  const menuItems = useMemo<MenuItem[]>(
+    () => [
+      { id: 'permissions', label: t('runner.permissions'), onSelect: () => router.push('/settings/permissions') },
+      { id: 'storage', label: t('runner.storage'), onSelect: () => setStorageOpen(true) },
+      { id: 'reload', label: t('runner.reload'), disabled: restartBlocked, onSelect: () => sandbox.reload() },
+      { id: 'home', label: t('runner.backHome'), onSelect: () => goHome() },
+    ],
+    [goHome, restartBlocked, router, sandbox, t],
   );
 
-  const mount = useCallback(async (): Promise<(() => void) | undefined> => {
-    setCrash(null);
-    setStatus('loading');
-    if (!host.db || !host.workspace) return undefined;
-    const installed = await host.launchApp(appId);
-    if (!installed) {
-      setCrash({ code: 'E-HOST-003', message: t('app.notInstalled') });
-      return;
-    }
-    setApp(installed);
-
-    const { bytes } = await readBundle(installed);
-    const bundleSource = new TextDecoder().decode(bytes);
-
-    const bootstrapSource = await fetch('/sandbox-bootstrap.js').then((response) => {
-      if (!response.ok) throw new Error('E-HOST-002 sandbox bootstrap missing');
-      return response.text();
-    });
-    const nonce = crypto.randomUUID().replaceAll('-', '');
-
-    const broker = new BridgeBroker({
-      appId,
-      handlers: {
-        'log.write': (params) => {
-          if (typeof params.message === 'string') console.info('[micro-app]', params.message);
-          return { accepted: true };
-        },
-        'log.flush': () => ({ accepted: true }),
-        'sync.status': () => ({ state: 'local', cursor: null }),
-        'sync.request': () => ({ queued: false }),
-        'sync.cancel': () => ({ cancelled: false }),
-        'device.info': () => ({ platform: navigator.platform, language: navigator.language }),
-        'storage.get': (params) => ({ value: sessionStorage.getItem(`mapp:${appId}:${String(params.key)}`) }),
-        'storage.set': (params) => {
-          sessionStorage.setItem(`mapp:${appId}:${String(params.key)}`, String(params.value ?? ''));
-          return { saved: true };
-        },
-        'storage.remove': (params) => {
-          sessionStorage.removeItem(`mapp:${appId}:${String(params.key)}`);
-          return { removed: true };
-        },
-        'storage.keys': () => ({ keys: [] }),
-      },
-      requestConsent: async (request) => {
-        // Per-transfer intent consent: the dialog shows source, target, type, route.
-        const target = String(request.params.target ?? '');
-        const intent = String(request.params.intent ?? '');
-        const route = String(request.params.route ?? '/');
-        if (!target) return 'denied';
-        const targetApp = await getApp(host.db!, host.workspace!.id, target);
-        if (!targetApp) return 'denied';
-        let declared: string[] = [];
-        try {
-          const manifest = JSON.parse(targetApp.manifestJson) as {
-            capabilities?: { intentsIn?: string[] };
-          };
-          declared = manifest.capabilities?.intentsIn ?? [];
-        } catch {
-          declared = [];
-        }
-        if (!declared.includes(intent)) {
-          await host.audit('intent.deny', target, { reason: 'undeclared_intent', intent });
-          return 'denied';
-        }
-        return new Promise<'granted' | 'denied'>((resolve) => {
-          setConsent({ target, intent, route, resolve });
-        });
-      },
-      checkPermission: async (permissionId) => {
-        const decision = await permissionDecision(host.db!, {
-          workspaceId: host.workspace!.id,
-          appInstallId: installed.id,
-          permissionId,
-        });
-        return decision;
-      },
-      audit: (event: AuditEvent) => {
-        void host.audit('bridge.call', `${event.method}`, {
-          result: event.result,
-          code: event.code,
-          durationMs: event.durationMs,
-        });
-      },
-    });
-    brokerRef.current = broker;
-
-    const iframe = document.createElement('iframe');
-    iframe.setAttribute('sandbox', 'allow-scripts');
-    iframe.setAttribute('title', `Sandbox ${appId}`);
-    iframe.setAttribute('referrerpolicy', 'no-referrer');
-    iframe.style.width = '100%';
-    iframe.style.minHeight = '480px';
-    iframe.style.border = '0';
-    iframe.srcdoc = buildSandboxDocument({ bootstrapSource, nonce, appId, locale: host.locale });
-    iframeRef.current = iframe;
-    const container = document.getElementById('sandbox-container');
-    if (!container) throw new Error('E-DATA-001 sandbox container missing');
-    container.replaceChildren(iframe);
-
-    lastBeatRef.current = Date.now();
-    startedRef.current = Date.now();
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.source !== iframe.contentWindow) return;
-      if (typeof event.data !== 'object' || event.data === null) return;
-      const message = event.data as Record<string, unknown>;
-      switch (message.type) {
-        case 'microapp.hello':
-          iframe.contentWindow?.postMessage(
-            {
-              type: 'microapp.init',
-              appId,
-              bundleSource,
-              bridgeVersion: 1,
-            },
-            '*',
-          );
-          return;
-        case 'microapp.heartbeat':
-          lastBeatRef.current = Date.now();
-          return;
-        case 'microapp.ready':
-          setStatus('ready');
-          return;
-        case 'microapp.fatal':
-          void kill('E-SBX-003', String(message.message ?? t('app.errorBody')));
-          return;
-        case 'microapp.event':
-          void host.audit('muip.event', String(message.nodeId), { event: String(message.event) });
-          return;
-        case 'microapp.bridge': {
-          void (async () => {
-            const response = await broker.handle({
-              v: 1,
-              id: String(message.id),
-              ns: String(message.ns),
-              method: String(message.method),
-              params: (message.params as Record<string, unknown>) ?? {},
-            });
-            iframe.contentWindow?.postMessage({ type: 'microapp.bridge.reply', ...response }, '*');
-          })();
-          return;
-        }
-        default:
-          return;
-      }
-    };
-    window.addEventListener('message', onMessage);
-
-    return () => {
-      window.removeEventListener('message', onMessage);
-    };
-  }, [appId, host, kill, t]);
-
-  const mountRef = useRef(mount);
-  useEffect(() => {
-    mountRef.current = mount;
-  }, [mount]);
-
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    void mountRef.current().then((dispose) => {
-      cleanup = dispose;
-    });
-    return () => {
-      cleanup?.();
-      if (iframeRef.current) iframeRef.current.remove();
-    };
-  }, [appId]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (!iframeRef.current) return;
-      const silentMs = Date.now() - lastBeatRef.current;
-      if (silentMs < FREEZE_MS) return;
-      const windowStart = Date.now() - 60_000;
-      restartsRef.current = restartsRef.current.filter((at) => at > windowStart);
-      if (restartsRef.current.length >= 2) {
-        void kill('E-SBX-003', 'Batas restart otomatis tercapai');
-        return;
-      }
-      restartsRef.current.push(Date.now());
-      void kill('E-SBX-003', 'Sandbox tidak merespons (freeze)');
-    }, 1_000);
-    return () => clearInterval(timer);
-  }, [kill]);
-
-  const header = useMemo(
-    () => (
-      <div className="screen-header">
-        <div>
-          <h1>{app?.appId ?? appId}</h1>
-          <p>{app ? `${app.version} · ${app.state}` : t('app.loading')}</p>
-        </div>
-        <div className="badge-row">
-          <button type="button" className="button" onClick={() => void mount()} disabled={StatusCodeBusy(status)}>
-            {t('app.restart')}
-          </button>
-          <Link className="button" href="/">
-            {t('common.back')}
-          </Link>
-        </div>
-      </div>
-    ),
-    [app, appId, mount, status, t],
+  const statusTone =
+    sandbox.app.status === 'running'
+      ? 'success'
+      : sandbox.app.status === 'crashed'
+        ? 'danger'
+        : sandbox.app.status === 'stopped'
+          ? 'warning'
+          : 'info';
+  const statusLabel = t(
+    sandbox.app.status === 'running'
+      ? 'runner.statusRunning'
+      : sandbox.app.status === 'stopped'
+        ? 'runner.statusStopped'
+        : sandbox.app.status === 'crashed'
+          ? 'runner.statusCrashed'
+          : 'runner.starting',
   );
 
   return (
-    <main id="mads-main" className="screen">
-      {header}
-      <p role="status">{status === 'ready' ? t('app.run') : t('app.loading')}</p>
-      {crash ? (
-        <section role="alert" className="alert alert-error">
-          <h2>{t('app.errorTitle')}</h2>
-          <p>{t('app.errorBody')}</p>
-          <p>
-            <code>{crash.code}</code> {crash.message}
+    <div style={{ display: 'flex', flexDirection: 'column', minBlockSize: '100dvh' }}>
+      <header
+        role="banner"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 'var(--mads-space-3)',
+          padding: 'var(--mads-space-3) var(--mads-space-4)',
+          borderBlockEnd: '1px solid var(--mads-color-border-subtle)',
+          background: 'var(--mads-color-surface)',
+        }}
+      >
+        <div className="mads-row">
+          <Button variant="secondary" size="sm" onClick={goHome}>
+            {t('runner.backHome')}
+          </Button>
+          <div>
+            <h1 style={{ fontSize: 'var(--mads-text-20)' }}>{app?.name ?? appId}</h1>
+            <p style={{ color: 'var(--mads-color-muted)', fontSize: 'var(--mads-text-14)' }}>
+              {manifest.version ?? app?.version ?? ''}
+            </p>
+          </div>
+        </div>
+        <div className="mads-row">
+          {policy.offlineCage ? <Badge tone="info">{t('settings.permissions.cageOn')}</Badge> : null}
+          <Badge tone={statusTone}>{statusLabel}</Badge>
+          <Menu label={t('a11y.menu')} items={menuItems} />
+        </div>
+      </header>
+
+      <main
+        id="mads-main"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--mads-space-4)',
+          padding: 'var(--mads-space-4)',
+          flex: '1 1 auto',
+        }}
+      >
+        <p className="mads-visually-hidden" role="status" aria-live="polite">
+          {statusLabel}
+        </p>
+
+        {actionError ? (
+          <p role="alert" style={{ color: 'var(--mads-color-error)' }}>
+            {t(`errors.${actionError}`)}
           </p>
-          <button type="button" className="button" onClick={() => void mount()}>
-            {t('app.restart')}
-          </button>
-        </section>
-      ) : null}
-      {consent ? (
-        <div role="dialog" aria-modal="true" aria-label={t('permissions.title')} className="modal">
-          <h2>{t('permissions.title')}</h2>
-          <p>
-            {appId} → {consent.target}
-          </p>
-          <p>
-            {consent.intent} · {consent.route}
-          </p>
-          <div className="badge-row">
-            <button
-              type="button"
-              className="button button-primary"
-              onClick={() => {
-                consent.resolve('granted');
-                void host.audit('intent.dispatch', consent.target, { intent: consent.intent });
-                setConsent(null);
+        ) : null}
+
+        {!ready ? <p role="status">{t('runner.starting')}</p> : null}
+
+        {missing ? (
+          <EmptyState
+            title={t('runner.notFound')}
+            description={t('runner.notInstalled')}
+            action={<Button onClick={goHome}>{t('runner.backHome')}</Button>}
+          />
+        ) : null}
+
+        {emptyApp && app ? (
+          <EmptyState
+            title={app.name}
+            description={t('runner.notFound')}
+            action={<Button onClick={goHome}>{t('runner.backHome')}</Button>}
+          />
+        ) : null}
+
+        {app && !emptyApp ? (
+          <>
+            {sandbox.app.status === 'starting' && !sandbox.app.crash ? <p role="status">{t('runner.starting')}</p> : null}
+            <iframe
+              ref={sandbox.iframeRef}
+              title={`Sandbox ${app.name}`}
+              {...SANDBOX_IFRAME_ATTRIBUTES}
+              style={{
+                display: sandbox.app.crash ? 'none' : 'block',
+                inlineSize: '100%',
+                blockSize: 'min(72vh, 760px)',
+                border: 0,
+                borderRadius: 'var(--mads-radius-clay-lg)',
+                background: 'var(--mads-color-surface)',
               }}
-            >
-              {t('install.allow')}
-            </button>
-            <button
-              type="button"
-              className="button"
-              onClick={() => {
-                consent.resolve('denied');
-                void host.audit('intent.deny', consent.target, { intent: consent.intent });
-                setConsent(null);
-              }}
-            >
-              {t('install.deny')}
-            </button>
+            />
+          </>
+        ) : null}
+      </main>
+
+      {sandbox.app.crash && app ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            display: 'grid',
+            placeItems: 'center',
+            padding: 'var(--mads-space-4)',
+            background: 'color-mix(in srgb, var(--mads-color-fg) 40%, transparent)',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="runner-crash-title"
+            aria-describedby="runner-crash-body"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--mads-space-4)',
+              inlineSize: 'min(32rem, 100%)',
+              padding: 'var(--mads-space-6)',
+              borderRadius: 'var(--mads-radius-clay-lg)',
+              background: 'var(--mads-color-surface-raised)',
+              boxShadow: 'var(--mads-clay-shadow-3)',
+            }}
+          >
+            <h2 id="runner-crash-title">{t('runner.crashTitle')}</h2>
+            <p id="runner-crash-body" style={{ color: 'var(--mads-color-muted)' }}>
+              {t('runner.crashBody', { app: app.name })}
+            </p>
+            <p style={{ fontFamily: 'var(--mads-font-mono)', fontSize: 'var(--mads-text-14)' }}>
+              {sandbox.app.crash.code} · {sandbox.app.crash.message}
+            </p>
+            {restartBlocked ? (
+              <div role="status" style={{ color: 'var(--mads-color-warning)' }}>
+                <p>{t('runner.restartBudget')}</p>
+                {remainingSeconds > 0 ? (
+                  <p>{t('runner.restartCountdown', { seconds: remainingSeconds })}</p>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="mads-row">
+              <Button ref={reloadButtonRef} onClick={() => sandbox.reload()} disabled={restartBlocked}>
+                {t('runner.reloadApp')}
+              </Button>
+              <Button ref={exportButtonRef} variant="secondary" onClick={() => void exportData()}>
+                {t('runner.exportData')}
+              </Button>
+              <Button variant="ghost" onClick={goHome}>
+                {t('runner.backHome')}
+              </Button>
+            </div>
           </div>
         </div>
       ) : null}
-      <div id="sandbox-container" aria-live="polite" />
-    </main>
-  );
-}
 
-function StatusCodeBusy(status: string): boolean {
-  return status === 'loading';
+      <Modal
+        open={storageOpen}
+        onClose={() => setStorageOpen(false)}
+        title={t('runner.storage')}
+        footer={
+          <div className="mads-row">
+            <Button variant="secondary" onClick={() => void exportData()}>
+              {t('runner.exportData')}
+            </Button>
+            <Button variant="ghost" onClick={() => setStorageOpen(false)}>
+              {t('common.close')}
+            </Button>
+          </div>
+        }
+      >
+        <p>
+          {host.storageEstimate
+            ? `${formatBytes(host.storageEstimate.usage, host.locale)} / ${formatBytes(host.storageEstimate.quota, host.locale)}`
+            : t('common.loading')}
+        </p>
+        <p style={{ color: 'var(--mads-color-muted)' }}>{t('settings.permissions.cage')}</p>
+        <p>{policy.offlineCage ? t('settings.permissions.cageOn') : t('settings.permissions.cageOff')}</p>
+      </Modal>
+    </div>
+  );
 }

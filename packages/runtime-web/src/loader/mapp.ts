@@ -1,9 +1,10 @@
 /**
  * `.mapp` verification and OPFS materialization.
  *
- * The loader never executes anything before `mapp_verify` succeeds. Entry
- * integrity (`entry.integrity`, SRI sha384) is re-checked on the extracted
- * bundle so a package cannot swap bytes between verification and install.
+ * The loader never executes anything before `mapp_verify_v2` succeeds. The Rust
+ * core owns every cryptographic check (per-file digests, contentHash, author and
+ * optional registry signatures); this module only maps the verified manifest
+ * into the typed shape the host consumes and extracts the bundle bytes.
  */
 
 import { BridgeError } from '../bridge/errors';
@@ -17,14 +18,21 @@ export interface MappEntryData {
   dataBase64: string;
 }
 
+/** Manifest v2 as verified by the Rust core (`docs/03-specs/manifest.md`). */
 export interface VerifiedManifest {
+  schemaVersion: 2;
   id: string;
+  name: string;
   version: string;
-  contentHash: string;
-  minHostVersion: string;
-  runtime: { maxMemoryMb: number; secureDisplay?: boolean };
-  entry: { bundle: string; assetsDir: string; integrity: string; signature: string };
-  permissions: { required: string[]; optional: string[]; networkAllowlist: string[] };
+  entry: { bundle: string };
+  assetsDir: string;
+  integrity: { algorithm: 'sha256'; contentHash: string; files: Record<string, string> };
+  signature: { algorithm: 'ed25519'; keyId: string; value: string };
+  offline: boolean;
+  permissions: string[];
+  networkAllowlist: string[];
+  capabilities: string[];
+  ui: { engine: 'muip-web'; protocol: 1 };
 }
 
 export interface CoreMappApi {
@@ -43,11 +51,17 @@ export interface VerifiedPackage {
   entries: MappEntryData[];
   bundleBytes: Uint8Array;
   authorSignature: Uint8Array | null;
-  registrySignature: Uint8Array | null;
 }
 
 export interface StorageWriter {
   write(path: string, bytes: Uint8Array): Promise<void>;
+}
+
+const ID_PATTERN = /^[a-z][a-z0-9]*(?:\.[a-z0-9]+){1,4}$/;
+const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+
+function invalid(reason: string): BridgeError {
+  return new BridgeError('E-PACK-001', { reason });
 }
 
 function decodeBase64(value: string): Uint8Array {
@@ -59,15 +73,68 @@ function decodeBase64(value: string): Uint8Array {
   return bytes;
 }
 
-function base64FromBytes(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
-async function sha384Base64(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-384', bytes.slice().buffer);
-  return base64FromBytes(new Uint8Array(digest));
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== 'string') throw invalid(field);
+  return value;
+}
+
+function requireRecord(value: unknown, field: string): Record<string, unknown> {
+  if (!isRecord(value)) throw invalid(field);
+  return value;
+}
+
+function readManifest(raw: unknown): VerifiedManifest {
+  const manifest = requireRecord(raw, 'manifest');
+  if (manifest.schemaVersion !== 2) throw invalid('schemaVersion');
+
+  const id = requireString(manifest.id, 'id');
+  if (!ID_PATTERN.test(id)) throw invalid('id');
+  const version = requireString(manifest.version, 'version');
+  if (!VERSION_PATTERN.test(version)) throw invalid('version');
+
+  const entry = requireRecord(manifest.entry, 'entry');
+  const bundle = requireString(entry.bundle, 'entry.bundle');
+
+  const integrity = requireRecord(manifest.integrity, 'integrity');
+  if (integrity.algorithm !== 'sha256') throw invalid('integrity.algorithm');
+  const contentHash = requireString(integrity.contentHash, 'integrity.contentHash');
+  const filesRaw = requireRecord(integrity.files, 'integrity.files');
+  const files: Record<string, string> = {};
+  for (const [path, digest] of Object.entries(filesRaw)) {
+    if (typeof digest !== 'string') throw invalid('integrity.files');
+    files[path] = digest;
+  }
+
+  const signature = requireRecord(manifest.signature, 'signature');
+  if (signature.algorithm !== 'ed25519') throw invalid('signature.algorithm');
+
+  const ui = requireRecord(manifest.ui, 'ui');
+  if (ui.engine !== 'muip-web' || ui.protocol !== 1) throw invalid('ui');
+
+  return {
+    schemaVersion: 2,
+    id,
+    name: requireString(manifest.name, 'name'),
+    version,
+    entry: { bundle },
+    assetsDir:
+      typeof manifest.assetsDir === 'string' ? manifest.assetsDir : 'assets/',
+    integrity: { algorithm: 'sha256', contentHash, files },
+    signature: {
+      algorithm: 'ed25519',
+      keyId: requireString(signature.keyId, 'signature.keyId'),
+      value: requireString(signature.value, 'signature.value'),
+    },
+    offline: manifest.offline === true,
+    permissions: asStringArray(manifest.permissions),
+    networkAllowlist: asStringArray(manifest.networkAllowlist),
+    capabilities: asStringArray(manifest.capabilities),
+    ui: { engine: 'muip-web', protocol: 1 },
+  };
 }
 
 /** Verify signature/contentHash, then extract entries via the Rust core. */
@@ -81,41 +148,23 @@ export async function verifyPackage(
   try {
     verifyJson = await core.verify(bytes, source, keys.authorPubkeyHex ?? '', keys.registryPubkeyHex ?? '');
   } catch (error) {
-    throw toPackageError(error, 'E-REG-001');
+    throw toPackageError(error);
   }
   const verified: unknown = JSON.parse(verifyJson);
-  if (!isRecord(verified) || !isRecord(verified.manifest)) {
-    throw new BridgeError('E-REG-003', { reason: 'verifier_response_invalid' });
-  }
-  const manifest = verified.manifest;
-  if (
-    typeof manifest.id !== 'string' ||
-    typeof manifest.version !== 'string' ||
-    typeof verified.digest !== 'string'
-  ) {
-    throw new BridgeError('E-REG-003', { reason: 'manifest_invalid' });
-  }
-  const entry = manifest.entry;
-  const runtime = manifest.runtime;
-  const permissions = manifest.permissions;
-  if (!isRecord(entry) || !isRecord(runtime) || !isRecord(permissions)) {
-    throw new BridgeError('E-REG-003', { reason: 'manifest_invalid' });
-  }
+  if (!isRecord(verified)) throw invalid('verifier_response_invalid');
+  const digestHex = requireString(verified.digest, 'digest');
+  const manifest = readManifest(verified.manifest);
 
   let entriesJson: string;
   try {
     entriesJson = await core.extractEntries(bytes);
   } catch (error) {
-    throw toPackageError(error, 'E-REG-003');
+    throw toPackageError(error);
   }
   const rawEntries: unknown = JSON.parse(entriesJson);
-  if (!Array.isArray(rawEntries)) {
-    throw new BridgeError('E-REG-003', { reason: 'entries_invalid' });
-  }
+  if (!Array.isArray(rawEntries)) throw invalid('entries_invalid');
   const entries: MappEntryData[] = rawEntries.map((item) => {
-    if (!isRecord(item) || typeof item.path !== 'string') {
-      throw new BridgeError('E-REG-003', { reason: 'entry_invalid' });
-    }
+    if (!isRecord(item) || typeof item.path !== 'string') throw invalid('entry_invalid');
     return {
       path: item.path,
       isDir: item.isDir === true,
@@ -123,68 +172,38 @@ export async function verifyPackage(
     };
   });
 
-  const bundlePath = String(entry.bundle ?? '');
-  const bundleEntry = entries.find((candidate) => candidate.path === bundlePath);
-  if (!bundleEntry || bundleEntry.isDir) {
-    throw new BridgeError('E-REG-003', { reason: 'bundle_missing' });
-  }
-  const bundleBytes = decodeBase64(bundleEntry.dataBase64);
-  const integrity = String(entry.integrity ?? '');
-  if (integrity.startsWith('sha384-')) {
-    const actual = await sha384Base64(bundleBytes);
-    if (`sha384-${actual}` !== integrity) {
-      throw new BridgeError('E-SBX-007', { reason: 'bundle_integrity_mismatch' });
-    }
-  } else {
-    throw new BridgeError('E-REG-003', { reason: 'integrity_unsupported' });
-  }
+  const bundleEntry = entries.find(
+    (candidate) => candidate.path === manifest.entry.bundle && !candidate.isDir,
+  );
+  if (!bundleEntry) throw invalid('bundle_missing');
 
-  const signatureFrom = (value: unknown): Uint8Array | null =>
-    typeof value === 'string' && value.length > 0 ? decodeBase64(value) : null;
+  const authorSignature =
+    typeof verified.authorSignatureBase64 === 'string' && verified.authorSignatureBase64.length > 0
+      ? decodeBase64(verified.authorSignatureBase64)
+      : null;
 
   return {
-    manifest: {
-      id: manifest.id,
-      version: manifest.version,
-      contentHash: String(manifest.contentHash ?? ''),
-      minHostVersion: String(manifest.minHostVersion ?? '2.0.0'),
-      runtime: {
-        maxMemoryMb: Number(runtime.maxMemoryMb ?? 128),
-        secureDisplay: runtime.secureDisplay === true,
-      },
-      entry: {
-        bundle: bundlePath,
-        assetsDir: String(entry.assetsDir ?? 'assets/'),
-        integrity,
-        signature: String(entry.signature ?? ''),
-      },
-      permissions: {
-        required: asStringArray(permissions.required),
-        optional: asStringArray(permissions.optional),
-        networkAllowlist: asStringArray(permissions.networkAllowlist),
-      },
-    },
-    digestHex: verified.digest,
+    manifest,
+    digestHex,
     entries,
-    bundleBytes,
-    authorSignature: signatureFrom(verified.authorSignatureBase64),
-    registrySignature: signatureFrom(verified.registrySignatureBase64),
+    bundleBytes: decodeBase64(bundleEntry.dataBase64),
+    authorSignature,
   };
 }
 
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
-
-function toPackageError(error: unknown, fallback: 'E-REG-001' | 'E-REG-003'): BridgeError {
-  if (error instanceof Error) {
-    const message = error.message;
-    if (message.startsWith('E-REG-001')) return new BridgeError('E-REG-001');
-    if (message.startsWith('E-REG-002')) return new BridgeError('E-REG-003', { reason: 'key_changed' });
-    if (message.startsWith('E-REG-003')) return new BridgeError('E-REG-003');
-    if (message.startsWith('E-SBX-007')) return new BridgeError('E-SBX-007');
-  }
-  return new BridgeError(fallback);
+/**
+ * Map a Rust error into the bridge catalog.
+ *
+ * wasm-bindgen throws the `Result`'s error as a plain `JsValue` string, so the
+ * code must be read from `String(error)` as well as from `Error.message` —
+ * otherwise every package failure collapses into `E-PACK-001`.
+ */
+function toPackageError(error: unknown): BridgeError {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  if (message.startsWith('E-PACK-002')) return new BridgeError('E-PACK-002');
+  if (message.startsWith('E-PACK-003')) return new BridgeError('E-PACK-003');
+  if (message.startsWith('E-PACK-001')) return new BridgeError('E-PACK-001', { reason: message.slice(0, 120) });
+  return new BridgeError('E-PACK-001');
 }
 
 /**
@@ -192,9 +211,8 @@ function toPackageError(error: unknown, fallback: 'E-REG-001' | 'E-REG-003'): Br
  * prefix is rejected by the caller's OPFS guard.
  */
 export function installPrefix(appId: string, version: string): string {
-  const safe = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/.test(appId);
-  if (!safe || !/^[0-9]+\.[0-9]+\.[0-9]+/.test(version)) {
-    throw new BridgeError('E-REG-003', { reason: 'invalid_install_path' });
+  if (!ID_PATTERN.test(appId) || !VERSION_PATTERN.test(version)) {
+    throw new BridgeError('E-PACK-001', { reason: 'invalid_install_path' });
   }
   return `apps/${appId}/${version}/`;
 }

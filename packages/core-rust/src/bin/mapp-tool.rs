@@ -1,8 +1,9 @@
-//! `mapp-tool` — fixture and developer CLI for `.mapp` packages.
+//! `mapp-tool` — fixture and developer CLI for `.mapp` v2 packages.
 //!
-//! Commands: `keygen`, `pack`, `verify`, `inspect`. It is used by tests, by
-//! `scripts/build-core.mjs` smoke checks, and by developers producing signed
-//! fixtures without the full Studio.
+//! Commands: `keygen`, `pack`, `verify`, `inspect`. `pack` follows the same
+//! two-step authoring path as the Studio: prepare (digests + contentHash), sign
+//! the signature message, finalize. `verify` exits non-zero on any failure and
+//! prints the manifest digest on success.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,14 +11,14 @@ use std::process::ExitCode;
 
 use microapp_core::crypto::{ed25519_public, hex_lower, sha256};
 use microapp_core::manifest;
-use microapp_core::mapp::{self, InstallSource, MappEntry};
+use microapp_core::mapp::{self, InstallSource, MappEntry, MANIFEST_PATH, SIGNATURE_PATH};
 use microapp_core::CoreResult;
 
 fn usage() -> &'static str {
     "usage:
-  mapp-tool keygen [--seed <64 hex>] [--json]
-  mapp-tool pack <manifest.json> <dir> -o <out.mapp> [--author-seed <hex>] [--registry-seed <hex>]
-  mapp-tool verify <file.mapp> [--author-pub <hex>] [--registry-pub <hex>] [--source local|registry|git|enterprise]
+  mapp-tool keygen [--seed <64 hex>]
+  mapp-tool pack <microapp.manifest.json> <dir> -o <out.mapp> [--author-seed <hex>] [--unsigned]
+  mapp-tool verify <file.mapp> --author-pub <hex> [--registry-pub <hex>] [--source local|registry|git|enterprise]
   mapp-tool inspect <file.mapp>"
 }
 
@@ -28,8 +29,32 @@ fn arg_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
         .map(|value| value.as_str())
 }
 
+fn has_flag(args: &[String], flag: &str) -> bool {
+    args.iter().any(|arg| arg == flag)
+}
+
+fn parse_seed(value: &str) -> CoreResult<[u8; 32]> {
+    let bytes = microapp_core::crypto::hex_decode(value)?;
+    if bytes.len() != 32 {
+        return Err(microapp_core::CoreError::Crypto("seed must be 32 bytes".into()));
+    }
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&bytes);
+    Ok(out)
+}
+
+fn parse_public(value: Option<&str>) -> CoreResult<Option<[u8; 32]>> {
+    match value {
+        Some(hex) => Ok(Some(mapp::parse_pubkey(hex)?)),
+        None => Ok(None),
+    }
+}
+
 fn walk(dir: &Path, prefix: &Path, entries: &mut Vec<MappEntry>) -> CoreResult<()> {
-    let mut children: Vec<PathBuf> = fs::read_dir(dir)?.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+    let mut children: Vec<PathBuf> = fs::read_dir(dir)?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .collect();
     children.sort();
     for child in children {
         let relative = child.strip_prefix(prefix).unwrap_or(&child).to_path_buf();
@@ -41,7 +66,7 @@ fn walk(dir: &Path, prefix: &Path, entries: &mut Vec<MappEntry>) -> CoreResult<(
         if child.is_dir() {
             entries.push(MappEntry::dir(format!("{normalized}/")));
             walk(&child, prefix, entries)?;
-        } else if normalized != "manifest.json" && !normalized.starts_with("signatures/") {
+        } else if normalized != MANIFEST_PATH && normalized != SIGNATURE_PATH {
             entries.push(MappEntry::file(normalized, fs::read(&child)?));
         }
     }
@@ -57,15 +82,7 @@ fn run() -> CoreResult<i32> {
     match command.as_str() {
         "keygen" => {
             let seed = match arg_value(&args, "--seed") {
-                Some(value) => {
-                    let bytes = microapp_core::crypto::hex_decode(value)?;
-                    if bytes.len() != 32 {
-                        return Err(microapp_core::CoreError::Crypto("seed must be 32 bytes".into()));
-                    }
-                    let mut out = [0u8; 32];
-                    out.copy_from_slice(&bytes);
-                    out
-                }
+                Some(value) => parse_seed(value)?,
                 None => microapp_core::crypto::random_32(),
             };
             let signing = microapp_core::crypto::signing_key_from_seed(&seed);
@@ -81,78 +98,45 @@ fn run() -> CoreResult<i32> {
             Ok(0)
         }
         "pack" => {
-            let manifest_path = args.get(1).ok_or_else(|| {
-                microapp_core::CoreError::Package("manifest path required".into())
-            })?;
-            let dir = args.get(2).ok_or_else(|| {
-                microapp_core::CoreError::Package("package directory required".into())
-            })?;
-            let output = arg_value(&args, "-o").ok_or_else(|| {
-                microapp_core::CoreError::Package("output path (-o) required".into())
-            })?;
+            let manifest_path = args
+                .get(1)
+                .ok_or_else(|| microapp_core::CoreError::Package("manifest path required".into()))?;
+            let dir = args
+                .get(2)
+                .ok_or_else(|| microapp_core::CoreError::Package("package directory required".into()))?;
+            let output = arg_value(&args, "-o")
+                .ok_or_else(|| microapp_core::CoreError::Package("output path (-o) required".into()))?;
             let manifest_json = fs::read_to_string(manifest_path)?;
             let mut entries = Vec::new();
             walk(Path::new(dir), Path::new(dir), &mut entries)?;
-            let author_key = match arg_value(&args, "--author-seed") {
-                Some(value) => {
-                    let bytes = microapp_core::crypto::hex_decode(value)?;
-                    let mut seed = [0u8; 32];
-                    if bytes.len() != 32 {
-                        return Err(microapp_core::CoreError::Crypto("author seed must be 32 bytes".into()));
-                    }
-                    seed.copy_from_slice(&bytes);
-                    Some(microapp_core::crypto::signing_key_from_seed(&seed))
+            let bytes = match arg_value(&args, "--author-seed") {
+                Some(value) if !has_flag(&args, "--unsigned") => {
+                    let seed = parse_seed(value)?;
+                    let signing = microapp_core::crypto::signing_key_from_seed(&seed);
+                    mapp::pack_with_key(&manifest_json, &entries, &signing)?
                 }
-                None => None,
+                Some(_) | None => mapp::build_unsigned(&manifest_json, &entries)?,
             };
-            let registry_key = match arg_value(&args, "--registry-seed") {
-                Some(value) => {
-                    let bytes = microapp_core::crypto::hex_decode(value)?;
-                    let mut seed = [0u8; 32];
-                    if bytes.len() != 32 {
-                        return Err(microapp_core::CoreError::Crypto("registry seed must be 32 bytes".into()));
-                    }
-                    seed.copy_from_slice(&bytes);
-                    Some(microapp_core::crypto::signing_key_from_seed(&seed))
-                }
-                None => None,
-            };
-            let bytes = mapp::pack(&manifest_json, entries, author_key.as_ref(), registry_key.as_ref())?;
             fs::write(output, &bytes)?;
             println!("packed {} ({} bytes)", output, bytes.len());
             Ok(0)
         }
         "verify" => {
-            let file = args.get(1).ok_or_else(|| microapp_core::CoreError::Package("file required".into()))?;
-            let source = match arg_value(&args, "--source").unwrap_or("local") {
-                "local" => InstallSource::Local,
-                "registry" => InstallSource::Registry,
-                "enterprise" => InstallSource::Enterprise,
-                "git" => InstallSource::Git,
-                other => {
-                    return Err(microapp_core::CoreError::Package(format!("unknown source {other}")))
-                }
-            };
-            let parse_key = |value: Option<&str>| -> CoreResult<Option<[u8; 32]>> {
-                match value {
-                    Some(hex) => {
-                        let bytes = microapp_core::crypto::hex_decode(hex)?;
-                        if bytes.len() != 32 {
-                            return Err(microapp_core::CoreError::Crypto("public key must be 32 bytes".into()));
-                        }
-                        let mut out = [0u8; 32];
-                        out.copy_from_slice(&bytes);
-                        Ok(Some(out))
-                    }
-                    None => Ok(None),
-                }
-            };
-            let author = parse_key(arg_value(&args, "--author-pub"))?;
-            let registry = parse_key(arg_value(&args, "--registry-pub"))?;
+            let file = args
+                .get(1)
+                .ok_or_else(|| microapp_core::CoreError::Package("file required".into()))?;
+            let source = InstallSource::parse(arg_value(&args, "--source").unwrap_or("local"))?;
+            let author = parse_public(arg_value(&args, "--author-pub"))?;
+            let registry = parse_public(arg_value(&args, "--registry-pub"))?;
+            if author.is_none() {
+                return Err(microapp_core::CoreError::Signature(
+                    "--author-pub <hex> is required to verify an author signature".into(),
+                ));
+            }
             let bytes = fs::read(file)?;
             let verified = mapp::verify(&bytes, source, author.as_ref(), registry.as_ref())?;
             println!(
-                "verified {} {} ({} entries, {} bytes decompressed, digest sha256-{})",
+                "verified {} {} ({} entries, {} bytes decompressed, digest {})",
                 verified.manifest.id,
                 verified.manifest.version,
                 verified.entry_count,
@@ -162,13 +146,15 @@ fn run() -> CoreResult<i32> {
             Ok(0)
         }
         "inspect" => {
-            let file = args.get(1).ok_or_else(|| microapp_core::CoreError::Package("file required".into()))?;
+            let file = args
+                .get(1)
+                .ok_or_else(|| microapp_core::CoreError::Package("file required".into()))?;
             let bytes = fs::read(file)?;
             let entries = mapp::extract_entries(&bytes)?;
             let manifest_entry = entries
                 .iter()
-                .find(|entry| entry.path == mapp::MANIFEST_PATH)
-                .ok_or_else(|| microapp_core::CoreError::Package("manifest.json missing".into()))?;
+                .find(|entry| entry.path == MANIFEST_PATH)
+                .ok_or_else(|| microapp_core::CoreError::Package(format!("{MANIFEST_PATH} missing")))?;
             let manifest = manifest::parse(
                 std::str::from_utf8(&manifest_entry.data)
                     .map_err(|_| microapp_core::CoreError::Package("manifest not UTF-8".into()))?,
@@ -179,9 +165,10 @@ fn run() -> CoreResult<i32> {
                 serde_json::to_string_pretty(&serde_json::json!({
                     "id": manifest.id,
                     "version": manifest.version,
-                    "contentHash": manifest.content_hash,
-                    "minHostVersion": manifest.min_host_version,
-                    "secureDisplay": manifest.runtime.secure_display,
+                    "contentHash": manifest.integrity.content_hash,
+                    "permissions": manifest.permissions,
+                    "networkAllowlist": manifest.network_allowlist(),
+                    "ui": manifest.ui,
                     "entries": entries.len(),
                     "topLevel": summary,
                 }))

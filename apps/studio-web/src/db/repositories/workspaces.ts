@@ -3,7 +3,7 @@
  *
  * Every function takes `workspaceId` explicitly; the repository never infers a
  * "current" workspace, which keeps cross-workspace queries a compile-time
- * mistake rather than a runtime leak (E-HOST-007).
+ * mistake rather than a runtime leak (E-DATA-001).
  */
 
 import type { HostDb } from '../driver';
@@ -103,7 +103,7 @@ export async function renameWorkspace(
     nowMs,
     workspaceId,
   ]);
-  if (changed === 0) throw new Error(`E-HOST-007 workspace ${workspaceId} not found`);
+  if (changed === 0) throw new Error(`E-DATA-001 workspace ${workspaceId} not found`);
 }
 
 export async function listWorkspaces(db: HostDb): Promise<Workspace[]> {
@@ -171,7 +171,7 @@ export async function createWorkspace(
   input: { name: string; locale?: string; nowMs?: number },
 ): Promise<Workspace> {
   const now = input.nowMs ?? Date.now();
-  if (input.name.trim().length === 0) throw new Error('E-SBX-005 workspace name is required');
+  if (input.name.trim().length === 0) throw new Error('E-RUN-003 workspace name is required');
   const id = uuidv7(now);
   const baseSlug = slugifyWorkspace(input.name);
   const taken = await db.select<{ slug: string }>('SELECT slug FROM workspaces WHERE slug LIKE ?', [`${baseSlug}%`]);
@@ -207,7 +207,7 @@ export async function setActiveWorkspace(db: HostDb, workspaceId: string, nowMs 
       'SELECT id FROM workspaces WHERE id = ? AND deleted_at_ms IS NULL',
       [workspaceId],
     );
-    if (!exists[0]) throw new Error('E-HOST-007 workspace not found');
+    if (!exists[0]) throw new Error('E-DATA-001 workspace not found');
     await tx.exec('UPDATE workspaces SET is_default = 0 WHERE is_default = 1');
     await tx.exec('UPDATE workspaces SET is_default = 1, last_opened_at_ms = ? WHERE id = ?', [nowMs, workspaceId]);
   });
@@ -216,7 +216,7 @@ export async function setActiveWorkspace(db: HostDb, workspaceId: string, nowMs 
 /** Soft-delete a non-default workspace; the default workspace cannot be removed. */
 export async function deleteWorkspace(db: HostDb, workspaceId: string, nowMs = Date.now()): Promise<void> {
   const rows = await db.select<{ is_default: number }>('SELECT is_default FROM workspaces WHERE id = ?', [workspaceId]);
-  if (!rows[0]) throw new Error('E-HOST-007 workspace not found');
-  if (rows[0].is_default === 1) throw new Error('E-HOST-007 default workspace cannot be deleted');
+  if (!rows[0]) throw new Error('E-DATA-001 workspace not found');
+  if (rows[0].is_default === 1) throw new Error('E-DATA-001 default workspace cannot be deleted');
   await db.exec('UPDATE workspaces SET deleted_at_ms = ?, updated_at_ms = ? WHERE id = ?', [nowMs, nowMs, workspaceId]);
 }

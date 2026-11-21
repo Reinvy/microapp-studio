@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import type { ReactElement, ReactNode } from 'react';
 
 import '@fontsource/plus-jakarta-sans/400.css';
@@ -44,7 +45,11 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }): ReactElement {
+export default async function RootLayout({ children }: { children: ReactNode }): Promise<ReactElement> {
+  // The per-request CSP nonce has to reach client code: a sandboxed `srcdoc`
+  // iframe inherits the host policy, so its inline bootstrap is only allowed when
+  // it carries this exact nonce.
+  const nonce = (await headers()).get('x-nonce') ?? '';
   return (
     <html lang="id-ID" dir="ltr" suppressHydrationWarning>
       <head>
@@ -53,6 +58,7 @@ export default function RootLayout({ children }: { children: ReactNode }): React
           direction, text scale, and reduced motion before the first paint so
           the page never flashes the wrong palette. Same-origin and tiny.
         */}
+        <meta name="csp-nonce" content={nonce} />
         {/* eslint-disable-next-line @next/next/no-sync-scripts -- must run before first paint */}
         <script src="/theme-init.js" />
       </head>

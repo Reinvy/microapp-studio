@@ -13,35 +13,52 @@ function base64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function sha384Base64(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-384', bytes.slice().buffer);
-  return base64(new Uint8Array(digest));
+function manifest(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    schemaVersion: 2,
+    id: 'studio.p0123456789ab',
+    name: 'Kasir Warung',
+    version: '1.0.0',
+    entry: { bundle: 'bundle/index.js' },
+    assetsDir: 'assets/',
+    integrity: {
+      algorithm: 'sha256',
+      contentHash: 'a'.repeat(64),
+      files: { 'bundle/index.js': 'b'.repeat(64) },
+    },
+    signature: {
+      algorithm: 'ed25519',
+      keyId: `ed25519:${'c'.repeat(64)}`,
+      value: base64(new Uint8Array(64).fill(1)),
+    },
+    offline: true,
+    permissions: ['storage.app', 'network.fetch'],
+    networkAllowlist: ['https://api.example.com'],
+    capabilities: ['ui.muip', 'storage.app'],
+    ui: { engine: 'muip-web', protocol: 1 },
+    ...overrides,
+  };
 }
 
-async function fakeCore(bundle: Uint8Array, integrity?: string): Promise<CoreMappApi> {
-  const resolvedIntegrity = integrity ?? `sha384-${await sha384Base64(bundle)}`;
+function fakeCore(
+  bundle: Uint8Array,
+  options: { manifest?: Record<string, unknown> } = {},
+): CoreMappApi {
   const entries: MappEntryData[] = [
-    { path: 'dist/app.bundle.js', isDir: false, dataBase64: base64(bundle) },
+    { path: 'bundle/index.js', isDir: false, dataBase64: base64(bundle) },
     { path: 'assets/icon.txt', isDir: false, dataBase64: base64(new TextEncoder().encode('icon')) },
-    { path: 'db/migrations/', isDir: true, dataBase64: '' },
+    { path: 'LICENSE', isDir: false, dataBase64: base64(new TextEncoder().encode('Apache-2.0')) },
   ];
-  const manifest = {
-    id: 'org.reinvy.kas',
-    version: '1.3.0',
-    contentHash: `sha256-${'0'.repeat(64)}`,
-    minHostVersion: '2.0.0',
-    runtime: { maxMemoryMb: 128, secureDisplay: false },
-    entry: {
-      bundle: 'dist/app.bundle.js',
-      assetsDir: 'assets/',
-      integrity: resolvedIntegrity,
-      signature: 'ed25519-abcdef0123456789',
-    },
-    permissions: { required: ['storage.local.sqlite'], optional: [], networkAllowlist: [] },
-  };
   return {
     async verify() {
-      return JSON.stringify({ manifest, digest: 'a'.repeat(64) });
+      return JSON.stringify({
+        manifest: options.manifest ?? manifest(),
+        digest: 'd'.repeat(64),
+        authorPubkeyHex: 'c'.repeat(64),
+        authorSignatureBase64: base64(new Uint8Array(64).fill(1)),
+        entryCount: entries.length,
+        decompressedBytes: 40,
+      });
     },
     async extractEntries() {
       return JSON.stringify(entries);
@@ -50,41 +67,79 @@ async function fakeCore(bundle: Uint8Array, integrity?: string): Promise<CoreMap
 }
 
 describe('mapp loader', () => {
-  it('verifies, extracts, and checks bundle integrity', async () => {
+  it('verifies and maps the v2 manifest', async () => {
     const bundle = new TextEncoder().encode('globalThis.__mapp = {};');
     const pkg = await verifyPackage(await fakeCore(bundle), new Uint8Array([1, 2, 3]), 'local', {
-      authorPubkeyHex: 'f'.repeat(64),
+      authorPubkeyHex: 'c'.repeat(64),
     });
-    expect(pkg.manifest.id).toBe('org.reinvy.kas');
+    expect(pkg.manifest.schemaVersion).toBe(2);
+    expect(pkg.manifest.id).toBe('studio.p0123456789ab');
+    expect(pkg.manifest.entry.bundle).toBe('bundle/index.js');
+    expect(pkg.manifest.permissions).toEqual(['storage.app', 'network.fetch']);
+    expect(pkg.manifest.networkAllowlist).toEqual(['https://api.example.com']);
+    expect(pkg.digestHex).toBe('d'.repeat(64));
     expect(pkg.entries).toHaveLength(3);
+    expect(pkg.authorSignature).toHaveLength(64);
     expect(new TextDecoder().decode(pkg.bundleBytes)).toContain('__mapp');
   });
 
-  it('rejects a bundle whose sha384 does not match', async () => {
-    const bundle = new TextEncoder().encode('tampered');
-    await expect(
-      verifyPackage(await fakeCore(bundle, `sha384-${'A'.repeat(64)}`), new Uint8Array([1]), 'local'),
-    ).rejects.toMatchObject({ code: 'E-SBX-007' });
+  it('rejects a v1 or malformed manifest', async () => {
+    const bundle = new TextEncoder().encode('x');
+    for (const overrides of [
+      { schemaVersion: 1 },
+      { integrity: { algorithm: 'sha384', contentHash: 'a'.repeat(64), files: {} } },
+      { ui: { engine: 'hybrid-native', protocol: 1 } },
+      { id: 'Org.Invalid' },
+      { version: 'v1.0.0' },
+    ]) {
+      const core = fakeCore(bundle, { manifest: manifest(overrides) });
+      await expect(verifyPackage(core, new Uint8Array([1]), 'local')).rejects.toMatchObject({
+        code: 'E-PACK-001',
+      });
+    }
   });
 
   it('maps verifier failures to catalog codes', async () => {
-    const failing: CoreMappApi = {
+    const cases: Array<[string, string]> = [
+      ['E-PACK-002|author signature invalid', 'E-PACK-002'],
+      ['E-PACK-003|digest mismatch', 'E-PACK-003'],
+      ['E-PACK-001|layout invalid', 'E-PACK-001'],
+    ];
+    for (const [message, code] of cases) {
+      const failing: CoreMappApi = {
+        async verify() {
+          throw new Error(message);
+        },
+        async extractEntries() {
+          return '[]';
+        },
+      };
+      await expect(verifyPackage(failing, new Uint8Array([0]), 'registry')).rejects.toMatchObject({
+        code,
+      });
+    }
+  });
+
+  it('requires the declared bundle to be present', async () => {
+    const core: CoreMappApi = {
       async verify() {
-        throw new Error('E-REG-001|signature invalid');
+        return JSON.stringify({ manifest: manifest(), digest: 'd'.repeat(64) });
       },
       async extractEntries() {
-        return '[]';
+        return JSON.stringify([{ path: 'assets/icon.txt', isDir: false, dataBase64: '' }]);
       },
     };
-    await expect(verifyPackage(failing, new Uint8Array([0]), 'registry')).rejects.toMatchObject({
-      code: 'E-REG-001',
+    await expect(verifyPackage(core, new Uint8Array([1]), 'local')).rejects.toMatchObject({
+      code: 'E-PACK-001',
     });
   });
 
   it('builds safe install prefixes and rejects invalid ids', () => {
-    expect(installPrefix('org.reinvy.kas', '1.3.0')).toBe('apps/org.reinvy.kas/1.3.0/');
+    expect(installPrefix('studio.p0123456789ab', '1.0.0')).toBe(
+      'apps/studio.p0123456789ab/1.0.0/',
+    );
     expect(() => installPrefix('../evil', '1.0.0')).toThrow();
-    expect(() => installPrefix('org.reinvy.kas', '../1.0.0')).toThrow();
+    expect(() => installPrefix('studio.p0123456789ab', '../1.0.0')).toThrow();
   });
 
   it('writes every file under the install prefix', async () => {
@@ -96,10 +151,11 @@ describe('mapp loader', () => {
         writes.push({ path, size: bytes.byteLength });
       },
     });
-    expect(result).toEqual({ files: 2, bytes: bundle.byteLength + 4 });
+    expect(result).toEqual({ files: 3, bytes: bundle.byteLength + 4 + 10 });
     expect(writes.map((write) => write.path)).toEqual([
-      'apps/org.reinvy.kas/1.3.0/dist/app.bundle.js',
-      'apps/org.reinvy.kas/1.3.0/assets/icon.txt',
+      'apps/studio.p0123456789ab/1.0.0/bundle/index.js',
+      'apps/studio.p0123456789ab/1.0.0/assets/icon.txt',
+      'apps/studio.p0123456789ab/1.0.0/LICENSE',
     ]);
   });
 });

@@ -59,7 +59,12 @@ import { createTranslator, detectLocale, setActiveLocale, SUPPORTED_LOCALES, typ
 import { verifyPackage, type InstallSourceName, type VerifiedPackage } from '@microapp/runtime-web';
 
 export type HostPhase = 'booting' | 'ready';
-export type CacheStatus = 'cached' | 'uncached';
+/**
+ * `unknown` until the client has actually asked the Cache API. Rendering a
+ * guessed value would make the server and the first client render disagree
+ * (a real hydration error), so the badge waits for the answer.
+ */
+export type CacheStatus = 'unknown' | 'cached' | 'uncached';
 export type PermissionOutcome = 'once' | 'always' | 'denied';
 
 export interface PermissionRequest {
@@ -67,6 +72,8 @@ export interface PermissionRequest {
   appId: string;
   permissionId: string;
   reason?: string;
+  /** Runner/preview mount that asked; `Allow once` is scoped to it. */
+  sessionId?: string;
 }
 
 export interface PendingPermission {
@@ -81,6 +88,8 @@ export interface StorageEstimate {
 
 export interface HostContextValue {
   phase: HostPhase;
+  /** True when the database and workspace are open: create/install can run. */
+  ready: boolean;
   /** `E-SHELL-001` when the worker could not open the database. */
   bootError: string | null;
   /** `E-SHELL-002` when identity creation failed. */
@@ -159,7 +168,7 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
   const [apps, setApps] = useState<InstalledApp[]>([]);
   const [degradedIdentity, setDegradedIdentity] = useState(false);
   const [online, setOnline] = useState(true);
-  const [cacheStatus, setCacheStatus] = useState<CacheStatus>('uncached');
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus>('unknown');
   const [storageEstimate, setStorageEstimate] = useState<StorageEstimate | null>(null);
   const [storagePersisted, setStoragePersisted] = useState(false);
   const [prefs, setPrefsState] = useState<Preferences>(() => parsePreferences(null, detectLocale()));
@@ -289,38 +298,44 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
         identityServiceRef.current = service;
         setIdentityService(service);
 
-        // Identity: automatic, never a modal. Failure degrades instead of blocking.
-        try {
-          resetEnsureIdentity();
-          // The audit callback fires *during* provisioning, so it must not close
-          // over the provisioning result; the actor is read back from the row.
-          const created = await ensureLocalIdentity(workerDb, {
-            service,
-            audit: async (action, target, metadata) => {
-              const hasher: AuditHasher = async (prev, seq, payload) => {
-                const { createCoreClient, coreWasmUrl, loadCoreWasm } = await import('@microapp/runtime-web');
-                const coreModule = await loadCoreWasm(coreWasmUrl());
-                return createCoreClient(coreModule).auditHash(prev, seq, payload);
-              };
-              const actor = (await loadIdentity(workerDb))?.id ?? 'system';
-              await appendAudit(
-                workerDb,
-                { actor, action, target: target ?? null, metadata: metadata ?? {} },
-                hasher,
-              );
-            },
-          });
-          if (!cancelled) {
-            setIdentity(created.identity);
-            setDegradedIdentity(created.degraded || isDegraded());
-            setIdentityError(null);
+        // Identity: automatic, never a modal — and never on the critical path.
+        // Key derivation is Argon2id, which is deliberately slow, so provisioning
+        // runs in the background while Home becomes usable. Failures still degrade
+        // (`identityError`) instead of blocking.
+        const provisionIdentity = async (): Promise<void> => {
+          try {
+            resetEnsureIdentity();
+            // The audit callback fires *during* provisioning, so it must not close
+            // over the provisioning result; the actor is read back from the row.
+            const created = await ensureLocalIdentity(workerDb, {
+              service,
+              audit: async (action, target, metadata) => {
+                const hasher: AuditHasher = async (prev, seq, payload) => {
+                  const { createCoreClient, coreWasmUrl, loadCoreWasm } = await import('@microapp/runtime-web');
+                  const coreModule = await loadCoreWasm(coreWasmUrl());
+                  return createCoreClient(coreModule).auditHash(prev, seq, payload);
+                };
+                const actor = (await loadIdentity(workerDb))?.id ?? 'system';
+                await appendAudit(
+                  workerDb,
+                  { actor, action, target: target ?? null, metadata: metadata ?? {} },
+                  hasher,
+                );
+              },
+            });
+            if (!cancelled) {
+              setIdentity(created.identity);
+              setDegradedIdentity(created.degraded || isDegraded());
+              setIdentityError(null);
+            }
+          } catch {
+            if (!cancelled) {
+              setIdentityError('E-SHELL-002');
+              setDegradedIdentity(true);
+            }
           }
-        } catch {
-          if (!cancelled) {
-            setIdentityError('E-SHELL-002');
-            setDegradedIdentity(true);
-          }
-        }
+        };
+        void provisionIdentity();
 
         const active = await ensureDefaultWorkspace(workerDb, { locale: prefsRef.current.locale });
         const stored = await loadPreferences(workerDb, prefsRef.current.locale);
@@ -454,7 +469,7 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
             appInstallId: request.appInstallId,
             permissionId: request.permissionId,
             scope: 'once',
-            sessionId: request.appInstallId,
+            sessionId: request.sessionId ?? request.appInstallId,
             nowMs: now,
           });
           await audit('permission.grant', request.appId, { permission: request.permissionId, scope: 'once' });
@@ -496,7 +511,7 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
       const active = workspace;
       if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
       const { pkg, bytes } = await inspectPackage(file, source, options);
-      for (const permission of pkg.manifest.permissions.required) {
+      for (const permission of pkg.manifest.permissions) {
         if (permission !== 'storage.app' && !approvedPermissions.includes(permission)) {
           throw new Error(`E-RUN-003 required permission denied: ${permission}`);
         }
@@ -704,7 +719,10 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
       phase,
       bootError,
       identityError,
-      ephemeral: identity === null || degradedIdentity,
+      ready: phase === 'ready' && db !== null && workspace !== null,
+      // Provisioning is asynchronous, so `identity === null` alone is not a
+      // failure; only an explicit error or a degraded secure store is.
+      ephemeral: identityError !== null || degradedIdentity,
       degradedIdentity,
       storage,
       db,

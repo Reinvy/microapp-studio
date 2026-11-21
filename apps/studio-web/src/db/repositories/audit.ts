@@ -3,7 +3,7 @@
  *
  * `audit_log_chain` is the single append-only audit table; `sandbox_audit` is a
  * view over it. `seq_id` allocation and the insert run in one `BEGIN IMMEDIATE`
- * transaction so a crash cannot leave a gap (E-HOST-006).
+ * transaction so a crash cannot leave a gap (E-DATA-001).
  *
  * Hashing is injected: production passes the Rust core (`audit_hash`), tests pass
  * a deterministic test double. The canonical hash algorithm lives in Rust only.
@@ -55,7 +55,7 @@ function toHex(bytes: Uint8Array): string {
 
 function fromHex(hex: string): Uint8Array {
   if (hex.length !== 64 || !/^[0-9a-f]+$/.test(hex)) {
-    throw new Error('E-HOST-006 audit hash must be 32 bytes of lowercase hex');
+    throw new Error('E-DATA-001 audit hash must be 32 bytes of lowercase hex');
   }
   const bytes = new Uint8Array(32);
   for (let index = 0; index < 32; index += 1) {

@@ -37,7 +37,35 @@ export interface VaultOpenRequest {
   envelope: Uint8Array;
 }
 
+export interface PreparePackageResult {
+  manifestJson: string;
+  signatureMessageBase64: string;
+}
+
+/** Identity signing request; the phrase never leaves the host process. */
+export interface IdentitySignRequest {
+  phrase: string;
+  passphrase: string;
+  hkdfSaltHex: string;
+  messageBase64: string;
+}
+
+export interface IdentityPublicRequest {
+  phrase: string;
+  passphrase: string;
+  hkdfSaltHex: string;
+}
+
 export interface CoreClient extends CoreMappApi {
+  prepareV2(manifestJson: string, entriesJson: string): Promise<string>;
+  finalizeV2(
+    manifestJson: string,
+    entriesJson: string,
+    signatureBase64: string,
+    authorPubkeyHex: string,
+  ): Promise<Uint8Array>;
+  signIdentityMessage(request: IdentitySignRequest): Promise<string>;
+  publicIdentity(request: IdentityPublicRequest): Promise<string>;
   manifestValidate(json: string): Promise<string>;
   identityCreate(): Promise<string>;
   identityRecover(
@@ -64,8 +92,8 @@ export interface CoreClient extends CoreMappApi {
   vaultVerifyWrap(pin: string, blob: Uint8Array): Promise<boolean>;
   vaultSealWrapped(request: { pin: string; blob: Uint8Array; aadJson: string; plaintext: Uint8Array }): Promise<Uint8Array>;
   vaultOpenWrapped(request: { pin: string; blob: Uint8Array; aadJson: string; envelope: Uint8Array }): Promise<Uint8Array>;
-  backupSeal(passphrase: string, plaintext: Uint8Array): Promise<Uint8Array>;
-  backupOpen(passphrase: string, blob: Uint8Array): Promise<Uint8Array>;
+  backupSealV2(passphrase: string, sectionsJson: string, createdAtMs: number): Promise<Uint8Array>;
+  backupOpenV2(passphrase: string, bytes: Uint8Array): Promise<string>;
   jsonJcsSha256(json: string): Promise<string>;
 }
 
@@ -77,8 +105,17 @@ export interface CoreWasmModule {
   envelope_seal_js(key: string, label: string, aad: string, plaintext: Uint8Array): Uint8Array;
   envelope_open_js(key: string, label: string, aad: string, envelope: Uint8Array): Uint8Array;
   manifest_validate(json: string): string;
-  mapp_verify(bytes: Uint8Array, source: string, author: string, registry: string): string;
+  mapp_prepare_v2(manifestJson: string, entriesJson: string): string;
+  mapp_finalize_v2(
+    manifestJson: string,
+    entriesJson: string,
+    signatureBase64: string,
+    authorPubkeyHex: string,
+  ): Uint8Array;
+  mapp_verify_v2(bytes: Uint8Array, source: string, author: string, registry: string): string;
   mapp_extract_entries(bytes: Uint8Array): string;
+  identity_sign_message(phrase: string, passphrase: string, salt: string, messageBase64: string): string;
+  identity_public(phrase: string, passphrase: string, salt: string): string;
   audit_hash_js(prev: string, seq: number, payload: string): string;
   hlc_tick(json: string, nowMs: number): string;
   guard_check_sql(sql: string): void;
@@ -104,8 +141,8 @@ export interface CoreWasmModule {
   vault_verify_wrap(pin: string, blob: Uint8Array): boolean;
   vault_seal_wrapped(pin: string, blob: Uint8Array, aadJson: string, plaintext: Uint8Array): Uint8Array;
   vault_open_wrapped(pin: string, blob: Uint8Array, aadJson: string, envelope: Uint8Array): Uint8Array;
-  backup_seal(passphrase: string, plaintext: Uint8Array): Uint8Array;
-  backup_open(passphrase: string, blob: Uint8Array): Uint8Array;
+  backup_seal_v2(passphrase: string, sectionsJson: string, createdAtMs: number): Uint8Array;
+  backup_open_v2(passphrase: string, bytes: Uint8Array): string;
   json_jcs_sha256(json: string): string;
 }
 
@@ -127,8 +164,12 @@ const REQUIRED_EXPORTS: Array<keyof CoreWasmModule> = [
   'envelope_seal_js',
   'envelope_open_js',
   'manifest_validate',
-  'mapp_verify',
+  'mapp_prepare_v2',
+  'mapp_finalize_v2',
+  'mapp_verify_v2',
   'mapp_extract_entries',
+  'identity_sign_message',
+  'identity_public',
   'audit_hash_js',
   'hlc_tick',
   'guard_check_sql',
@@ -145,8 +186,8 @@ const REQUIRED_EXPORTS: Array<keyof CoreWasmModule> = [
   'vault_verify_wrap',
   'vault_seal_wrapped',
   'vault_open_wrapped',
-  'backup_seal',
-  'backup_open',
+  'backup_seal_v2',
+  'backup_open_v2',
   'json_jcs_sha256',
 ];
 
@@ -191,10 +232,32 @@ export async function loadCoreWasm(
 export function createCoreClient(module: CoreWasmModule): CoreClient {
   return {
     async verify(bytes, source, authorPubkeyHex, registryPubkeyHex) {
-      return module.mapp_verify(bytes, source satisfies InstallSourceName, authorPubkeyHex, registryPubkeyHex);
+      return module.mapp_verify_v2(
+        bytes,
+        source satisfies InstallSourceName,
+        authorPubkeyHex,
+        registryPubkeyHex,
+      );
     },
     async extractEntries(bytes) {
       return module.mapp_extract_entries(bytes);
+    },
+    async prepareV2(manifestJson, entriesJson) {
+      return module.mapp_prepare_v2(manifestJson, entriesJson);
+    },
+    async finalizeV2(manifestJson, entriesJson, signatureBase64, authorPubkeyHex) {
+      return module.mapp_finalize_v2(manifestJson, entriesJson, signatureBase64, authorPubkeyHex);
+    },
+    async signIdentityMessage(request) {
+      return module.identity_sign_message(
+        request.phrase,
+        request.passphrase,
+        request.hkdfSaltHex,
+        request.messageBase64,
+      );
+    },
+    async publicIdentity(request) {
+      return module.identity_public(request.phrase, request.passphrase, request.hkdfSaltHex);
     },
     async manifestValidate(json) {
       return module.manifest_validate(json);
@@ -280,11 +343,11 @@ export function createCoreClient(module: CoreWasmModule): CoreClient {
     async vaultOpenWrapped(request) {
       return module.vault_open_wrapped(request.pin, request.blob, request.aadJson, request.envelope);
     },
-    async backupSeal(passphrase, plaintext) {
-      return module.backup_seal(passphrase, plaintext);
+    async backupSealV2(passphrase, sectionsJson, createdAtMs) {
+      return module.backup_seal_v2(passphrase, sectionsJson, createdAtMs);
     },
-    async backupOpen(passphrase, blob) {
-      return module.backup_open(passphrase, blob);
+    async backupOpenV2(passphrase, bytes) {
+      return module.backup_open_v2(passphrase, bytes);
     },
     async jsonJcsSha256(json) {
       return module.json_jcs_sha256(json);

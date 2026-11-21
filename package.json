@@ -21,7 +21,13 @@
     "build:sqlite": "node scripts/copy-sqlite-wasm.mjs",
     "e2e": "npm run e2e -w @microapp/studio-web",
     "dev:setup": "npm run build:core && npm run build:sqlite && npm run build:sandbox",
-    "verify:web": "node scripts/verify-web.mjs"
+    "verify:web": "node scripts/verify-web.mjs",
+    "tokens:check": "node scripts/check-tokens.mjs",
+    "budget:check": "node scripts/check-budget.mjs",
+    "errors:check": "node scripts/check-error-codes.mjs",
+    "security:check": "node scripts/check-security.mjs",
+    "migrations:test": "node scripts/test-migrations.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "overrides": {
     "monaco-editor": {

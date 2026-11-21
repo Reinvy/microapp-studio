@@ -2,7 +2,7 @@
  * Main-thread client for the host DB worker.
  *
  * Owns request ids, timeouts, and transaction serialization. Database status
- * (`opfs` vs `memory`) is exposed so the host can raise `E-HOST-002` when OPFS
+ * (`opfs` vs `memory`) is exposed so the host can raise `E-SHELL-001` when OPFS
  * is unavailable instead of pretending data is persisted.
  */
 
@@ -157,6 +157,30 @@ export class WorkerHostDb implements HostDb {
   async listAppKeys(): Promise<string[]> {
     const response = this.unwrap(await this.call({ op: 'appList' }));
     return response.appKeys ?? [];
+  }
+
+  /** Consistent export of the host database (`sqlite3_js_db_export`). */
+  async snapshot(): Promise<Uint8Array> {
+    const response = this.unwrap(await this.call({ op: 'snapshot' }));
+    if (!response.bytes) throw new Error('E-DATA-001 host database returned no snapshot');
+    return response.bytes;
+  }
+
+  /** Consistent export of one app database, used by restore rollback. */
+  async appSnapshot(key: AppDbKey): Promise<Uint8Array> {
+    const response = this.unwrap(await this.call({ op: 'appSnapshot', ...key }));
+    if (!response.bytes) throw new Error('E-DATA-001 app database returned no snapshot');
+    return response.bytes;
+  }
+
+  /** Close every SQLite handle but keep the worker alive for `reopen`. */
+  async detach(): Promise<void> {
+    this.unwrap(await this.call({ op: 'detach' }));
+  }
+
+  /** Reopen the host database after its OPFS file was replaced. */
+  async reopen(): Promise<void> {
+    this.unwrap(await this.call({ op: 'reopen' }));
   }
 
   /** Escape hatch used by the worker protocol tests. */

@@ -36,6 +36,8 @@ export interface WorkerRequest {
     | 'openVault'
     | 'signDigest'
     | 'publicFromSeed'
+    | 'publicIdentity'
+    | 'signIdentityMessage'
     | 'validateMnemonic'
     | 'vaultWrap'
     | 'vaultUnlock'

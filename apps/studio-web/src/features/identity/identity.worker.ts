@@ -44,7 +44,7 @@ function respond(response: WorkerResponse): void {
 
 function bytesFromHex(hex: string): Uint8Array {
   if (!/^[0-9a-f]*$/.test(hex) || hex.length % 2 !== 0) {
-    throw new Error('E-CRYPTO-001 invalid hex');
+    throw new Error('E-AUTH-001 invalid hex');
   }
   const out = new Uint8Array(hex.length / 2);
   for (let index = 0; index < out.length; index += 1) {
@@ -141,6 +141,23 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       const signature = await client.signWithSeed(seed, digest);
       return { signatureBase64: base64FromBytes(signature) };
     }
+    case 'publicIdentity': {
+      const publicKeyHex = await client.publicIdentity({
+        phrase: String(payload.phrase ?? ''),
+        passphrase: String(payload.passphrase ?? ''),
+        hkdfSaltHex: String(payload.hkdfSaltHex ?? ''),
+      });
+      return { publicKeyHex };
+    }
+    case 'signIdentityMessage': {
+      const signatureBase64 = await client.signIdentityMessage({
+        phrase: String(payload.phrase ?? ''),
+        passphrase: String(payload.passphrase ?? ''),
+        hkdfSaltHex: String(payload.hkdfSaltHex ?? ''),
+        messageBase64: String(payload.messageBase64 ?? ''),
+      });
+      return { signatureBase64 };
+    }
     case 'publicFromSeed': {
       return JSON.parse(await client.publicFromSeed(String(payload.seedHex ?? ''))) as unknown;
     }
@@ -157,7 +174,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       const pin = String(payload.pin ?? '');
       const blob = payload.blob as Uint8Array;
       const ok = await client.vaultVerifyWrap(pin, blob);
-      if (!ok) throw new Error('E-CRYPTO-004 wrong PIN or corrupted key wrap');
+      if (!ok) throw new Error('E-AUTH-001 wrong PIN or corrupted key wrap');
       vaultSession = { blob, pin, lastUsedMs: Date.now() };
       return { unlocked: true };
     }
@@ -170,7 +187,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       return { unlocked: !locked };
     }
     case 'vaultSealUnlocked': {
-      if (vaultLocked() || !vaultSession) throw new Error('E-HOST-004 vault locked');
+      if (vaultLocked() || !vaultSession) throw new Error('E-AUTH-001 vault locked');
       touchVault();
       const aadJson = JSON.stringify({
         siteId: String(payload.siteId ?? ''),
@@ -191,7 +208,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       };
     }
     case 'vaultOpenUnlocked': {
-      if (vaultLocked() || !vaultSession) throw new Error('E-HOST-004 vault locked');
+      if (vaultLocked() || !vaultSession) throw new Error('E-AUTH-001 vault locked');
       touchVault();
       const aadJson = JSON.stringify({
         siteId: String(payload.siteId ?? ''),
@@ -209,7 +226,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       return { plaintext: new TextDecoder().decode(plaintext) };
     }
     default:
-      throw new Error('E-CLI-001 unknown identity operation');
+      throw new Error('E-DEV-001 unknown identity operation');
   }
 }
 
@@ -222,7 +239,7 @@ self.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
       respond({ id: request.id, ok: true, result });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'identity worker failure';
-      const code = /^E-[A-Z]+-\d{3}/.exec(message)?.[0] ?? 'E-AUTH-006';
+      const code = /^E-[A-Z]+-\d{3}/.exec(message)?.[0] ?? 'E-AUTH-001';
       respond({ id: request.id, ok: false, code, message });
     }
   })();

@@ -72,7 +72,7 @@ function toIdentity(row: IdentityRow): LocalIdentity {
 
 function assertLength(bytes: Uint8Array, length: number, field: string): void {
   if (bytes.byteLength !== length) {
-    throw new Error(`E-AUTH-006 ${field} must be ${length} bytes`);
+    throw new Error(`E-AUTH-001 ${field} must be ${length} bytes`);
   }
 }
 
@@ -86,7 +86,7 @@ export async function createIdentity(db: HostDb, input: IdentityInput): Promise<
   assertLength(input.deviceEcdhPubkey, 32, 'device_ecdh_pubkey');
   const existing = await db.select<{ id: string }>('SELECT id FROM local_identity LIMIT 1');
   if (existing.length > 0) {
-    throw new Error('E-AUTH-006 identity already exists; reset explicitly to replace it');
+    throw new Error('E-AUTH-001 identity already exists; reset explicitly to replace it');
   }
   const now = input.nowMs ?? Date.now();
   const id = uuidv7(now);
@@ -133,7 +133,7 @@ export async function loadIdentity(db: HostDb): Promise<LocalIdentity | null> {
 
 export async function setRecoveryHint(db: HostDb, hint: string): Promise<void> {
   const changed = await db.exec('UPDATE local_identity SET recovery_hint = ?', [hint]);
-  if (changed === 0) throw new Error('E-AUTH-006 identity missing');
+  if (changed === 0) throw new Error('E-AUTH-001 identity missing');
 }
 
 export async function setDeviceCert(
@@ -145,7 +145,7 @@ export async function setDeviceCert(
     cert,
     expiresAtMs,
   ]);
-  if (changed === 0) throw new Error('E-AUTH-006 identity missing');
+  if (changed === 0) throw new Error('E-AUTH-001 identity missing');
 }
 
 /** Explicit identity reset; callers MUST export data first. */

@@ -1,309 +1,328 @@
-//! `.mapp` determinism, guards, and signature policy.
+//! `.mapp` v2 determinism, layout guards, signatures, and digest rules.
 
 use std::io::{Cursor, Write};
 
-use microapp_core::crypto::{ed25519_public, hex_lower, sha256, signing_key_from_seed};
-use microapp_core::mapp::{
-    self, InstallSource, MappEntry, AUTHOR_SIGNATURE_PATH, REGISTRY_SIGNATURE_PATH,
-};
+use base64::Engine;
+use ed25519_dalek::SigningKey;
+use microapp_core::crypto::{ed25519_public, ed25519_sign, hex_lower, signing_key_from_seed};
 use microapp_core::manifest;
+use microapp_core::mapp::{
+    self, InstallSource, MappEntry, MANIFEST_PATH, SIGNATURE_PATH,
+};
+use serde_json::{json, Value};
 use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, ZipWriter};
+use zip::{CompressionMethod, DateTime, ZipWriter};
 
 const AUTHOR_SEED: [u8; 32] = [1u8; 32];
 const REGISTRY_SEED: [u8; 32] = [2u8; 32];
+const OTHER_SEED: [u8; 32] = [3u8; 32];
 
-fn author_public() -> [u8; 32] {
-    ed25519_public(&signing_key_from_seed(&AUTHOR_SEED))
+fn author_key() -> SigningKey {
+    signing_key_from_seed(&AUTHOR_SEED)
 }
 
-fn registry_public() -> [u8; 32] {
-    ed25519_public(&signing_key_from_seed(&REGISTRY_SEED))
+fn author_public_hex() -> String {
+    hex_lower(&ed25519_public(&author_key()))
+}
+
+fn registry_public_hex() -> String {
+    hex_lower(&ed25519_public(&signing_key_from_seed(&REGISTRY_SEED)))
+}
+
+fn manifest_value() -> Value {
+    json!({
+        "schemaVersion": 2,
+        "id": "studio.p0123456789ab",
+        "name": "Kasir Warung",
+        "version": "1.0.0",
+        "entry": { "bundle": "bundle/index.js" },
+        "assetsDir": "assets/",
+        "integrity": { "algorithm": "sha256", "contentHash": "", "files": {} },
+        "signature": { "algorithm": "ed25519", "keyId": "", "value": "" },
+        "offline": true,
+        "permissions": ["storage.app", "network.fetch"],
+        "networkAllowlist": ["https://api.example.com"],
+        "capabilities": ["ui.muip", "storage.app"],
+        "ui": { "engine": "muip-web", "protocol": 1 }
+    })
 }
 
 fn manifest_json() -> String {
-    serde_json::to_string(&manifest::Manifest {
-        ..mapp::manifest_template(
-            "org.reinvy.kas-offline",
-            "KasLokal",
-            "1.3.0",
-            &author_public(),
-            &format!("sha256-{}", "0".repeat(64)),
-        )
-    })
-    .unwrap()
+    manifest_value().to_string()
 }
 
 fn entries() -> Vec<MappEntry> {
     vec![
-        MappEntry::file("dist/app.bundle.js", "console.log('hi');".as_bytes().to_vec()),
+        MappEntry::file("bundle/index.js", b"export async function mount(api){api.render({type:'Card',id:'x'})}".to_vec()),
         MappEntry::file("assets/icon.txt", b"icon".to_vec()),
-        MappEntry::dir("db/migrations/"),
+        MappEntry::file("LICENSE", b"Apache-2.0".to_vec()),
     ]
 }
 
-fn pack_local() -> Vec<u8> {
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    mapp::pack(&manifest_json(), entries(), Some(&author), None).unwrap()
+fn pack() -> Vec<u8> {
+    mapp::pack_with_key(&manifest_json(), &entries(), &author_key()).unwrap()
 }
 
-#[test]
-fn packing_is_deterministic() {
-    let first = pack_local();
-    let second = pack_local();
-    assert_eq!(first, second, "two packs of identical input must be byte-identical");
+fn code(err: microapp_core::CoreError) -> &'static str {
+    err.code()
 }
 
-#[test]
-fn local_pack_verifies_with_author_signature() {
-    let bytes = pack_local();
-    let verified =
-        mapp::verify(&bytes, InstallSource::Local, Some(&author_public()), None).unwrap();
-    assert_eq!(verified.manifest.id, "org.reinvy.kas-offline");
-    assert!(verified.author_signature.is_some());
-    assert!(verified.registry_signature.is_none());
-    // dist bundle + asset + db dir + manifest + author signature
-    assert_eq!(verified.entry_count, 5);
-    assert_eq!(
-        verified.manifest.content_hash,
-        format!("sha256-{}", hex_lower(&verified.digest))
-    );
-}
-
-#[test]
-fn registry_install_requires_both_distinct_keys() {
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    let registry = signing_key_from_seed(&REGISTRY_SEED);
-    let bytes = mapp::pack(&manifest_json(), entries(), Some(&author), Some(&registry)).unwrap();
-    let verified = mapp::verify(
-        &bytes,
-        InstallSource::Registry,
-        Some(&author_public()),
-        Some(&registry_public()),
-    )
-    .unwrap();
-    assert!(verified.author_signature.is_some());
-    assert!(verified.registry_signature.is_some());
-
-    // Registry install without an author key is rejected.
-    assert!(mapp::verify(&bytes, InstallSource::Registry, None, Some(&registry_public())).is_err());
-    // Registry install with the same key for both roles is rejected.
-    assert!(mapp::verify(
-        &bytes,
-        InstallSource::Registry,
-        Some(&author_public()),
-        Some(&author_public())
-    )
-    .is_err());
-
-    // Packing with the same key twice is rejected outright.
-    assert!(mapp::pack(&manifest_json(), entries(), Some(&author), Some(&author)).is_err());
-}
-
-#[test]
-fn local_pack_with_registry_signature_present_must_verify() {
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    let registry = signing_key_from_seed(&REGISTRY_SEED);
-    let bytes = mapp::pack(&manifest_json(), entries(), Some(&author), Some(&registry)).unwrap();
-    // Valid registry signature: local install verifies.
-    mapp::verify(
-        &bytes,
-        InstallSource::Local,
-        Some(&author_public()),
-        Some(&registry_public()),
-    )
-    .unwrap();
-    // Wrong registry key: rejected.
-    assert!(mapp::verify(
-        &bytes,
-        InstallSource::Local,
-        Some(&author_public()),
-        Some(&[9u8; 32])
-    )
-    .is_err());
-}
-
-#[test]
-fn git_install_allows_unsigned_with_warning_surface() {
-    let bytes = mapp::pack(&manifest_json(), entries(), None, None).unwrap();
-    let verified = mapp::verify(&bytes, InstallSource::Git, None, None).unwrap();
-    assert!(verified.author_signature.is_none());
-    // But local install of the same unsigned package is rejected.
-    assert!(mapp::verify(&bytes, InstallSource::Local, Some(&author_public()), None).is_err());
-}
-
-#[test]
-fn tampered_content_breaks_content_hash() {
-    let bytes = pack_local();
-    // Flip a byte inside the deflated bundle payload by repacking with new data.
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    let mut changed = entries();
-    changed[0].data = b"console.log('tampered');".to_vec();
-    let repacked = mapp::pack(&manifest_json(), changed, Some(&author), None).unwrap();
-    // Changing content changes contentHash, so the old manifest hash no longer matches.
-    let verified = mapp::verify(&repacked, InstallSource::Local, Some(&author_public()), None).unwrap();
-    assert_ne!(verified.digest, sha256(&pack_local()));
-    assert_ne!(verified.manifest.content_hash, mapp::verify(&bytes, InstallSource::Local, Some(&author_public()), None).unwrap().manifest.content_hash);
-}
-
-#[test]
-fn rejects_traversal_absolute_and_duplicate_entries_at_pack_time() {
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    for path in ["../evil.js", "/etc/passwd", "dist/../../x.js", "dist\\app.js"] {
-        let mut bad = entries();
-        bad.push(MappEntry::file(path, Vec::new()));
-        assert!(
-            mapp::pack(&manifest_json(), bad, Some(&author), None).is_err(),
-            "pack must reject {path}"
-        );
-    }
-    let mut duplicate = entries();
-    duplicate.push(MappEntry::file("dist/app.bundle.js", b"dup".to_vec()));
-    assert!(mapp::pack(&manifest_json(), duplicate, Some(&author), None).is_err());
-}
-
-fn raw_zip(entries: &[(&str, &[u8], u32)]) -> Vec<u8> {
+fn zip_of(entries: &[MappEntry]) -> Vec<u8> {
+    let mut sorted: Vec<&MappEntry> = entries.iter().filter(|entry| !entry.is_dir).collect();
+    sorted.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
     let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
-    for (name, data, mode) in entries {
+    for entry in sorted {
         let options = SimpleFileOptions::default()
-            .compression_method(CompressionMethod::Stored)
-            .unix_permissions(*mode);
-        writer.start_file(*name, options).unwrap();
-        writer.write_all(data).unwrap();
+            .last_modified_time(DateTime::default())
+            .unix_permissions(0o644)
+            .compression_method(CompressionMethod::Deflated)
+            .compression_level(Some(9));
+        writer.start_file(entry.path.as_str(), options).unwrap();
+        writer.write_all(&entry.data).unwrap();
     }
     writer.finish().unwrap().into_inner()
 }
 
-#[test]
-fn extractor_rejects_traversal_symlink_and_duplicates() {
-    let traversal = raw_zip(&[("manifest.json", b"{}", 0o644), ("../evil.js", b"x", 0o644)]);
-    assert!(mapp::extract_entries(&traversal).is_err());
-
-    // A symlink entry cannot be produced by the safe writer (it masks modes to
-    // 0o777), so craft the raw ZIP structure with S_IFLNK external attributes.
-    let symlink = raw_symlink_zip("dist/link.js", b"/etc/passwd");
-    let error = mapp::extract_entries(&symlink).expect_err("symlink must be rejected");
-    assert!(error.to_string().contains("symlink"));
-
-    let absolute = raw_zip(&[("/abs.js", b"x", 0o644)]);
-    assert!(mapp::extract_entries(&absolute).is_err());
+fn verify_local(bytes: &[u8]) -> microapp_core::CoreResult<mapp::VerifiedPackage> {
+    let key = mapp::parse_pubkey(&author_public_hex()).unwrap();
+    mapp::verify(bytes, InstallSource::Local, Some(&key), None)
 }
 
-/// Minimal single-entry stored ZIP with a POSIX symlink mode in external attrs.
-fn raw_symlink_zip(name: &str, target: &[u8]) -> Vec<u8> {
-    let name_bytes = name.as_bytes();
-    let mut out: Vec<u8> = Vec::new();
-    let crc: u32 = 0; // Data is rejected before CRC verification.
-    let size = target.len() as u32;
-    // Local file header.
-    out.extend_from_slice(&0x0403_4b50u32.to_le_bytes());
-    out.extend_from_slice(&20u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&crc.to_le_bytes());
-    out.extend_from_slice(&size.to_le_bytes());
-    out.extend_from_slice(&size.to_le_bytes());
-    out.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(name_bytes);
-    out.extend_from_slice(target);
-    // Central directory header.
-    let central_offset = 0u32;
-    let mut central: Vec<u8> = Vec::new();
-    central.extend_from_slice(&0x0201_4b50u32.to_le_bytes());
-    central.extend_from_slice(&0x0314u16.to_le_bytes()); // made by UNIX, v2.0
-    central.extend_from_slice(&20u16.to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&crc.to_le_bytes());
-    central.extend_from_slice(&size.to_le_bytes());
-    central.extend_from_slice(&size.to_le_bytes());
-    central.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&0u16.to_le_bytes());
-    central.extend_from_slice(&(0o120777u32 << 16).to_le_bytes());
-    central.extend_from_slice(&central_offset.to_le_bytes());
-    central.extend_from_slice(name_bytes);
-    let central_size = central.len() as u32;
-    out.extend_from_slice(&central);
-    // End of central directory.
-    let central_start = (out.len() - central_size as usize) as u32;
-    out.extend_from_slice(&0x0605_4b50u32.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out.extend_from_slice(&1u16.to_le_bytes());
-    out.extend_from_slice(&1u16.to_le_bytes());
-    out.extend_from_slice(&central_size.to_le_bytes());
-    out.extend_from_slice(&central_start.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
-    out
+fn b64(bytes: &[u8]) -> String {
+    base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+fn mutate_entry(entries: &mut [MappEntry], path: &str, mutate: impl FnOnce(&mut Vec<u8>)) {
+    let entry = entries.iter_mut().find(|entry| entry.path == path).expect("entry");
+    mutate(&mut entry.data);
 }
 
 #[test]
-fn extractor_enforces_entry_count_limit() {
-    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
-    for index in 0..(mapp::MAX_ENTRIES + 1) {
-        writer.start_file(format!("dist/file-{index}.bin"), options).unwrap();
-        writer.write_all(b"").unwrap();
-    }
-    let bytes = writer.finish().unwrap().into_inner();
-    let error = mapp::extract_entries(&bytes).expect_err("entry limit must reject");
-    assert!(error.to_string().contains("limit"));
+fn packing_is_deterministic_and_order_independent() {
+    let first = pack();
+    let second = pack();
+    assert_eq!(first, second, "two packs of identical input must be byte-identical");
+
+    let mut reversed = entries();
+    reversed.reverse();
+    let reordered = mapp::pack_with_key(&manifest_json(), &reversed, &author_key()).unwrap();
+    assert_eq!(first, reordered, "entry order must not change the archive");
 }
 
 #[test]
-fn extractor_enforces_compressed_size_limit() {
-    // 65 MiB of incompressible-ish zeros still compresses well; build raw bytes
-    // larger than the limit directly to exercise the early guard.
-    let oversized = vec![0u8; (mapp::MAX_COMPRESSED_BYTES + 1) as usize];
-    let error = mapp::extract_entries(&oversized).expect_err("compressed limit must reject");
-    assert!(error.to_string().contains("64 MiB"));
+fn local_pack_verifies_with_author_signature() {
+    let bytes = pack();
+    let verified = verify_local(&bytes).expect("valid package");
+    assert_eq!(verified.manifest.id, "studio.p0123456789ab");
+    assert_eq!(
+        verified.manifest.signature.key_id,
+        format!("ed25519:{}", author_public_hex())
+    );
+    assert_eq!(
+        hex_lower(&verified.digest),
+        verified.manifest.integrity.content_hash
+    );
+    assert_eq!(
+        verified.manifest.integrity.files.keys().cloned().collect::<Vec<_>>(),
+        vec!["LICENSE", "assets/icon.txt", "bundle/index.js"]
+    );
+    assert_eq!(verified.author_signature.len(), 64);
 }
 
 #[test]
-fn missing_dist_is_rejected() {
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    let no_dist = vec![MappEntry::file("assets/icon.txt", b"icon".to_vec())];
-    assert!(mapp::pack(&manifest_json(), no_dist, Some(&author), None).is_err());
-}
-
-#[test]
-fn signature_files_are_not_part_of_the_digest() {
-    let bytes = pack_local();
-    let packed = mapp::extract_entries(&bytes).unwrap();
-    assert!(packed.iter().any(|entry| entry.path == AUTHOR_SIGNATURE_PATH));
-    assert!(!packed.iter().any(|entry| entry.path == REGISTRY_SIGNATURE_PATH));
-    // Re-packing must not change the digest when only signatures differ.
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    let unsigned = mapp::pack(&manifest_json(), entries(), None, None).unwrap();
-    let signed = mapp::pack(&manifest_json(), entries(), Some(&author), None).unwrap();
-    let unsigned_verified = mapp::verify(&unsigned, InstallSource::Git, None, None).unwrap();
-    let signed_verified =
-        mapp::verify(&signed, InstallSource::Local, Some(&author_public()), None).unwrap();
-    assert_eq!(unsigned_verified.manifest.content_hash, signed_verified.manifest.content_hash);
-}
-
-#[test]
-fn publisher_fields_must_match_author_key() {
-    let other_public = ed25519_public(&signing_key_from_seed(&[7u8; 32]));
-    let mismatch = serde_json::to_string(&mapp::manifest_template(
-        "org.reinvy.other",
-        "Other",
-        "1.0.0",
-        &other_public,
-        &format!("sha256-{}", "0".repeat(64)),
-    ))
+fn identity_and_registry_signatures_cover_the_same_message() {
+    // Build a registry co-signature over the prepare message.
+    let mut value = manifest_value();
+    value["signature"]["keyId"] = json!(format!("ed25519:{}", author_public_hex()));
+    value["signature"]["registry"] = json!({
+        "algorithm": "ed25519",
+        "keyId": format!("ed25519:{}", registry_public_hex()),
+        "value": ""
+    });
+    let prepared = mapp::prepare_manifest(&value.to_string(), &entries()).unwrap();
+    let author_signature = ed25519_sign(&author_key(), &prepared.signature_message);
+    let registry_key = signing_key_from_seed(&REGISTRY_SEED);
+    let registry_signature = ed25519_sign(&registry_key, &prepared.signature_message);
+    let mut prepared_value: Value = serde_json::from_str(&prepared.manifest_json).unwrap();
+    prepared_value["signature"]["registry"]["value"] = json!(b64(&registry_signature));
+    let bytes = mapp::finalize_with_signature(
+        &prepared_value.to_string(),
+        &entries(),
+        &b64(&author_signature),
+        &author_public_hex(),
+    )
     .unwrap();
-    let author = signing_key_from_seed(&AUTHOR_SEED);
-    let bytes = mapp::pack(&mismatch, entries(), Some(&author), None).unwrap();
-    let error = mapp::verify(&bytes, InstallSource::Local, Some(&author_public()), None)
-        .expect_err("publisher fingerprint must match author key");
-    assert!(error.to_string().contains("fingerprint"));
+
+    let author = mapp::parse_pubkey(&author_public_hex()).unwrap();
+    let registry = mapp::parse_pubkey(&registry_public_hex()).unwrap();
+    let verified = mapp::verify(&bytes, InstallSource::Registry, Some(&author), Some(&registry)).unwrap();
+    assert!(verified.registry_signature.is_some());
+
+    // Registry installs without a registry signature or key fail closed.
+    let local_only = pack();
+    let err = mapp::verify(&local_only, InstallSource::Registry, Some(&author), Some(&registry))
+        .expect_err("missing registry signature");
+    assert_eq!(code(err), "E-PACK-002");
+
+    let err = mapp::verify(&bytes, InstallSource::Registry, Some(&author), None)
+        .expect_err("missing registry key");
+    assert_eq!(code(err), "E-PACK-002");
+}
+
+#[test]
+fn tampered_signature_fails_with_e_pack_002() {
+    let bytes = pack();
+    let mut extracted = mapp::extract_entries(&bytes).unwrap();
+    mutate_entry(&mut extracted, SIGNATURE_PATH, |data| data[0] ^= 0x01);
+    let err = verify_local(&zip_of(&extracted)).expect_err("tampered signature");
+    assert_eq!(code(err), "E-PACK-002");
+
+    // Dropping the detached signature is also a signature failure.
+    let extracted: Vec<MappEntry> = mapp::extract_entries(&bytes)
+        .unwrap()
+        .into_iter()
+        .filter(|entry| entry.path != SIGNATURE_PATH)
+        .collect();
+    let err = verify_local(&zip_of(&extracted)).expect_err("missing signature");
+    assert_eq!(code(err), "E-PACK-002");
+}
+
+#[test]
+fn unsigned_packages_are_rejected() {
+    let bytes = mapp::build_unsigned(&manifest_json(), &entries()).unwrap();
+    let err = verify_local(&bytes).expect_err("unsigned package");
+    assert_eq!(code(err), "E-PACK-002");
+}
+
+#[test]
+fn tampered_payload_and_content_hash_fail_with_e_pack_003() {
+    let bytes = pack();
+    let mut extracted = mapp::extract_entries(&bytes).unwrap();
+    mutate_entry(&mut extracted, "bundle/index.js", |data| data.push(b'!'));
+    let err = verify_local(&zip_of(&extracted)).expect_err("tampered payload");
+    assert_eq!(code(err), "E-PACK-003");
+
+    let mut extracted = mapp::extract_entries(&bytes).unwrap();
+    mutate_entry(&mut extracted, MANIFEST_PATH, |data| {
+        let mut value: Value = serde_json::from_slice(data).unwrap();
+        value["integrity"]["contentHash"] = json!("0".repeat(64));
+        *data = serde_json::to_vec(&value).unwrap();
+    });
+    let err = verify_local(&zip_of(&extracted)).expect_err("tampered content hash");
+    assert_eq!(code(err), "E-PACK-003");
+}
+
+#[test]
+fn rejects_unknown_and_native_manifest_fields() {
+    let mut value = manifest_value();
+    value["entry"]["uiEngine"] = json!("hybrid-native");
+    let err = mapp::prepare_manifest(&value.to_string(), &entries()).expect_err("native field");
+    assert_eq!(code(err), "E-PACK-001");
+
+    let mut value = manifest_value();
+    value["minHostVersion"] = json!("2.0.0");
+    let err = mapp::prepare_manifest(&value.to_string(), &entries()).expect_err("v1 field");
+    assert_eq!(code(err), "E-PACK-001");
+
+    let mut value = manifest_value();
+    value["schemaVersion"] = json!(1);
+    let err = mapp::prepare_manifest(&value.to_string(), &entries()).expect_err("v1 manifest");
+    assert_eq!(code(err), "E-PACK-001");
+}
+
+#[test]
+fn rejects_path_traversal_and_disallowed_roots() {
+    for path in ["../evil.js", "/etc/passwd", "bundle/../../x.js", "dist/app.js", "manifest.json"] {
+        let mut bad = entries();
+        bad.push(MappEntry::file(path, b"x".to_vec()));
+        let err = mapp::prepare_manifest(&manifest_json(), &bad).expect_err(path);
+        assert_eq!(code(err), "E-PACK-001", "path {path}");
+    }
+
+    let bad = vec![MappEntry::file("bundle/index.js", b"x".to_vec()), MappEntry::file("notes.txt", b"x".to_vec())];
+    let err = mapp::prepare_manifest(&manifest_json(), &bad).expect_err("root");
+    assert_eq!(code(err), "E-PACK-001");
+
+    let duplicate = vec![
+        MappEntry::file("bundle/index.js", b"x".to_vec()),
+        MappEntry::file("bundle/index.js", b"y".to_vec()),
+    ];
+    let err = mapp::prepare_manifest(&manifest_json(), &duplicate).expect_err("duplicate");
+    assert_eq!(code(err), "E-PACK-001");
+
+    let err = mapp::prepare_manifest(&manifest_json(), &[]).expect_err("empty");
+    assert_eq!(code(err), "E-PACK-001");
+}
+
+#[test]
+fn rejects_permission_and_allowlist_violations() {
+    let mut value = manifest_value();
+    value["permissions"] = json!(["camera.raw"]);
+    let err = mapp::prepare_manifest(&value.to_string(), &entries()).expect_err("permission");
+    assert_eq!(code(err), "E-PACK-001");
+
+    let mut value = manifest_value();
+    value["permissions"] = json!(["storage.app"]);
+    let err = mapp::prepare_manifest(&value.to_string(), &entries())
+        .expect_err("allowlist requires network.fetch");
+    assert_eq!(code(err), "E-PACK-001");
+
+    let mut value = manifest_value();
+    value["networkAllowlist"] = json!(["http://api.example.com"]);
+    let err = mapp::prepare_manifest(&value.to_string(), &entries()).expect_err("http origin");
+    assert_eq!(code(err), "E-PACK-001");
+
+    let mut value = manifest_value();
+    value["networkAllowlist"] = json!(["https://api.example.com/v1"]);
+    let err = mapp::prepare_manifest(&value.to_string(), &entries()).expect_err("origin path");
+    assert_eq!(code(err), "E-PACK-001");
+}
+
+#[test]
+fn rejects_a_signature_from_the_wrong_key() {
+    let mut value = manifest_value();
+    value["signature"]["keyId"] = json!(format!("ed25519:{}", hex_lower(&ed25519_public(&signing_key_from_seed(&OTHER_SEED)))));
+    let prepared = mapp::prepare_manifest(&value.to_string(), &entries()).unwrap();
+    let signature = ed25519_sign(&author_key(), &prepared.signature_message);
+    let err = mapp::finalize_with_signature(
+        &prepared.manifest_json,
+        &entries(),
+        &b64(&signature),
+        &author_public_hex(),
+    )
+    .expect_err("keyId mismatch");
+    assert_eq!(code(err), "E-PACK-002");
+
+    // A signature produced by another key never finalizes.
+    let prepared = mapp::prepare_manifest(&manifest_json(), &entries()).unwrap();
+    let foreign = ed25519_sign(&signing_key_from_seed(&OTHER_SEED), &prepared.signature_message);
+    let err = mapp::finalize_with_signature(
+        &prepared.manifest_json,
+        &entries(),
+        &b64(&foreign),
+        &author_public_hex(),
+    )
+    .expect_err("foreign signature");
+    assert_eq!(code(err), "E-PACK-002");
+}
+
+#[test]
+fn missing_entry_bundle_is_rejected() {
+    let mut value = manifest_value();
+    value["entry"]["bundle"] = json!("bundle/missing.js");
+    let err = mapp::prepare_manifest(&value.to_string(), &entries()).expect_err("bundle missing");
+    assert_eq!(code(err), "E-PACK-001");
+}
+
+#[test]
+fn prepare_fills_digests_and_reports_the_signature_message() {
+    let prepared = mapp::prepare_manifest(&manifest_json(), &entries()).unwrap();
+    assert!(manifest::is_hex64(&prepared.manifest.integrity.content_hash));
+    assert_eq!(prepared.manifest.signature.value, "");
+    for file in ["LICENSE", "assets/icon.txt", "bundle/index.js"] {
+        assert!(manifest::is_hex64(
+            prepared.manifest.integrity.files.get(file).expect(file)
+        ));
+    }
+    assert!(!prepared.signature_message.is_empty());
 }

@@ -3,6 +3,7 @@ import {
   FREEZE_MS,
   HIBERNATE_AFTER_MS,
   MAX_RESTARTS,
+  RESTART_WINDOW_MS,
   SandboxWatchdog,
 } from '../watchdog';
 import { LifecycleController } from '../lifecycle';
@@ -22,17 +23,25 @@ describe('sandbox watchdog', () => {
     expect(watchdog.tick(FREEZE_MS + 10)).toEqual({ action: 'none' });
   });
 
-  it('shows a persistent error boundary after two restarts in 60 seconds', () => {
+  it('allows three restarts in five minutes and then shows a persistent boundary', () => {
     const watchdog = new SandboxWatchdog(0);
-    expect(watchdog.tick(FREEZE_MS)).toEqual({ action: 'restart', attempt: 1 });
-    watchdog.heartbeat(FREEZE_MS + 500);
-    expect(watchdog.tick(FREEZE_MS + 2 * FREEZE_MS)).toEqual({ action: 'restart', attempt: 2 });
-    watchdog.heartbeat(FREEZE_MS + 2 * FREEZE_MS + 500);
-    expect(watchdog.tick(FREEZE_MS + 3 * FREEZE_MS + 500)).toEqual({
+    for (let attempt = 1; attempt <= MAX_RESTARTS; attempt += 1) {
+      const at = attempt * FREEZE_MS * 2;
+      expect(watchdog.tick(at)).toEqual({ action: 'restart', attempt });
+      watchdog.heartbeat(at + 500);
+    }
+    expect(watchdog.tick(MAX_RESTARTS * FREEZE_MS * 2 + 2 * FREEZE_MS)).toEqual({
       action: 'error-boundary',
       reason: 'restart-budget-exhausted',
     });
     expect(watchdog.restartCount()).toBe(MAX_RESTARTS);
+  });
+
+  it('forgets restarts that fall outside the five minute window', () => {
+    const watchdog = new SandboxWatchdog(0);
+    expect(watchdog.tick(FREEZE_MS)).toEqual({ action: 'restart', attempt: 1 });
+    watchdog.heartbeat(FREEZE_MS + 500);
+    expect(watchdog.tick(RESTART_WINDOW_MS + FREEZE_MS * 2)).toEqual({ action: 'restart', attempt: 1 });
   });
 
   it('hibernates after 30 seconds without user interaction while heartbeats keep flowing', () => {

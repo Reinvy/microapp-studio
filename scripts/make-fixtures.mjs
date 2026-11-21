@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * make-fixtures.mjs — build the signed `.mapp` fixtures used by E2E tests.
+ * make-fixtures.mjs — build the signed `.mapp` v2 fixtures used by E2E tests.
  *
- * Test-only Ed25519 keys are derived from fixed seeds so the fixtures are
- * reproducible. They MUST NOT be used for real packages.
+ * The Ed25519 seed is generated in memory for each run and is never written to
+ * disk or committed; only the public key and the package files ship in the
+ * fixtures directory. Each package is built by `mapp-tool pack`, which follows
+ * the same prepare → sign → finalize path as the Studio.
  */
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -14,7 +16,26 @@ const ROOT = resolve(import.meta.dirname, '..');
 const WORK = join(ROOT, '.tooling', 'fixtures');
 const OUT = join(ROOT, 'apps', 'studio-web', 'e2e', 'fixtures');
 const CRATE = join(ROOT, 'packages', 'core-rust', 'Cargo.toml');
-const AUTHOR_SEED = '11'.repeat(32);
+const AUTHOR_SEED = randomBytes(32).toString('hex');
+
+const VALID_BUNDLE = `export async function mount(api) {
+  api.render({
+    type: 'Stack',
+    id: 'fixture-root',
+    props: { direction: 'column', gap: 'md' },
+    children: [
+      { type: 'Card', id: 'fixture-card', props: { title: 'Kasir Warung' } },
+      { type: 'StatCard', id: 'fixture-stat', props: { label: 'Penjualan hari ini', value: 'Rp 120.000' } },
+      {
+        type: 'Button',
+        id: 'fixture-button',
+        props: { label: 'Simpan' },
+        on: { press: { action: 'toast', params: { message: 'Tersimpan' } } },
+      },
+    ],
+  });
+}
+`;
 
 const ESCAPE_BUNDLE = `export async function mount(api) {
   const attempts = [];
@@ -29,13 +50,6 @@ const ESCAPE_BUNDLE = `export async function mount(api) {
     attempts.push('storage-ok');
   } catch {
     attempts.push('storage-blocked');
-  }
-  let cookieBlocked = true;
-  try {
-    cookieBlocked = document.cookie === '';
-    attempts.push('cookie-empty');
-  } catch {
-    attempts.push('cookie-blocked');
   }
   let evalBlocked = false;
   try {
@@ -64,7 +78,7 @@ const ESCAPE_BUNDLE = `export async function mount(api) {
         type: 'Button',
         id: 'fixture-button',
         props: { label: 'Simpan' },
-        events: { onPress: { action: 'submit' } },
+        on: { press: { action: 'toast', params: { message: 'Tersimpan' } } },
       },
     ],
   });
@@ -79,6 +93,30 @@ const CRASH_BUNDLE = `export function mount(api) {
 }
 `;
 
+const CONSENT_BUNDLE = `export async function mount(api) {
+  api.render({
+    type: 'Stack',
+    id: 'consent-root',
+    props: { direction: 'column', gap: 'md' },
+    children: [
+      { type: 'Card', id: 'consent-card', props: { title: 'Butuh izin' } },
+      {
+        type: 'Button',
+        id: 'consent-button',
+        props: { label: 'Salin' },
+        on: { press: { action: 'callBridge', method: 'clipboard.write', params: { text: 'halo' } } },
+      },
+    ],
+  });
+  // Ask for a consent-gated permission on mount so the host dialog appears.
+  try {
+    await api.bridge('clipboard', 'write', { text: 'halo' });
+  } catch {
+    // A denial is a valid outcome; the consent dialog is what this fixture tests.
+  }
+}
+`;
+
 const LOOP_BUNDLE = `export function mount(api) {
   api.render({ type: 'Card', id: 'loop-card', props: { title: 'Loop' } });
   setTimeout(() => {
@@ -87,11 +125,6 @@ const LOOP_BUNDLE = `export function mount(api) {
   }, 300);
 }
 `;
-
-function sha384Base64(bytes) {
-  const digest = createHash('sha384').update(bytes).digest();
-  return `sha384-${digest.toString('base64')}`;
-}
 
 function sha256Hex(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
@@ -106,96 +139,84 @@ function keygen() {
   return JSON.parse(output);
 }
 
-function manifestFor({ appId, version, integrity, keyId, fingerprint }) {
-  return {
-    schemaVersion: '2.0-open',
+function manifestFor({ appId, version = '1.0.0', permissions = ['storage.app'], allowlist }) {
+  const manifest = {
+    schemaVersion: 2,
     id: appId,
     name: appId.split('.').at(-1),
     version,
-    license: 'MIT',
-    repository: 'https://example.com/fixture',
-    publisher: { keyId, fingerprint, source: 'local' },
-    minHostVersion: '2.0.0',
-    contentHash: `sha256-${'0'.repeat(64)}`,
-    entry: {
-      bundle: 'dist/app.bundle.js',
-      assetsDir: 'assets/',
-      uiEngine: 'hybrid-native',
-      integrity,
-      signature: `ed25519-${keyId}`,
-    },
-    offline: {
-      mode: 'offline-first',
-      requiresInternet: false,
-      localDbSchema: 'db/migrations/',
-      syncStrategy: 'crdt-hlc',
-    },
-    runtime: {
-      isolation: 'strict-sandbox',
-      maxMemoryMb: 128,
-      supportedViewports: ['mobile', 'tablet', 'desktop'],
-    },
-    permissions: {
-      required: ['storage.local'],
-      optional: [],
-      networkAllowlist: [],
-    },
-    capabilities: { intentsIn: [], intentsOut: [], widgets: [] },
+    entry: { bundle: 'bundle/index.js' },
+    assetsDir: 'assets/',
+    integrity: { algorithm: 'sha256', contentHash: '', files: {} },
+    signature: { algorithm: 'ed25519', keyId: '', value: '' },
+    offline: true,
+    permissions,
+    capabilities: ['ui.muip', 'storage.app'],
+    ui: { engine: 'muip-web', protocol: 1 },
   };
+  if (allowlist) {
+    manifest.networkAllowlist = allowlist;
+  }
+  return manifest;
 }
 
-function buildFixture({ appId, dirName, bundle }) {
+function pack({ dirName, appId, bundle, signed = true, permissions, allowlist }) {
   const pkgDir = join(WORK, dirName);
   rmSync(pkgDir, { recursive: true, force: true });
-  mkdirSync(join(pkgDir, 'dist'), { recursive: true });
+  mkdirSync(join(pkgDir, 'bundle'), { recursive: true });
   mkdirSync(join(pkgDir, 'assets'), { recursive: true });
-  const bundleBytes = Buffer.from(bundle, 'utf8');
-  writeFileSync(join(pkgDir, 'dist', 'app.bundle.js'), bundleBytes);
+  writeFileSync(join(pkgDir, 'bundle', 'index.js'), bundle);
   writeFileSync(join(pkgDir, 'assets', 'icon.txt'), 'icon');
-  const keys = keygen();
-  const manifest = manifestFor({
-    appId,
-    version: '1.0.0',
-    integrity: sha384Base64(bundleBytes),
-    keyId: keys.keyId,
-    fingerprint: keys.fingerprint,
-  });
-  writeFileSync(join(pkgDir, 'manifest.json'), JSON.stringify(manifest));
-  execFileSync(
-    'cargo',
-    [
-      'run',
-      '-q',
-      '--manifest-path',
-      CRATE,
-      '--bin',
-      'mapp-tool',
-      '--',
-      'pack',
-      join(pkgDir, 'manifest.json'),
-      pkgDir,
-      '-o',
-      join(OUT, `${dirName}.mapp`),
-      '--author-seed',
-      AUTHOR_SEED,
-    ],
-    { encoding: 'utf8' },
+  writeFileSync(join(pkgDir, 'LICENSE'), 'Apache-2.0 fixture\n');
+  writeFileSync(
+    join(pkgDir, 'microapp.manifest.json'),
+    JSON.stringify(manifestFor({ appId, permissions, allowlist })),
   );
+  const args = [
+    'run',
+    '-q',
+    '--manifest-path',
+    CRATE,
+    '--bin',
+    'mapp-tool',
+    '--',
+    'pack',
+    join(pkgDir, 'microapp.manifest.json'),
+    pkgDir,
+    '-o',
+    join(OUT, `${dirName}.mapp`),
+  ];
+  if (signed) {
+    args.push('--author-seed', AUTHOR_SEED);
+  } else {
+    args.push('--unsigned');
+  }
+  execFileSync('cargo', args, { encoding: 'utf8' });
   const bytes = readFileSync(join(OUT, `${dirName}.mapp`));
-  return { file: `${dirName}.mapp`, sha256: sha256Hex(bytes), authorPublicKey: keys.publicKey };
+  return { file: `${dirName}.mapp`, sha256: sha256Hex(bytes) };
 }
 
 mkdirSync(OUT, { recursive: true });
 mkdirSync(WORK, { recursive: true });
 
+const keys = keygen();
+
 const fixtures = [
-  buildFixture({ appId: 'org.reinvy.fixture', dirName: 'escape', bundle: ESCAPE_BUNDLE }),
-  buildFixture({ appId: 'org.reinvy.loop', dirName: 'loop', bundle: LOOP_BUNDLE }),
-  buildFixture({ appId: 'org.reinvy.crash', dirName: 'crash', bundle: CRASH_BUNDLE }),
+  pack({ dirName: 'valid', appId: 'studio.fixture.valid', bundle: VALID_BUNDLE, permissions: ['storage.app', 'network.fetch'], allowlist: ['https://api.example.com'] }),
+  pack({ dirName: 'escape', appId: 'studio.fixture.escape', bundle: ESCAPE_BUNDLE, permissions: ['storage.app', 'network.fetch'], allowlist: ['https://example.com'] }),
+  pack({ dirName: 'loop', appId: 'studio.fixture.loop', bundle: LOOP_BUNDLE }),
+  pack({ dirName: 'crash', appId: 'studio.fixture.crash', bundle: CRASH_BUNDLE }),
+  pack({
+    dirName: 'consent',
+    appId: 'studio.fixture.consent',
+    bundle: CONSENT_BUNDLE,
+    permissions: ['storage.app', 'clipboard.write'],
+  }),
+  pack({ dirName: 'unsigned', appId: 'studio.fixture.unsigned', bundle: VALID_BUNDLE, signed: false }),
 ];
 
 const summary = {
-  authorPublicKey: fixtures[0].authorPublicKey,
+  authorPublicKey: keys.publicKey,
   fixtures,
 };
 writeFileSync(join(OUT, 'index.json'), `${JSON.stringify(summary, null, 2)}\n`);

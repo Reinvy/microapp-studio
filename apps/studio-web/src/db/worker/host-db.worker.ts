@@ -375,6 +375,14 @@ self.addEventListener('message', (event: MessageEvent<HostDbRequest>) => {
         respond({ id, ok: true, storage });
         return;
       }
+      if (request.op === 'reopen') {
+        // Called after restore rewrote the database files on disk. The worker
+        // stays alive; only the SQLite handles are replaced.
+        db = await openHostDb();
+        configure(db);
+        respond({ id, ok: true, storage });
+        return;
+      }
       if (!db) {
         fail(id, 'E-SHELL-001', 'database not initialized');
         return;
@@ -455,6 +463,26 @@ self.addEventListener('message', (event: MessageEvent<HostDbRequest>) => {
         }
         case 'appList':
           respond({ id, ok: true, appKeys: [...appDbs.keys()] });
+          return;
+        case 'snapshot': {
+          if (!sqlite3) throw new Error('E-DATA-001 sqlite module missing');
+          const bytes = sqlite3.capi.sqlite3_js_db_export(db);
+          respond({ id, ok: true, bytes });
+          return;
+        }
+        case 'appSnapshot': {
+          if (!sqlite3) throw new Error('E-DATA-001 sqlite module missing');
+          const handle = await requireAppDb(request);
+          const bytes = sqlite3.capi.sqlite3_js_db_export(handle);
+          respond({ id, ok: true, bytes });
+          return;
+        }
+        case 'detach':
+          for (const handle of appDbs.values()) handle.close();
+          appDbs.clear();
+          db.close();
+          db = null;
+          respond({ id, ok: true });
           return;
         case 'close':
           for (const handle of appDbs.values()) handle.close();

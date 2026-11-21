@@ -1,19 +1,22 @@
 /**
- * Token bucket implementing the bridge rate limit (100 calls/second/app).
+ * Bridge rate limit: 30 calls per 10 seconds per app.
  *
- * The bucket refills continuously so a burst of 100 is allowed, the 101st call
- * inside the same second is rejected, and capacity recovers smoothly.
+ * Implemented as a token bucket with capacity 30 and a continuous refill of
+ * 3 tokens per second, so a legitimate burst of 30 passes and the 31st call in
+ * the same instant is rejected.
  */
 
-export const RATE_LIMIT_PER_SECOND = 100;
+export const RATE_LIMIT_CAPACITY = 30;
+export const RATE_LIMIT_REFILL_PER_SECOND = 3;
+export const RATE_LIMIT_REFILL_PER_MS = RATE_LIMIT_REFILL_PER_SECOND / 1000;
 
 export class TokenBucket {
   private tokens: number;
   private lastRefillMs: number;
 
   constructor(
-    readonly capacity: number = RATE_LIMIT_PER_SECOND,
-    private readonly refillPerMs: number = RATE_LIMIT_PER_SECOND / 1000,
+    readonly capacity: number = RATE_LIMIT_CAPACITY,
+    private readonly refillPerMs: number = RATE_LIMIT_REFILL_PER_MS,
     nowMs = 0,
   ) {
     this.tokens = capacity;

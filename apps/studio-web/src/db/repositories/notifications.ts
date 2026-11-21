@@ -66,7 +66,7 @@ function toNotification(row: NotificationRow): Notification {
 
 export async function scheduleNotification(db: HostDb, input: NotificationInput): Promise<Notification> {
   const now = input.nowMs ?? Date.now();
-  if (input.title.trim().length === 0) throw new Error('E-SBX-005 title is required');
+  if (input.title.trim().length === 0) throw new Error('E-RUN-003 title is required');
   const id = uuidv7(now);
   const state: NotificationState = input.scheduledAtMs ? 'scheduled' : 'fired';
   await db.exec(

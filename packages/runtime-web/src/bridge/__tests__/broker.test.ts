@@ -1,197 +1,178 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BridgeBroker, type AuditEvent } from '../broker';
-import type { BridgeHandler } from '../broker';
+import { BridgeError } from '../errors';
+import { RATE_LIMIT_CAPACITY } from '../rate-limit';
+import { MAX_FRAME_BYTES } from '../protocol';
 
-function recorder() {
-  const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
-  const handler: BridgeHandler = (params, context) => {
-    calls.push({ method: context.appId, params });
-    return { ok: true };
-  };
-  return { calls, handler };
+interface HarnessOptions {
+  declaredPermissions?: string[];
+  offlineCage?: boolean;
+  permission?: 'granted' | 'denied' | 'mocked';
+  handlers?: Record<string, (params: Record<string, unknown>) => Promise<unknown> | unknown>;
+  now?: () => number;
 }
 
-function brokerWith(options: {
-  handler?: BridgeHandler;
-  permission?: 'granted' | 'denied' | 'mocked';
-  consent?: 'granted' | 'denied';
-  audit?: (event: AuditEvent) => void;
-  now?: () => number;
-}) {
-  const handler = options.handler ?? (() => ({ ok: true }));
-  return new BridgeBroker({
-    appId: 'org.reinvy.kas',
-    handlers: { 'storage.get': handler, 'db.query': handler, 'db.exec': handler, 'ai.infer': handler },
-    checkPermission: () => options.permission ?? 'granted',
-    requestConsent: () => options.consent ?? 'granted',
-    audit: options.audit,
+function harness(options: HarnessOptions = {}) {
+  const audits: AuditEvent[] = [];
+  const requested: string[] = [];
+  const handlers = options.handlers ?? {
+    'storage.get': (params) => ({ key: params.key, value: 'v' }),
+    'ui.toast': () => true,
+    'net.fetch': () => 'network',
+    'share.export': () => 'shared',
+  };
+  const broker = new BridgeBroker({
+    appId: 'studio.p123456789ab',
+    declaredPermissions: options.declaredPermissions ?? ['storage.app', 'network.fetch', 'share.export'],
+    offlineCage: options.offlineCage ?? false,
+    handlers,
+    checkPermission: (permissionId) => {
+      requested.push(permissionId);
+      return options.permission ?? 'granted';
+    },
+    audit: (event) => audits.push(event),
     now: options.now,
   });
+  return { broker, audits, requested };
 }
 
-const storageGet = (id: string, params: Record<string, unknown> = { key: 'k' }) => ({
+const envelope = (ns: string, method: string, params: Record<string, unknown> = {}, id = 'r1') => ({
   v: 1,
   id,
-  ns: 'storage',
-  method: 'get',
+  ns,
+  method,
   params,
 });
 
-describe('bridge broker', () => {
-  it('checks permission before validating parameters', async () => {
-    const { calls, handler } = recorder();
-    const audits: AuditEvent[] = [];
-    const broker = brokerWith({ handler, permission: 'denied', audit: (event) => audits.push(event) });
-    // Invalid params + denied permission: the denial response must not leak field details.
-    const response = await broker.handle(storageGet('req-1', { unexpected: true }));
+describe('BridgeBroker', () => {
+  it('runs a declared method and audits method/result/duration without params', async () => {
+    const { broker, audits } = harness();
+    const response = await broker.handle(envelope('storage', 'get', { key: 'cart' }));
+    expect(response).toMatchObject({ ok: true, result: { key: 'cart' } });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({ method: 'storage.get', result: 'ok' });
+    expect(JSON.stringify(audits[0])).not.toContain('cart');
+  });
+
+  it('fails closed when the permission is not declared, before any consent prompt', async () => {
+    const { broker, requested, audits } = harness({ declaredPermissions: [] });
+    const response = await broker.handle(envelope('storage', 'get', { key: 'cart' }));
     expect(response.ok).toBe(false);
-    if (response.ok) throw new Error('expected failure');
-    expect(response.error.code).toBe('E-SBX-005');
-    expect(response.error.details?.permission).toBe('storage.local');
-    expect(response.error.details?.field).toBeUndefined();
-    expect(calls).toHaveLength(0);
-    expect(audits[0]?.result).toBe('error');
+    if (!response.ok) expect(response.error.code).toBe('E-RUN-003');
+    expect(requested).toEqual([]);
+    expect(audits.at(-1)?.code).toBe('E-RUN-003');
   });
 
-  it('executes granted requests and audits success', async () => {
-    const { calls, handler } = recorder();
-    const audits: AuditEvent[] = [];
-    const broker = brokerWith({ handler, audit: (event) => audits.push(event) });
-    const response = await broker.handle(storageGet('req-2'));
-    expect(response).toEqual({ id: 'req-2', ok: true, result: { ok: true } });
-    expect(calls).toHaveLength(1);
-    expect(audits[0]).toMatchObject({ result: 'ok', method: 'storage.get' });
+  it('does not ask for consent for storage.app', async () => {
+    const { broker, requested } = harness();
+    await broker.handle(envelope('storage', 'get', { key: 'cart' }));
+    expect(requested).toEqual([]);
   });
 
-  it('marks mocked grants in audit', async () => {
-    const audits: AuditEvent[] = [];
-    const broker = brokerWith({ permission: 'mocked', audit: (event) => audits.push(event) });
-    await broker.handle(storageGet('req-3'));
-    expect(audits[0]?.mocked).toBe(true);
+  it('asks for consent on a permissioned method and denies without a grant', async () => {
+    const { broker, requested } = harness({ permission: 'denied' });
+    const response = await broker.handle(envelope('share', 'export', {}));
+    expect(requested).toEqual(['share.export']);
+    expect(response.ok).toBe(false);
+    if (!response.ok) expect(response.error.code).toBe('E-RUN-003');
   });
 
-  it('rejects unknown methods and disabled methods', async () => {
-    const broker = brokerWith({});
-    const unknown = await broker.handle({ v: 1, id: 'req-4', ns: 'fs', method: 'nope', params: {} });
+  it('blocks network.fetch with E-NET-001 while the Offline Cage is active, before consent', async () => {
+    const { broker, requested } = harness({ offlineCage: true });
+    const response = await broker.handle(envelope('net', 'fetch', { origin: 'https://api.example.com' }));
+    expect(response.ok).toBe(false);
+    if (!response.ok) expect(response.error.code).toBe('E-NET-001');
+    expect(requested).toEqual([]);
+  });
+
+  it('rejects unknown methods and unknown parameters', async () => {
+    const { broker } = harness();
+    const unknown = await broker.handle(envelope('db', 'query'));
     expect(unknown.ok).toBe(false);
-    const ai = await broker.handle({ v: 1, id: 'req-5', ns: 'ai', method: 'infer', params: {} });
-    expect(ai.ok).toBe(false);
-    if (ai.ok) throw new Error('expected failure');
-    expect(ai.error.code).toBe('E-SBX-005');
-    expect(ai.error.details?.reason).toBe('not_available_in_this_host_version');
+    if (!unknown.ok) expect(unknown.error.code).toBe('E-RUN-003');
+
+    const badParams = await broker.handle(envelope('storage', 'get', { key: 'a', nope: 1 }));
+    expect(badParams.ok).toBe(false);
+    if (!badParams.ok) expect(badParams.error.code).toBe('E-RUN-003');
   });
 
-  it('enforces 100 calls/second and then recovers', async () => {
-    let now = 0;
-    const broker = brokerWith({ now: () => now });
-    const first = await broker.handle({ ...storageGet('req-ok'), id: 'a' });
-    expect(first.ok).toBe(true);
-    // Drain the bucket in the same millisecond.
-    const responses = [];
-    for (let index = 0; index < 100; index += 1) {
-      responses.push(await broker.handle({ ...storageGet(`burst-${index}`), id: `burst-${index}` }));
+  it('rejects an oversized frame with E-RUN-003', async () => {
+    const { broker } = harness();
+    const response = await broker.handle(envelope('storage', 'get', { key: 'x'.repeat(MAX_FRAME_BYTES) }));
+    expect(response.ok).toBe(false);
+    if (!response.ok) expect(response.error.code).toBe('E-RUN-003');
+  });
+
+  it('allows 30 calls per 10 s and rejects the next one', async () => {
+    const { broker } = harness();
+    for (let index = 0; index < RATE_LIMIT_CAPACITY; index += 1) {
+      const response = await broker.handle(envelope('ui', 'toast', { message: 'hi' }, `r${index}`));
+      expect(response.ok, `call ${index}`).toBe(true);
     }
-    // Capacity is 100/s: the first call plus the burst leaves exactly one
-    // rejected call in the same millisecond.
-    const rejected = responses.filter((response) => !response.ok);
-    expect(rejected).toHaveLength(1);
-    const rateLimited = rejected.map((response) => (!response.ok ? response.error.details?.reason : undefined));
-    expect(rateLimited).toEqual(['rate_limited']);
-    // One second later capacity is restored.
-    now = 1000;
-    const recovered = await broker.handle({ ...storageGet('after'), id: 'after' });
-    expect(recovered.ok).toBe(true);
+    const rejected = await broker.handle(envelope('ui', 'toast', { message: 'hi' }, 'overflow'));
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) {
+      expect(rejected.error.code).toBe('E-RUN-003');
+      expect(rejected.error.details?.reason).toBe('rate_limited');
+    }
   });
 
-  it('rejects duplicate request ids in a session', async () => {
-    const broker = brokerWith({});
-    expect((await broker.handle(storageGet('dup'))).ok).toBe(true);
-    const duplicate = await broker.handle(storageGet('dup'));
-    expect(duplicate.ok).toBe(false);
-    if (duplicate.ok) throw new Error('expected failure');
-    expect(duplicate.error.code).toBe('E-SBX-008');
+  it('refills three tokens per second', async () => {
+    let now = 1_000;
+    const { broker } = harness({ now: () => now });
+    for (let index = 0; index < RATE_LIMIT_CAPACITY; index += 1) {
+      await broker.handle(envelope('ui', 'toast', { message: 'hi' }, `r${index}`));
+    }
+    now += 1_000;
+    for (let index = 0; index < 3; index += 1) {
+      const response = await broker.handle(envelope('ui', 'toast', { message: 'hi' }, `t${index}`));
+      expect(response.ok, `refilled ${index}`).toBe(true);
+    }
+    const fourth = await broker.handle(envelope('ui', 'toast', { message: 'hi' }, 't3'));
+    expect(fourth.ok).toBe(false);
   });
 
-  it('cancel stops an in-flight request without delivering a result', async () => {
-    const pending = Promise.withResolvers<unknown>();
-    const broker = brokerWith({ handler: () => pending.promise });
-    const request = broker.handle(storageGet('cancel-me'));
-    await Promise.resolve();
-    expect(broker.activeRequests()).toBe(1);
-    expect(broker.cancel('cancel-me')).toBe(true);
-    const response = await request;
-    expect(response.ok).toBe(false);
-    if (response.ok) throw new Error('expected failure');
-    expect(response.error.code).toBe('E-SBX-006');
-    pending.resolve({ late: true });
-    expect(broker.activeRequests()).toBe(0);
+  it('rejects a replayed request id', async () => {
+    const { broker } = harness();
+    expect((await broker.handle(envelope('ui', 'toast', { message: 'a' }, 'same'))).ok).toBe(true);
+    const replay = await broker.handle(envelope('ui', 'toast', { message: 'a' }, 'same'));
+    expect(replay.ok).toBe(false);
+    if (!replay.ok) expect(replay.error.code).toBe('E-RUN-003');
   });
 
-  it('times out idempotent reads with a retryable error', async () => {
+  it('turns a handler timeout into the watchdog code', async () => {
     vi.useFakeTimers();
-    const broker = brokerWith({ handler: () => Promise.withResolvers<unknown>().promise });
-    const request = broker.handle({
-      v: 1,
-      id: 'slow',
-      ns: 'db',
-      method: 'query',
-      params: { sql: 'SELECT 1' },
-      timeoutMs: 10_000,
+    const { broker } = harness({
+      handlers: { 'storage.get': () => new Promise(() => undefined) },
     });
+    const pending = broker.handle(envelope('storage', 'get', { key: 'a' }));
     await vi.advanceTimersByTimeAsync(10_001);
-    const response = await request;
-    expect(response.ok).toBe(false);
-    if (response.ok) throw new Error('expected failure');
-    expect(response.error.code).toBe('E-NET-003');
-    expect(response.error.retryable).toBe(true);
+    const response = await pending;
     vi.useRealTimers();
+    expect(response.ok).toBe(false);
+    if (!response.ok) expect(response.error.code).toBe('E-RUN-001');
   });
 
-  it('times out non-idempotent writes without claiming retryability', async () => {
-    vi.useFakeTimers();
-    const broker = brokerWith({ handler: () => Promise.withResolvers<unknown>().promise });
-    const request = broker.handle({
-      v: 1,
-      id: 'slow-write',
-      ns: 'db',
-      method: 'exec',
-      params: { sql: 'UPDATE notes SET title = ?' },
-      timeoutMs: 10_000,
-    });
-    await vi.advanceTimersByTimeAsync(10_001);
-    const response = await request;
+  it('reports a missing handler as a sandbox failure', async () => {
+    const { broker } = harness({ handlers: {} });
+    const response = await broker.handle(envelope('storage', 'get', { key: 'a' }));
     expect(response.ok).toBe(false);
-    if (response.ok) throw new Error('expected failure');
-    expect(response.error.code).toBe('E-SBX-005');
-    expect(response.error.retryable).toBe(false);
-    vi.useRealTimers();
+    if (!response.ok) expect(response.error.code).toBe('E-RUN-002');
   });
 
-  it('denies consent-gated intents without calling the handler', async () => {
-    const { calls, handler } = recorder();
-    const broker = new BridgeBroker({
-      appId: 'org.reinvy.kas',
-      handlers: { 'intents.dispatch': handler },
-      checkPermission: () => 'granted',
-      requestConsent: () => 'denied',
+  it('never exposes host paths in an error body', async () => {
+    const { broker } = harness({
+      handlers: {
+        'storage.get': () => {
+          throw new BridgeError('E-DATA-001', { reason: 'open_failed' });
+        },
+      },
     });
-    const response = await broker.handle({
-      v: 1,
-      id: 'intent-1',
-      ns: 'intents',
-      method: 'dispatch',
-      params: { intent: 'text.plain', target: 'org.reinvy.notes' },
-    });
+    const response = await broker.handle(envelope('storage', 'get', { key: 'a' }));
     expect(response.ok).toBe(false);
-    if (response.ok) throw new Error('expected failure');
-    expect(response.error.code).toBe('E-SBX-009');
-    expect(calls).toHaveLength(0);
-  });
-
-  beforeEach(() => {
-    vi.useRealTimers();
-  });
-  afterEach(() => {
-    vi.useRealTimers();
+    if (!response.ok) {
+      expect(response.error.code).toBe('E-DATA-001');
+      expect(JSON.stringify(response)).not.toMatch(/\/(home|Users|var)\//);
+    }
   });
 });

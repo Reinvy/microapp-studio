@@ -60,17 +60,24 @@ test('identity survives a reload and the shell has exactly one main landmark', a
   await expect(page.getByText('E-SHELL-002')).toHaveCount(0);
 
   // The host database really lives in OPFS, not in the memory fallback.
-  const hasHostDb = await page.evaluate(async () => {
-    const root = await navigator.storage.getDirectory();
-    try {
-      const dir = await root.getDirectoryHandle('microapp-studio');
-      await dir.getFileHandle('host.db');
-      return true;
-    } catch {
-      return false;
-    }
-  });
-  expect(hasHostDb).toBe(true);
+  // Polled because the worker creates it asynchronously after first paint.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(async () => {
+          const root = await navigator.storage.getDirectory();
+          try {
+            const dir = await root.getDirectoryHandle('microapp-studio');
+            const file = await dir.getFileHandle('host.db');
+            const data = await file.getFile();
+            return data.size > 0;
+          } catch {
+            return false;
+          }
+        }),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
 });
 
 test('pre-paint theme init applies the stored preference before React boots', async ({ page }) => {

@@ -3,14 +3,15 @@
  * hibernation.
  *
  * The clock is injected so tests drive time deterministically. Thresholds come
- * from `sandbox-capabilities.md` §7: 5 s freeze, two restarts per 60 s, 80%
- * memory warning once per cycle, 30 s hibernation.
+ * from `docs/03-specs/03-sandbox-runtime.md`: 5 s freeze detection, three
+ * restarts per 5 minutes (the fourth is refused and the boundary is shown),
+ * 80% memory warning once per cycle, 30 s hibernation while the tab is hidden.
  */
 
 export const FREEZE_MS = 5_000;
 export const HEARTBEAT_MS = 1_000;
-export const MAX_RESTARTS = 2;
-export const RESTART_WINDOW_MS = 60_000;
+export const MAX_RESTARTS = 3;
+export const RESTART_WINDOW_MS = 5 * 60_000;
 export const MEMORY_WARN_RATIO = 0.8;
 export const MEMORY_RESET_RATIO = 0.6;
 export const HIBERNATE_AFTER_MS = 30_000;

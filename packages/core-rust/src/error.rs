@@ -12,6 +12,10 @@ pub enum CoreError {
     Manifest(String),
     #[error("invalid package: {0}")]
     Package(String),
+    #[error("signature rejected: {0}")]
+    Signature(String),
+    #[error("digest mismatch: {0}")]
+    Digest(String),
     #[error("cryptographic failure: {0}")]
     Crypto(String),
     #[error("identity failure: {0}")]
@@ -20,6 +24,12 @@ pub enum CoreError {
     Guard(String),
     #[error("audit chain invalid: {0}")]
     Audit(String),
+    #[error("backup authentication failed: {0}")]
+    BackupAuth(String),
+    #[error("backup file is corrupt: {0}")]
+    BackupCorrupt(String),
+    #[error("invalid backup passphrase: {0}")]
+    BackupPassphrase(String),
     #[error("serialization failure: {0}")]
     Serde(String),
 }
@@ -28,8 +38,15 @@ impl CoreError {
     /// Catalog error code used by hosts, CLI, and audit entries.
     pub fn code(&self) -> &'static str {
         match self {
-            CoreError::Manifest(_) => "E-REG-003",
-            CoreError::Package(_) => "E-REG-003",
+            // A malformed manifest, layout, or ZIP is always `E-PACK-001`;
+            // signature and digest failures have their own codes so the host can
+            // offer a distinct recovery action.
+            CoreError::Manifest(_) | CoreError::Package(_) => "E-PACK-001",
+            CoreError::Signature(_) => "E-PACK-002",
+            CoreError::Digest(_) => "E-PACK-003",
+            CoreError::BackupAuth(_) => "E-BACKUP-001",
+            CoreError::BackupCorrupt(_) => "E-BACKUP-002",
+            CoreError::BackupPassphrase(_) => "E-SET-001",
             CoreError::Crypto(_) => "E-CRYPTO-001",
             CoreError::Identity(_) => "E-AUTH-006",
             CoreError::Guard(_) => "E-SBX-005",

@@ -99,11 +99,13 @@ export interface SandboxMessage {
  * the app id this sandbox was mounted for (B-01/B-19).
  */
 export function isTrustedMessage(
-  event: { source: unknown; data: unknown },
+  event: { source: unknown; data: unknown; origin?: string },
   expectedWindow: unknown,
   appId: string,
 ): boolean {
   if (!expectedWindow || event.source !== expectedWindow) return false;
+  // The sandbox iframe has an opaque origin, which serializes as "null".
+  if (event.origin !== undefined && event.origin !== 'null') return false;
   const data = event.data;
   if (typeof data !== 'object' || data === null) return false;
   const candidate = data as { source?: unknown; appId?: unknown };

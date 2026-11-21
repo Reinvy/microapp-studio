@@ -1,98 +1,170 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BRIDGE_METHODS,
+  BRIDGE_VERSION,
+  DEFAULT_TIMEOUT_MS,
+  HEAVY_TIMEOUT_MS,
   MAX_FRAME_BYTES,
-  MAX_INTENT_PAYLOAD_BYTES,
-  parseRequest,
-  validateParams,
   effectiveTimeout,
   methodSpec,
-  BRIDGE_METHODS,
+  parseRequest,
+  validateParams,
 } from '../protocol';
-import { BridgeError } from '../errors';
+import { BridgeError, ERROR_CODES, toBridgeError } from '../errors';
 
-const base = { v: 1, id: 'req-1', ns: 'storage', method: 'get', params: { key: 'k' } };
-
-function errorOf(fn: () => unknown): BridgeError {
+/** BridgeError messages are user-safe copy; the machine code lives in `.code`. */
+function expectCode(fn: () => unknown, code: string): void {
   try {
     fn();
   } catch (error) {
-    if (error instanceof BridgeError) return error;
-    throw error;
+    expect(error).toBeInstanceOf(BridgeError);
+    expect((error as BridgeError).code).toBe(code);
+    return;
   }
-  throw new Error('expected BridgeError');
+  throw new Error(`expected ${code}`);
 }
 
-describe('bridge protocol', () => {
-  it('rejects unsupported bridge versions before anything else', () => {
-    expect(errorOf(() => parseRequest({ ...base, v: 2 })).code).toBe('E-SBX-001');
-    expect(errorOf(() => parseRequest({ v: '1', id: 'x', ns: 'storage', method: 'get' })).code).toBe('E-SBX-001');
-  });
+const request = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+  v: BRIDGE_VERSION,
+  id: 'req-1',
+  ns: 'storage',
+  method: 'get',
+  params: { key: 'cart' },
+  ...overrides,
+});
 
-  it('rejects frames above 1 MiB', () => {
-    const huge = { ...base, params: { key: 'k', blob: 'a'.repeat(MAX_FRAME_BYTES) } };
-    expect(errorOf(() => parseRequest(huge)).code).toBe('E-SBX-005');
-  });
-
-  it('rejects unknown methods without falling back', () => {
-    expect(errorOf(() => parseRequest({ ...base, ns: 'camera', method: 'unknown' })).code).toBe('E-SBX-005');
-    // `ui.*` is internal to the sandbox renderer, not a bridge method.
-    expect(methodSpec('ui', 'render')).toBeUndefined();
-  });
-
-  it('validates request ids and namespaces', () => {
-    expect(errorOf(() => parseRequest({ ...base, id: 'bad id' })).code).toBe('E-SBX-005');
-    expect(errorOf(() => parseRequest({ ...base, id: '' })).code).toBe('E-SBX-005');
-    expect(errorOf(() => parseRequest({ ...base, ns: 42 })).code).toBe('E-SBX-005');
-  });
-
-  it('validates parameters per method', () => {
-    const camera = { v: 1, id: 'req-2', ns: 'camera', method: 'capture', params: { facing: 'sideways' } };
-    expect(errorOf(() => validateParams(parseRequest(camera))).code).toBe('E-SBX-005');
-
-    const unknownProp = { v: 1, id: 'req-3', ns: 'storage', method: 'get', params: { key: 'k', extra: 1 } };
-    expect(errorOf(() => validateParams(parseRequest(unknownProp))).code).toBe('E-SBX-005');
-
-    const insecure = { v: 1, id: 'req-4', ns: 'network', method: 'fetch', params: { url: 'http://example.com' } };
-    expect(errorOf(() => validateParams(parseRequest(insecure))).code).toBe('E-SBX-005');
-  });
-
-  it('caps intent payloads at 64 KiB', () => {
-    const intent = {
-      v: 1,
-      id: 'req-5',
-      ns: 'intents',
-      method: 'dispatch',
-      params: { intent: 'text.plain', payload: 'x'.repeat(MAX_INTENT_PAYLOAD_BYTES + 1) },
-    };
-    expect(errorOf(() => validateParams(parseRequest(intent))).code).toBe('E-SBX-009');
-  });
-
-  it('fails closed for phase-gated AI and workflow methods', () => {
-    const ai = { v: 1, id: 'req-6', ns: 'ai', method: 'infer', params: {} };
-    const parsed = parseRequest(ai);
-    const error = errorOf(() => validateParams(parsed));
-    expect(error.code).toBe('E-SBX-005');
-    expect(error.details?.reason).toBe('not_available_in_this_host_version');
-
-    const workflow = { v: 1, id: 'req-7', ns: 'workflow', method: 'run', params: {} };
-    expect(errorOf(() => validateParams(parseRequest(workflow))).details?.reason).toBe(
-      'not_available_in_this_host_version',
+describe('bridge method registry', () => {
+  it('exposes exactly the fourteen documented methods', () => {
+    expect(Object.keys(BRIDGE_METHODS).sort()).toEqual(
+      [
+        'app.getInfo',
+        'clipboard.read',
+        'clipboard.write',
+        'files.pick',
+        'net.fetch',
+        'notify.local',
+        'share.export',
+        'storage.get',
+        'storage.keys',
+        'storage.remove',
+        'storage.set',
+        'ui.ready',
+        'ui.toast',
+        'vault.read',
+      ].sort(),
     );
   });
 
-  it('exposes the canonical bridge surface without ui.*', () => {
-    expect(BRIDGE_METHODS['bridge.cancel']).toBeUndefined();
-    expect(BRIDGE_METHODS['vault.read']?.permission).toBe('vault.read');
-    expect(BRIDGE_METHODS['intents.dispatch']?.consent).toBe(true);
-    expect(BRIDGE_METHODS['db.query']?.permission).toBe('storage.local.sqlite');
-    const uiKeys = Object.keys(BRIDGE_METHODS).filter((key) => key.startsWith('ui.'));
-    expect(uiKeys).toEqual([]);
+  it('maps every permissioned method to a documented permission', () => {
+    const documented = new Set([
+      'clipboard.read',
+      'clipboard.write',
+      'notifications.local',
+      'files.pick',
+      'network.fetch',
+      'storage.app',
+      'vault.read',
+      'share.export',
+    ]);
+    for (const [key, spec] of Object.entries(BRIDGE_METHODS)) {
+      if (spec.permission === null) continue;
+      expect(documented.has(spec.permission), `${key} → ${spec.permission}`).toBe(true);
+    }
   });
 
-  it('clamps requested timeouts to the method ceiling', () => {
-    const parsed = parseRequest({ ...base, timeoutMs: 999_999 });
-    expect(effectiveTimeout(parsed)).toBe(10_000);
-    const aiish = parseRequest({ v: 1, id: 'req-8', ns: 'camera', method: 'capture', params: {} });
-    expect(effectiveTimeout(aiish)).toBe(60_000);
+  it('gives heavy methods a 30 s timeout and the rest 10 s', () => {
+    expect(effectiveTimeout(methodSpec('files', 'pick')!)).toBe(HEAVY_TIMEOUT_MS);
+    expect(effectiveTimeout(methodSpec('net', 'fetch')!)).toBe(HEAVY_TIMEOUT_MS);
+    expect(effectiveTimeout(methodSpec('share', 'export')!)).toBe(HEAVY_TIMEOUT_MS);
+    expect(effectiveTimeout(methodSpec('storage', 'get')!)).toBe(DEFAULT_TIMEOUT_MS);
+    expect(HEAVY_TIMEOUT_MS).toBe(30_000);
+    expect(DEFAULT_TIMEOUT_MS).toBe(10_000);
+  });
+
+  it('has no native-era namespaces left', () => {
+    for (const forbidden of ['db', 'fs', 'camera', 'microphone', 'device', 'sync', 'log', 'intents', 'network', 'ai']) {
+      expect(Object.keys(BRIDGE_METHODS).some((key) => key.startsWith(`${forbidden}.`)), forbidden).toBe(false);
+    }
+  });
+});
+
+describe('parseRequest', () => {
+  it('accepts a well formed envelope', () => {
+    expect(parseRequest(request())).toMatchObject({ ns: 'storage', method: 'get' });
+  });
+
+  it('rejects an unknown version', () => {
+    expect(() => parseRequest(request({ v: 2 }))).toThrow(BridgeError);
+  });
+
+  it('rejects unknown envelope fields', () => {
+    expectCode(() => parseRequest(request({ extra: 1 })), 'E-RUN-003');
+  });
+
+  it('rejects a frame larger than 256 KiB', () => {
+    const huge = 'x'.repeat(MAX_FRAME_BYTES);
+    expectCode(() => parseRequest(request({ params: { key: huge } })), 'E-RUN-003');
+  });
+
+  it('rejects a bad id, namespace, method, or params shape', () => {
+    expect(() => parseRequest(request({ id: '' }))).toThrow(BridgeError);
+    expect(() => parseRequest(request({ id: 'x'.repeat(65) }))).toThrow(BridgeError);
+    expect(() => parseRequest(request({ ns: 'Storage' }))).toThrow(BridgeError);
+    expect(() => parseRequest(request({ method: 'get-all' }))).toThrow(BridgeError);
+    expect(() => parseRequest(request({ params: [] }))).toThrow(BridgeError);
+  });
+});
+
+describe('validateParams', () => {
+  const valid = () => parseRequest(request());
+
+  it('rejects unknown methods', () => {
+    const parsed = parseRequest(request({ ns: 'db', method: 'query' }));
+    expectCode(() => validateParams(parsed), 'E-RUN-003');
+  });
+
+  it('rejects unknown parameters', () => {
+    const parsed = parseRequest(request({ params: { key: 'a', extra: 'b' } }));
+    expectCode(() => validateParams(parsed), 'E-RUN-003');
+  });
+
+  it('requires a non-empty key for storage methods', () => {
+    expect(() => validateParams(parseRequest(request({ params: {} })))).toThrow(BridgeError);
+    expect(validateParams(valid())).toEqual({ key: 'cart' });
+  });
+
+  it('accepts only https origins without path or query for net.fetch', () => {
+    const ok = parseRequest(
+      request({ ns: 'net', method: 'fetch', params: { origin: 'https://api.example.com' } }),
+    );
+    expect(validateParams(ok)).toMatchObject({ origin: 'https://api.example.com', method: 'GET' });
+
+    for (const origin of ['http://api.example.com', 'https://api.example.com/v1', 'https://api.example.com?a=1']) {
+      const parsed = parseRequest(request({ ns: 'net', method: 'fetch', params: { origin } }));
+      expect(() => expectCode(() => validateParams(parsed), 'E-RUN-003'), origin).not.toThrow();
+    }
+  });
+
+  it('rejects a callBridge-shaped method that is not in the table', () => {
+    const parsed = parseRequest(request({ ns: 'storage', method: 'delete' }));
+    expect(() => validateParams(parsed)).toThrow(BridgeError);
+  });
+});
+
+describe('error catalog', () => {
+  it('contains exactly the 27 documented codes', () => {
+    expect(ERROR_CODES).toHaveLength(27);
+    expect(new Set(ERROR_CODES).size).toBe(27);
+  });
+
+  it('never leaks host detail into an app-visible reason', () => {
+    const error = toBridgeError(new Error('E-DATA-001 failed at /home/user/secret.db'));
+    expect(error.code).toBe('E-DATA-001');
+    expect(JSON.stringify(error.toBody())).not.toContain('/home/user');
+  });
+
+  it('falls back to E-DEV-001 for an unrecognised failure', () => {
+    expect(toBridgeError(new Error('boom')).code).toBe('E-DEV-001');
+    expect(toBridgeError('nope').code).toBe('E-DEV-001');
   });
 });

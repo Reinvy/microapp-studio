@@ -956,6 +956,11 @@ textarea.mads-field__control {
 
 .mads-stack {
   display: flex;
+  /* A stack is vertical by default; `.mads-stack--row` opts into a row. Without
+     this, page-level stacks laid their cards out horizontally and overflowed the
+     inline axis in RTL. */
+  flex-direction: column;
+  gap: var(--mads-space-3);
 }
 
 .mads-stack--row {

@@ -44,7 +44,7 @@ export async function grantPermission(db: HostDb, input: GrantInput): Promise<Ac
     if (input.scope === 'once') {
       // `Allow once` is session-scoped only: it must never become a persistent
       // grant row, otherwise expiry would be bypassed.
-      if (!input.sessionId) throw new Error('E-SBX-005 allow-once requires a session id');
+      if (!input.sessionId) throw new Error('E-RUN-003 allow-once requires a session id');
       await tx.exec(
         `INSERT INTO permission_sessions (session_id, workspace_id, app_install_id, permission_id, granted_at_ms, expires_at_ms)
          VALUES (?, ?, ?, ?, ?, ?)`,

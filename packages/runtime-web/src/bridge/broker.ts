@@ -1,23 +1,27 @@
 /**
- * Bridge broker: permission → parameters → rate limit → execution, plus cancel,
- * duplicate-id detection, timeouts, and audit.
+ * Bridge broker.
  *
- * The broker never hands Host objects to the sandbox: handlers receive plain
- * JSON params and return plain JSON results.
+ * Validation order is binding (`host-bridge.md` B-03):
+ *   envelope/version → frame size → rate → declared method/permission →
+ *   consent → parameters → handler → audit.
+ *
+ * The broker never hands host objects to the sandbox: handlers receive plain
+ * JSON params and return plain JSON results. A permissioned method that the
+ * manifest did not declare fails closed with `E-RUN-003` *before* any consent
+ * dialog can appear.
  */
 
 import { BridgeError, toBridgeError } from './errors';
 import {
   effectiveTimeout,
+  methodKey,
   methodSpec,
   parseRequest,
   validateParams,
   type BridgeRequest,
   type BridgeResponse,
-  type StreamFrame,
 } from './protocol';
 import { TokenBucket } from './rate-limit';
-import { isRecord } from '../types/guards';
 
 export type PermissionDecision = 'granted' | 'denied' | 'mocked';
 
@@ -26,15 +30,12 @@ export interface BridgeContext {
   readonly requestId: string;
   readonly signal: AbortSignal;
   readonly mocked: boolean;
-  readonly emit: (frame: StreamFrame) => void;
 }
 
 export type BridgeHandler = (
   params: Record<string, unknown>,
   context: BridgeContext,
 ) => Promise<unknown> | unknown;
-
-export type ConsentDecision = 'granted' | 'denied';
 
 export interface AuditEvent {
   appId: string;
@@ -47,56 +48,46 @@ export interface AuditEvent {
 
 export interface BrokerOptions {
   appId: string;
+  /** Permissions the installed manifest declares. Nothing else can be called. */
+  declaredPermissions: string[];
+  /** True when the app's Offline Cage is active; `network.fetch` then fails with `E-NET-001`. */
+  offlineCage?: boolean;
   handlers: Record<string, BridgeHandler>;
-  checkPermission: (
-    permissionId: string,
-    request: BridgeRequest,
-  ) => PermissionDecision | Promise<PermissionDecision>;
-  requestConsent?: (request: BridgeRequest) => ConsentDecision | Promise<ConsentDecision>;
+  /**
+   * Resolve the current decision for a permission. This is where JIT consent
+   * happens: the host asks its dialog when no grant exists, then reports back.
+   */
+  checkPermission: (permissionId: string) => PermissionDecision | Promise<PermissionDecision>;
   audit?: (event: AuditEvent) => void;
   now?: () => number;
-  rateLimitPerSecond?: number;
-  /** Methods whose timeout stays retryable (idempotent reads). */
-  idempotentMethods?: string[];
 }
 
-const DEFAULT_IDEMPOTENT = [
-  'db.query',
-  'storage.get',
-  'storage.keys',
-  'fs.read',
-  'fs.stat',
-  'notifications.list',
-  'device.info',
-  'sync.status',
-  'log.flush',
-  'intents.canHandle',
-];
+/** `storage.app` owns only the app's own database, so it needs no consent. */
+const IMPLICIT_PERMISSIONS = new Set(['storage.app']);
 
 const MAX_SEEN_REQUEST_IDS = 512;
 
 export class BridgeBroker {
   private readonly appId: string;
+  private readonly declared: ReadonlySet<string>;
+  private readonly offlineCage: boolean;
   private readonly handlers: Record<string, BridgeHandler>;
   private readonly checkPermission: BrokerOptions['checkPermission'];
-  private readonly requestConsent: BrokerOptions['requestConsent'];
   private readonly audit: (event: AuditEvent) => void;
   private readonly now: () => number;
   private readonly bucket: TokenBucket;
-  private readonly idempotent: ReadonlySet<string>;
   private readonly inflight = new Map<string, AbortController>();
   private readonly seenRequestIds: string[] = [];
 
   constructor(options: BrokerOptions) {
     this.appId = options.appId;
+    this.declared = new Set(options.declaredPermissions);
+    this.offlineCage = options.offlineCage ?? true;
     this.handlers = options.handlers;
     this.checkPermission = options.checkPermission;
-    this.requestConsent = options.requestConsent;
     this.audit = options.audit ?? (() => {});
     this.now = options.now ?? (() => Date.now());
-    const perSecond = options.rateLimitPerSecond ?? 100;
-    this.bucket = new TokenBucket(perSecond, perSecond / 1000, this.now());
-    this.idempotent = new Set(options.idempotentMethods ?? DEFAULT_IDEMPOTENT);
+    this.bucket = new TokenBucket(undefined, undefined, this.now());
   }
 
   /** Cancel an in-flight request by id (envelope-level, no permission). */
@@ -114,51 +105,48 @@ export class BridgeBroker {
   async handle(raw: unknown): Promise<BridgeResponse> {
     const started = this.now();
     let request: BridgeRequest | undefined;
-    const rawId =
-      isRecord(raw) && typeof raw.id === 'string' ? raw.id : '';
+    let method = 'unknown';
     try {
-      request = parseRequest(raw);
-      const methodKey = `${request.ns}.${request.method}`;
+      request = parseRequest(raw); // envelope + version + frame size
+      method = methodKey(request.ns, request.method);
+
       if (this.inflight.has(request.id) || this.seenRequestIds.includes(request.id)) {
-        throw new BridgeError('E-SBX-008', { requestId: request.id });
-      }
-      const spec = methodSpec(request.ns, request.method);
-      if (!spec) throw new BridgeError('E-SBX-005', { reason: 'unknown_method' });
-      if (spec.disabled) {
-        // Fail closed for phase-gated features before any handler or dialog.
-        throw new BridgeError('E-SBX-005', { reason: 'not_available_in_this_host_version' });
+        throw new BridgeError('E-RUN-003', { reason: 'duplicate_request' });
       }
 
-      // Permission (or per-transfer consent) before parameter validation (B-03).
+      const spec = methodSpec(request.ns, request.method);
+      if (!spec) throw new BridgeError('E-RUN-003', { reason: 'unknown_method', method });
+
+      // Rate limit before touching permission state.
+      if (!this.bucket.tryTake(this.now())) {
+        throw new BridgeError('E-RUN-003', { reason: 'rate_limited' });
+      }
+
+      // Declaration gate: a method whose permission is not declared never runs.
+      if (spec.permission && !this.declared.has(spec.permission)) {
+        throw new BridgeError('E-RUN-003', { reason: 'permission_not_declared', permission: spec.permission });
+      }
+
+      // Offline Cage blocks network before consent, so no dialog can appear for
+      // a request that is going to be refused anyway.
+      if (spec.permission === 'network.fetch' && this.offlineCage) {
+        throw new BridgeError('E-NET-001', { reason: 'offline_cage' });
+      }
+
       let mocked = false;
-      if (spec.consent) {
-        if (!this.requestConsent) {
-          throw new BridgeError('E-SBX-009', { reason: 'consent_unavailable' });
-        }
-        const decision = await this.requestConsent(request);
-        if (decision !== 'granted') {
-          throw new BridgeError('E-SBX-009', { reason: 'consent_denied' });
-        }
-      } else if (spec.permission) {
-        const decision = await this.checkPermission(spec.permission, request);
+      if (spec.permission && !IMPLICIT_PERMISSIONS.has(spec.permission)) {
+        const decision = await this.checkPermission(spec.permission);
         if (decision === 'denied') {
-          throw new BridgeError('E-SBX-005', { permission: spec.permission });
+          throw new BridgeError('E-RUN-003', { permission: spec.permission, reason: 'permission_denied' });
         }
         mocked = decision === 'mocked';
       }
 
-      // Parameters.
       const params = validateParams(request);
 
-      // Rate limit.
-      if (!this.bucket.tryTake(this.now())) {
-        throw new BridgeError('E-SBX-005', { reason: 'rate_limited' });
-      }
+      const handler = this.handlers[method];
+      if (!handler) throw new BridgeError('E-RUN-002', { reason: 'handler_unavailable', method });
 
-      const handler = this.handlers[methodKey];
-      if (!handler) {
-        throw new BridgeError('E-SBX-001', { reason: 'handler_unavailable' });
-      }
       this.remember(request.id);
       const controller = new AbortController();
       this.inflight.set(request.id, controller);
@@ -166,38 +154,26 @@ export class BridgeBroker {
         const result = await this.runWithTimeout(
           handler,
           params,
-          {
-            appId: this.appId,
-            requestId: request.id,
-            signal: controller.signal,
-            mocked,
-            emit: () => {},
-          },
+          { appId: this.appId, requestId: request.id, signal: controller.signal, mocked },
           controller,
-          effectiveTimeout(request),
-          this.idempotent.has(methodKey),
+          effectiveTimeout(spec),
         );
-        this.audit({
-          appId: this.appId,
-          method: methodKey,
-          result: 'ok',
-          durationMs: this.now() - started,
-          mocked,
-        });
+        this.audit({ appId: this.appId, method, result: 'ok', durationMs: this.now() - started, mocked });
         return { id: request.id, ok: true, result };
       } finally {
         this.inflight.delete(request.id);
       }
     } catch (error) {
       const bridgeError = toBridgeError(error);
+      const cancelled = controllerAborted(error);
       this.audit({
         appId: this.appId,
-        method: request ? `${request.ns}.${request.method}` : 'unknown',
-        result: bridgeError.code === 'E-SBX-006' ? 'cancelled' : 'error',
+        method,
+        result: cancelled ? 'cancelled' : 'error',
         code: bridgeError.code,
         durationMs: this.now() - started,
       });
-      return { id: rawId, ok: false, error: bridgeError.toBody() };
+      return { id: requestIdOf(raw), ok: false, error: bridgeError.toBody() };
     }
   }
 
@@ -207,37 +183,34 @@ export class BridgeBroker {
     context: BridgeContext,
     controller: AbortController,
     timeoutMs: number,
-    idempotent: boolean,
   ): Promise<unknown> {
     const { promise, resolve, reject } = Promise.withResolvers<unknown>();
-    let timedOut = false;
+    let settled = false;
     const timer = setTimeout(() => {
-      timedOut = true;
-      reject(
-        idempotent
-          ? new BridgeError('E-NET-003', { reason: 'timeout' })
-          : new BridgeError('E-SBX-005', { reason: 'timeout' }, false),
-      );
+      if (settled) return;
+      settled = true;
       controller.abort();
+      reject(new BridgeError('E-RUN-001', { reason: 'timeout', timeoutMs }));
     }, timeoutMs);
-    const onAbort = () => {
-      if (timedOut) return;
+    const onAbort = (): void => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
-      reject(new BridgeError('E-SBX-006'));
+      reject(new BridgeError('E-RUN-003', { reason: 'cancelled' }));
     };
     controller.signal.addEventListener('abort', onAbort, { once: true });
     void Promise.resolve()
       .then(() => handler(params, context))
       .then((result) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
         controller.signal.removeEventListener('abort', onAbort);
-        if (controller.signal.aborted) {
-          reject(new BridgeError('E-SBX-006'));
-          return;
-        }
         resolve(result);
       })
       .catch((error: unknown) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
         controller.signal.removeEventListener('abort', onAbort);
         reject(error);
@@ -247,8 +220,18 @@ export class BridgeBroker {
 
   private remember(id: string): void {
     this.seenRequestIds.push(id);
-    if (this.seenRequestIds.length > MAX_SEEN_REQUEST_IDS) {
-      this.seenRequestIds.shift();
-    }
+    if (this.seenRequestIds.length > MAX_SEEN_REQUEST_IDS) this.seenRequestIds.shift();
   }
+}
+
+function requestIdOf(raw: unknown): string {
+  if (raw && typeof raw === 'object' && 'id' in raw) {
+    const id = (raw as { id?: unknown }).id;
+    if (typeof id === 'string' && id.length <= 64) return id;
+  }
+  return '';
+}
+
+function controllerAborted(error: unknown): boolean {
+  return error instanceof BridgeError && error.details.reason === 'cancelled';
 }

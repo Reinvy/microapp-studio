@@ -1,196 +1,188 @@
 import { describe, expect, it } from 'vitest';
+
+import { BridgeError } from '../../bridge/errors';
 import {
   MAX_DEPTH,
   MAX_NODES,
+  MAX_PAYLOAD_BYTES,
   MAX_STRING_LENGTH,
-  applyPatch,
   isSupportedComponent,
   validateDocument,
   type MuipNode,
 } from '../validate';
-import { BridgeError } from '../../bridge/errors';
 
-const card = (children: MuipNode[] = []): MuipNode => ({
+const card = (children: MuipNode[] = [], props: Record<string, unknown> = { title: 'Saldo' }): MuipNode => ({
   type: 'Card',
   id: 'card-1',
-  props: { title: 'Saldo' },
+  props,
   children,
 });
 
-function errorOf(fn: () => unknown): BridgeError {
+function errorOf(run: () => unknown): BridgeError {
   try {
-    fn();
+    run();
   } catch (error) {
     if (error instanceof BridgeError) return error;
     throw error;
   }
-  throw new Error('expected BridgeError');
+  throw new Error('expected a BridgeError to be thrown');
+}
+
+function reasonOf(run: () => unknown): unknown {
+  return errorOf(run).details?.reason;
 }
 
 describe('MUIP document validation', () => {
-  it('accepts a valid document and reports placeholders', () => {
+  it('accepts a valid document and reports counts and placeholders', () => {
     const result = validateDocument(
       card([
-        { type: 'Button', id: 'btn-1', props: { label: 'Simpan' }, events: { onPress: { action: 'submit' } } },
-        { type: 'KanbanBoard', id: 'board-1' },
+        { type: 'Button', id: 'btn-1', props: { label: 'Simpan' }, on: { press: { action: 'setState', target: 'saved' } } },
+        { type: 'KanbanBoard', id: 'board-1', children: [{ type: 'Badge', id: 'badge-1' }] },
       ]),
     );
-    expect(result.nodeCount).toBe(3);
+
+    expect(result.nodeCount).toBe(4);
     expect(result.placeholders).toEqual(['KanbanBoard']);
-    expect(result.deferredActions).toEqual([]);
+    expect(result.node.type).toBe('Card');
+    expect(result.node.children?.[0]?.props?.label).toBe('Simpan');
+    expect(result.bridgeCalls).toEqual([]);
   });
 
-  it('flags phase-3 actions as deferred while keeping them out of dispatch', () => {
-    const result = validateDocument({
-      type: 'Button',
-      id: 'ai-btn',
-      events: { onPress: { action: 'ai.prompt' } },
-    });
-    expect(result.deferredActions).toEqual(['ai.prompt']);
+  it('rejects unknown components with E-RUN-004 and the offending node path', () => {
+    const error = errorOf(() => validateDocument(card([{ type: 'iframe', id: 'evil' }])));
+    expect(String(error.code)).toBe('E-RUN-004');
+    expect(error.details).toMatchObject({ reason: 'component_unknown', type: 'iframe' });
+    expect(error.details?.path).toBe('$.children[0]');
+    expect(JSON.stringify(error.details)).toContain('$.children[0]');
   });
 
-  it('rejects unknown components and raw event handler strings', () => {
-    expect(errorOf(() => validateDocument({ type: 'iframe', id: 'x' })).code).toBe('E-SBX-005');
-    const jsHandler = errorOf(() =>
-      validateDocument({ type: 'Button', id: 'b', events: { onPress: 'alert(1)' } }),
+  it('rejects a foreign prop', () => {
+    const error = errorOf(() =>
+      validateDocument({ type: 'Button', id: 'b-1', props: { label: 'x', onClick: 'evil' } }),
     );
-    expect(jsHandler.details?.reason).toBe('event_binding_not_object');
+    expect(String(error.code)).toBe('E-RUN-004');
+    expect(error.details).toMatchObject({ reason: 'prop_not_allowed', type: 'Button' });
+    expect(error.details?.path).toBe('$.props.onClick');
   });
 
-  it('rejects duplicate ids and unknown props', () => {
-    const duplicate = errorOf(() =>
-      validateDocument({
-        type: 'Card',
-        id: 'same',
-        children: [{ type: 'Card', id: 'same' }],
-      }),
-    );
-    expect(duplicate.details?.reason).toBe('duplicate_node_id');
-
-    const unknownProp = errorOf(() =>
-      validateDocument({ type: 'Button', id: 'b', props: { label: 'x', onClick: 'evil' } }),
-    );
-    expect(unknownProp.details?.reason).toBe('unknown_prop');
-  });
-
-  it('rejects CSS values outside the token set', () => {
-    for (const style of [{ color: '#ff0000' }, { padding: '13px' }, { background: 'url(https://x)' }]) {
-      const error = errorOf(() => validateDocument({ type: 'Card', id: 'c', style }));
-      expect(['invalid_style_value', 'unknown_style_token']).toContain(error.details?.reason);
+  it('rejects html, css, style, and script fields and props', () => {
+    for (const field of ['html', 'css', 'style', 'script']) {
+      expect(reasonOf(() => validateDocument({ type: 'Card', id: 'c-1', [field]: '<b>x</b>' }))).toBe(
+        'forbidden_field',
+      );
+      expect(reasonOf(() => validateDocument({ type: 'Card', id: 'c-1', props: { [field]: 'x' } }))).toBe(
+        'forbidden_prop',
+      );
     }
-    const ok = validateDocument({ type: 'Card', id: 'c', style: { padding: 'md', color: 'fg', radius: 'lg' } });
-    expect(ok.node.style).toEqual({ padding: 'md', color: 'fg', radius: 'lg' });
   });
 
-  it('enforces depth, node count, payload, and string limits', () => {
-    let deep: MuipNode = { type: 'Card', id: 'leaf' };
-    for (let index = 0; index < MAX_DEPTH + 1; index += 1) {
-      deep = { type: 'Card', id: `n-${index}`, children: [deep] };
-    }
-    expect(errorOf(() => validateDocument(deep)).details?.reason).toBe('tree_too_deep');
-
+  it('rejects more than 2000 nodes', () => {
     const wide: MuipNode = {
       type: 'Card',
       id: 'root',
-      children: Array.from({ length: MAX_NODES + 1 }, (_, index) => ({
-        type: 'Badge',
-        id: `b-${index}`,
-      })),
+      children: Array.from({ length: MAX_NODES }, (_, index) => ({ type: 'Badge', id: `b-${index}` })),
     };
-    expect(errorOf(() => validateDocument(wide)).details?.reason).toBe('too_many_nodes');
+    expect(reasonOf(() => validateDocument(wide))).toBe('too_many_nodes');
+  });
 
-    const huge = 'x'.repeat(MAX_STRING_LENGTH + 1);
-    expect(errorOf(() => validateDocument({ type: 'Badge', id: 'b', props: { text: huge } })).details?.reason).toBe(
+  it('rejects a tree deeper than 32 levels', () => {
+    let deep: MuipNode = { type: 'Stack', id: 'leaf' };
+    for (let index = 0; index <= MAX_DEPTH; index += 1) {
+      deep = { type: 'Stack', id: `depth-${index}`, children: [deep] };
+    }
+    expect(reasonOf(() => validateDocument(deep))).toBe('depth_exceeded');
+  });
+
+  it('rejects a payload larger than 512 KiB before walking the tree', () => {
+    const huge = 'x'.repeat(MAX_PAYLOAD_BYTES + 1024);
+    expect(reasonOf(() => validateDocument({ type: 'Card', id: 'c-1', props: { text: huge } }))).toBe(
+      'payload_too_large',
+    );
+    expect(reasonOf(() => validateDocument({ type: 'Card', id: 'c-1', props: { text: 'x'.repeat(MAX_STRING_LENGTH + 1) } }))).toBe(
       'string_too_long',
     );
   });
 
-  it('validates accessibility fields', () => {
-    const ok = validateDocument({
-      type: 'Button',
-      id: 'b',
-      props: { label: 'Simpan' },
-      a11y: { label: 'Simpan catatan', description: 'Menyimpan perubahan', role: 'button', live: 'polite', disabled: false, required: true },
-    });
-    expect(ok.node.a11y).toEqual({
-      label: 'Simpan catatan',
-      description: 'Menyimpan perubahan',
-      role: 'button',
-      live: 'polite',
-      disabled: false,
-      required: true,
-    });
-    expect(errorOf(() => validateDocument({ type: 'Card', id: 'c', a11y: { role: 'iframe' } })).details?.reason).toBe(
-      'invalid_a11y_role',
-    );
-    expect(errorOf(() => validateDocument({ type: 'Card', id: 'c', a11y: { title: 'x' } })).details?.reason).toBe(
-      'unknown_a11y_key',
-    );
+  it('rejects duplicate and malformed node ids', () => {
+    expect(reasonOf(() => validateDocument(card([{ type: 'Badge', id: 'card-1' }])))).toBe('id_duplicate');
+    expect(reasonOf(() => validateDocument({ type: 'Badge', id: '1bad' }))).toBe('id_invalid');
+    expect(reasonOf(() => validateDocument({ type: 'Badge', id: 'has space' }))).toBe('id_invalid');
   });
 
-  it('marks implemented and placeholder components', () => {
-    expect(isSupportedComponent('AppShell')).toBe(true);
-    expect(isSupportedComponent('KanbanBoard')).toBe(false);
-    expect(isSupportedComponent('NotACatalogType')).toBe(false);
-  });
-});
-
-describe('MUIP patches', () => {
-  const root = (): MuipNode =>
-    card([
-      { type: 'Button', id: 'btn-1', props: { label: 'Satu' } },
-      { type: 'Badge', id: 'badge-1', props: { text: 'Dua' } },
-    ]);
-
-  it('applies update, insert, remove, and move in one batch', () => {
-    const updated = applyPatch(root(), [
-      { op: 'update', id: 'btn-1', props: { label: 'Tiga' } },
-      { op: 'insert', parentId: 'card-1', index: 0, node: { type: 'Badge', id: 'badge-0' } },
-      { op: 'remove', id: 'badge-1' },
-      { op: 'move', id: 'btn-1', parentId: 'card-1', index: 0 },
-    ]);
-    expect(updated.children?.map((child) => child.id)).toEqual(['btn-1', 'badge-0']);
-    expect(updated.children?.[0]?.props?.label).toBe('Tiga');
-  });
-
-  it('rejects unknown insert components atomically', () => {
-    const original = root();
-    const snapshot = JSON.stringify(original);
-    expect(() =>
-      applyPatch(original, [
-        { op: 'update', id: 'btn-1', props: { label: 'Berubah' } },
-        { op: 'insert', parentId: 'card-1', index: 0, node: { type: 'iframe', id: 'evil' } },
-      ]),
-    ).toThrow(BridgeError);
-    expect(JSON.stringify(original)).toBe(snapshot);
-  });
-
-  it('rejects cycles, root moves, and dangling targets', () => {
-    const nested: MuipNode = {
-      type: 'Card',
-      id: 'root',
-      children: [{ type: 'Card', id: 'inner', children: [{ type: 'Card', id: 'leaf' }] }],
-    };
-    expect(errorOf(() => applyPatch(nested, [{ op: 'move', id: 'inner', parentId: 'leaf', index: 0 }])).details?.reason).toBe(
-      'move_cycle',
-    );
-    expect(errorOf(() => applyPatch(nested, [{ op: 'move', id: 'root', parentId: 'inner', index: 0 }])).details?.reason).toBe(
-      'move_root_forbidden',
-    );
-    expect(errorOf(() => applyPatch(nested, [{ op: 'remove', id: 'missing' }])).details?.reason).toBe(
-      'remove_target_missing',
-    );
-    expect(errorOf(() => applyPatch(nested, [])).details?.reason).toBe('empty_patch');
-    expect(errorOf(() => applyPatch(nested, [{ op: 'copy', id: 'inner' } as never])).details?.reason).toBe(
-      'unknown_patch_operation',
-    );
-  });
-
-  it('rejects duplicate ids created by insert', () => {
+  it('rejects unknown events and callBridge actions without a method', () => {
     expect(
-      errorOf(() =>
-        applyPatch(root(), [{ op: 'insert', parentId: 'card-1', index: 0, node: { type: 'Badge', id: 'btn-1' } }]),
-      ).details?.reason,
-    ).toBe('duplicate_node_id');
+      reasonOf(() =>
+        validateDocument({ type: 'Button', id: 'b-1', on: { hover: { action: 'toast', target: 'x' } } }),
+      ),
+    ).toBe('event_not_allowed');
+
+    const error = errorOf(() =>
+      validateDocument({ type: 'Button', id: 'b-1', on: { press: { action: 'callBridge' } } }),
+    );
+    expect(error.details).toMatchObject({ reason: 'action_method_invalid' });
+  });
+
+  it('accepts callBridge with a namespaced method and lists it', () => {
+    const result = validateDocument({
+      type: 'Button',
+      id: 'save',
+      props: { label: 'Simpan' },
+      on: { press: { action: 'callBridge', method: 'storage.set', params: { key: 'total', value: 3 } } },
+    });
+    expect(result.bridgeCalls).toEqual(['storage.set']);
+    expect(result.node.on?.press).toEqual({
+      action: 'callBridge',
+      method: 'storage.set',
+      params: { key: 'total', value: 3 },
+    });
+  });
+
+  it('rejects children on a component without a child slot', () => {
+    expect(reasonOf(() => validateDocument({ type: 'Button', id: 'b-1', children: [{ type: 'Badge', id: 'x' }] }))).toBe(
+      'children_not_allowed',
+    );
+  });
+
+  it('accepts items as an array of flat objects and bounds each object', () => {
+    const accepted = validateDocument({
+      type: 'Sidebar',
+      id: 'nav',
+      props: { items: [{ label: 'Beranda', id: 'home', href: '/home' }, { label: 'Kasir', value: 'pos' }] },
+    });
+    expect(accepted.node.props?.items).toHaveLength(2);
+
+    const wideRow = Object.fromEntries(Array.from({ length: 17 }, (_, index) => [`k${index}`, index]));
+    expect(
+      reasonOf(() => validateDocument({ type: 'Sidebar', id: 'nav', props: { items: [wideRow] } })),
+    ).toBe('complex_prop_item_too_wide');
+
+    expect(
+      reasonOf(() =>
+        validateDocument({ type: 'Sidebar', id: 'nav', props: { items: [{ label: 'x', nested: { a: 1 } }] } }),
+      ),
+    ).toBe('complex_prop_item_not_scalar');
+  });
+
+  it('rejects an array prop longer than 64 scalars', () => {
+    const error = errorOf(() =>
+      validateDocument({
+        type: 'Alert',
+        id: 'alert-1',
+        props: { actions: Array.from({ length: 65 }, (_, index) => `Aksi ${index}`) },
+      }),
+    );
+    expect(error.details).toMatchObject({ reason: 'prop_array_too_long', maxItems: 64 });
+  });
+
+  it('rejects a document with more than one root', () => {
+    expect(reasonOf(() => validateDocument([{ type: 'Badge', id: 'a' }, { type: 'Badge', id: 'b' }]))).toBe(
+      'root_count_invalid',
+    );
+  });
+
+  it('exposes the catalog surface', () => {
+    expect(isSupportedComponent('AppShell')).toBe(true);
+    expect(isSupportedComponent('KanbanBoard')).toBe(true);
+    expect(isSupportedComponent('NotACatalogType')).toBe(false);
   });
 });

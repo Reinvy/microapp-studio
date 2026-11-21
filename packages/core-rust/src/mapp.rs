@@ -1,19 +1,28 @@
-//! `.mapp` package format: deterministic ZIP writer, verifier, and extractor.
+//! `.mapp` v2 package format: deterministic ZIP writer, verifier, and extractor.
 //!
-//! Digest rule (ADR-0013, `manifest-v2.md` §4.5): `contentHash` and both
-//! signatures cover the canonical ZIP built **without** `signatures/` and with
-//! `manifest.json.contentHash` replaced by `sha256-` + 64 zeros.
+//! Format (`docs/03-specs/05-packages.md`):
+//!
+//! - roots: `microapp.manifest.json`, `signature.ed25519`, `LICENSE`,
+//!   `bundle/*.js`, `assets/**`;
+//! - payload files are every file except the manifest and the detached
+//!   signature;
+//! - `contentHash` is the SHA-256 of a deterministic ZIP holding the payload
+//!   plus the *canonical hash manifest* (`contentHash` and `signature.value`
+//!   empty);
+//! - the signature message is the JCS bytes of the final manifest with
+//!   `signature.value` empty, and `signature.ed25519` must carry exactly the
+//!   same 64 bytes as `signature.value`.
 
-use std::collections::BTreeMap;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::io::{Cursor, Read, Write};
 
+use base64::Engine;
 use ed25519_dalek::SigningKey;
 use serde::{Deserialize, Serialize};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 
-use crate::crypto::{ct_eq, ed25519_public, ed25519_sign, ed25519_verify, sha256, KEY_LEN, SIGNATURE_LEN};
+use crate::crypto::{ed25519_verify, hex_lower, sha256, KEY_LEN, SIGNATURE_LEN};
 use crate::error::{CoreError, CoreResult};
 use crate::guard;
 use crate::manifest::{self, Manifest};
@@ -21,9 +30,9 @@ use crate::manifest::{self, Manifest};
 pub const MAX_DECOMPRESSED_BYTES: u64 = 256 * 1024 * 1024;
 pub const MAX_COMPRESSED_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_ENTRIES: usize = 10_000;
-pub const AUTHOR_SIGNATURE_PATH: &str = "signatures/author.ed25519";
-pub const REGISTRY_SIGNATURE_PATH: &str = "signatures/registry.ed25519";
-pub const MANIFEST_PATH: &str = "manifest.json";
+pub const MANIFEST_PATH: &str = "microapp.manifest.json";
+pub const SIGNATURE_PATH: &str = "signature.ed25519";
+pub const LICENSE_PATH: &str = "LICENSE";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappEntry {
@@ -57,6 +66,16 @@ pub enum InstallSource {
 }
 
 impl InstallSource {
+    pub fn parse(value: &str) -> CoreResult<Self> {
+        match value {
+            "local" => Ok(InstallSource::Local),
+            "registry" => Ok(InstallSource::Registry),
+            "enterprise" => Ok(InstallSource::Enterprise),
+            "git" => Ok(InstallSource::Git),
+            other => Err(CoreError::Package(format!("unknown source {other}"))),
+        }
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             InstallSource::Local => "local",
@@ -65,146 +84,278 @@ impl InstallSource {
             InstallSource::Git => "git",
         }
     }
+
+    /// Registry/enterprise installs carry a registry co-signature.
+    pub fn requires_registry_signature(&self) -> bool {
+        matches!(self, InstallSource::Registry | InstallSource::Enterprise)
+    }
+}
+
+/// Result of `prepare`: the manifest with digests filled and the message to sign.
+#[derive(Debug, Clone)]
+pub struct PreparedPackage {
+    pub manifest: Manifest,
+    pub manifest_json: String,
+    pub signature_message: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerifiedMapp {
+pub struct VerifiedPackage {
     pub manifest: Manifest,
     pub digest: [u8; 32],
-    pub author_signature: Option<Vec<u8>>,
+    pub author_signature: Vec<u8>,
     pub registry_signature: Option<Vec<u8>>,
     pub entry_count: usize,
     pub decompressed_bytes: u64,
 }
 
-fn canonical_zip(entries: &[MappEntry]) -> CoreResult<Vec<u8>> {
-    let mut sorted: Vec<&MappEntry> = entries.iter().collect();
-    sorted.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
+fn canonical_zip(mut files: Vec<(String, Vec<u8>)>) -> CoreResult<Vec<u8>> {
+    files.sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
     let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
     let epoch = DateTime::default();
-    for entry in sorted {
-        let mut options = SimpleFileOptions::default()
+    for (path, data) in files {
+        let options = SimpleFileOptions::default()
             .last_modified_time(epoch)
-            .unix_permissions(if entry.is_dir { 0o755 } else { 0o644 });
-        if entry.is_dir {
-            options = options.compression_method(CompressionMethod::Stored);
-            writer.add_directory(entry.path.trim_end_matches('/'), options)?;
-        } else {
-            options = options
-                .compression_method(CompressionMethod::Deflated)
-                .compression_level(Some(9));
-            writer.start_file(entry.path.as_str(), options)?;
-            writer.write_all(&entry.data)?;
-        }
+            .unix_permissions(0o644)
+            .compression_method(CompressionMethod::Deflated)
+            .compression_level(Some(9));
+        writer.start_file(path, options)?;
+        writer.write_all(&data)?;
     }
     let cursor = writer.finish()?;
     Ok(cursor.into_inner())
 }
 
-fn ensure_layout(entries: &[MappEntry]) -> CoreResult<()> {
-    let mut has_dist = false;
-    for entry in entries {
-        if entry.is_dir {
-            continue;
-        }
-        if let Some(rest) = entry.path.strip_prefix("dist/") {
-            if !rest.is_empty() {
-                has_dist = true;
-            }
-        }
-    }
-    if !has_dist {
-        return Err(CoreError::Package("package must contain dist/ files".into()));
-    }
-    Ok(())
-}
-
-fn assert_entries_safe(entries: &[MappEntry]) -> CoreResult<()> {
+/// Validate every path and root before any bytes are hashed.
+pub fn validate_entries(entries: &[MappEntry]) -> CoreResult<()> {
     let mut seen: HashSet<&str> = HashSet::new();
     for entry in entries {
-        guard::check_path(entry.path.trim_end_matches('/'))?;
+        let trimmed = entry.path.trim_end_matches('/');
+        if trimmed.is_empty() {
+            return Err(CoreError::Package("empty entry name".into()));
+        }
+        if trimmed.contains('\\') {
+            return Err(CoreError::Package(format!(
+                "entry {trimmed} uses a backslash; only '/' is allowed"
+            )));
+        }
+        guard::check_path(trimmed).map_err(|_| {
+            CoreError::Package(format!("entry {trimmed} escapes the package root"))
+        })?;
         if !seen.insert(entry.path.as_str()) {
             return Err(CoreError::Package(format!("duplicate entry {}", entry.path)));
         }
-        if entry.path == MANIFEST_PATH || entry.path.starts_with("signatures/") {
+        if trimmed == MANIFEST_PATH || trimmed == SIGNATURE_PATH {
             return Err(CoreError::Package(format!(
-                "entry {} is managed by the packer",
-                entry.path
+                "entry {trimmed} is written by the packer"
             )));
         }
+        check_layout_path(trimmed, entry.is_dir)?;
     }
     Ok(())
 }
 
-/// Build a signed `.mapp` package.
-///
-/// `author_key` is required for every install source except `git`; whenever both
-/// keys are supplied they MUST differ (M-21).
-pub fn pack(
-    manifest_json: &str,
-    mut entries: Vec<MappEntry>,
-    author_key: Option<&SigningKey>,
-    registry_key: Option<&SigningKey>,
-) -> CoreResult<Vec<u8>> {
-    let manifest = manifest::parse(manifest_json)?;
-    if let (Some(author), Some(registry)) = (author_key, registry_key) {
-        if ct_eq(&ed25519_public(author), &ed25519_public(registry)) {
-            return Err(CoreError::Package("author and registry keys must differ".into()));
+/// Allowed roots: `LICENSE`, `bundle/*.js`, `assets/**`.
+fn check_layout_path(path: &str, is_dir: bool) -> CoreResult<()> {
+    if is_dir {
+        if path == "bundle" || path == "assets" || path.starts_with("assets/") {
+            return Ok(());
         }
+        return Err(CoreError::Package(format!("directory {path}/ is not part of the layout")));
     }
-    assert_entries_safe(&entries)?;
-    entries.retain(|entry| !(entry.path == MANIFEST_PATH || entry.path.starts_with("signatures/")));
-    ensure_layout(&entries)?;
-
-    // Digest over canonical ZIP with the placeholder manifest.
-    let placeholder = manifest::jcs_with_placeholder(&manifest)?;
-    let mut placeholder_entries = entries.clone();
-    placeholder_entries.push(MappEntry::file(MANIFEST_PATH, placeholder));
-    let placeholder_zip = canonical_zip(&placeholder_entries)?;
-    let digest = sha256(&placeholder_zip);
-
-    // Final manifest carries the real contentHash.
-    let mut final_manifest = manifest;
-    final_manifest.content_hash = format!("sha256-{}", crate::crypto::hex_lower(&digest));
-    validate_bundle(&final_manifest)?;
-
-    let mut final_entries = entries;
-    final_entries.push(MappEntry::file(
-        MANIFEST_PATH,
-        manifest::jcs_manifest(&final_manifest)?,
-    ));
-    if let Some(author) = author_key {
-        let signature = ed25519_sign(author, &digest);
-        if let Some(entry) = final_entries
-            .iter_mut()
-            .find(|entry| entry.path == AUTHOR_SIGNATURE_PATH)
-        {
-            entry.data = signature.to_vec();
-        } else {
-            final_entries.push(MappEntry::file(AUTHOR_SIGNATURE_PATH, signature.to_vec()));
-        }
+    if path == MANIFEST_PATH || path == SIGNATURE_PATH {
+        // Written by the packer; `validate_entries` rejects caller-supplied
+        // copies before this check runs.
+        return Ok(());
     }
-    if let Some(registry) = registry_key {
-        let signature = ed25519_sign(registry, &digest);
-        final_entries.push(MappEntry::file(REGISTRY_SIGNATURE_PATH, signature.to_vec()));
+    if path == LICENSE_PATH {
+        return Ok(());
     }
-    canonical_zip(&final_entries)
+    if manifest::is_bundle_path(path) {
+        return Ok(());
+    }
+    if path.starts_with("assets/") && path.len() > "assets/".len() {
+        return Ok(());
+    }
+    if path == "manifest.json" || path.starts_with("dist/") || path.starts_with("signatures/") {
+        return Err(CoreError::Package(format!(
+            "entry {path} uses the removed v1 layout; the v2 package has no manifest.json, dist/, or signatures/"
+        )));
+    }
+    Err(CoreError::Package(format!("entry {path} is outside the allowed package roots")))
 }
 
-/// Re-validate the final manifest after the hash is filled in.
-fn validate_bundle(manifest: &Manifest) -> CoreResult<()> {
-    let json = serde_json::to_string(manifest)?;
-    let issues = manifest::validate(&json);
-    if issues.is_empty() {
-        Ok(())
-    } else {
-        let summary = issues
-            .iter()
-            .map(|issue| format!("{} {}: {}", issue.rule, issue.field, issue.message))
-            .collect::<Vec<_>>()
-            .join("; ");
-        Err(CoreError::Manifest(summary))
+fn payload_files(entries: &[MappEntry]) -> Vec<&MappEntry> {
+    entries
+        .iter()
+        .filter(|entry| {
+            !entry.is_dir
+                && entry.path != MANIFEST_PATH
+                && entry.path != SIGNATURE_PATH
+        })
+        .collect()
+}
+
+fn find_file<'a>(entries: &'a [MappEntry], path: &str) -> Option<&'a MappEntry> {
+    entries.iter().find(|entry| !entry.is_dir && entry.path == path)
+}
+
+fn file_hashes(payload: &[&MappEntry]) -> BTreeMap<String, String> {
+    payload
+        .iter()
+        .map(|entry| (entry.path.clone(), hex_lower(&sha256(&entry.data))))
+        .collect()
+}
+
+/// Fill `integrity.files` and `integrity.contentHash` and return the message the
+/// author must sign.
+///
+/// The input manifest may carry empty digests, so a caller can hand over a
+/// template. The returned manifest is the final pre-signature form: the only
+/// remaining change is `signature.value`.
+pub fn prepare_manifest(manifest_json: &str, entries: &[MappEntry]) -> CoreResult<PreparedPackage> {
+    let mut manifest = manifest::parse(manifest_json)?;
+    validate_entries(entries)?;
+    let payload = payload_files(entries);
+    if payload.is_empty() {
+        return Err(CoreError::Package("package must contain at least one payload file".into()));
     }
+    if find_file(entries, &manifest.entry.bundle).is_none() {
+        return Err(CoreError::Package(format!(
+            "entry.bundle {} is missing from the package",
+            manifest.entry.bundle
+        )));
+    }
+
+    manifest.integrity.algorithm = "sha256".to_string();
+    manifest.integrity.files = file_hashes(&payload);
+    manifest.integrity.content_hash.clear();
+    manifest.signature.value.clear();
+
+    let hash_manifest = manifest::canonical_hash_jcs(&manifest)?;
+    let mut zip_files: Vec<(String, Vec<u8>)> = payload
+        .iter()
+        .map(|entry| (entry.path.clone(), entry.data.clone()))
+        .collect();
+    zip_files.push((MANIFEST_PATH.to_string(), hash_manifest));
+    let digest = sha256(&canonical_zip(zip_files)?);
+    manifest.integrity.content_hash = hex_lower(&digest);
+
+    let manifest_json = String::from_utf8(manifest::to_jcs(&manifest)?)
+        .map_err(|_| CoreError::Package("manifest is not UTF-8".into()))?;
+    let signature_message = manifest::signature_message(&manifest)?;
+    let prepared_manifest: Manifest = serde_json::from_str(&manifest_json)?;
+
+    Ok(PreparedPackage {
+        manifest: prepared_manifest,
+        manifest_json,
+        signature_message,
+    })
+}
+
+/// Finalize a prepared manifest with an externally produced signature.
+///
+/// `signature_base64` must verify over the signature message with
+/// `author_pubkey_hex`; a mismatch is `E-PACK-002`.
+pub fn finalize_with_signature(
+    manifest_json: &str,
+    entries: &[MappEntry],
+    signature_base64: &str,
+    author_pubkey_hex: &str,
+) -> CoreResult<Vec<u8>> {
+    let author = parse_pubkey(author_pubkey_hex)?;
+    let key_id = format!("ed25519:{}", hex_lower(&author));
+
+    // Fill `keyId` *before* hashing: `keyId` is part of the canonical hash
+    // manifest, so filling it afterwards would change the digest.
+    let mut manifest = manifest::parse(manifest_json)?;
+    if manifest.signature.key_id.is_empty() {
+        manifest.signature.key_id = key_id;
+    } else if manifest.signature.key_id != key_id {
+        return Err(CoreError::Signature(
+            "manifest signature.keyId does not match the author key".into(),
+        ));
+    }
+    let manifest_json = String::from_utf8(manifest::to_jcs(&manifest)?)
+        .map_err(|_| CoreError::Package("manifest is not UTF-8".into()))?;
+
+    let prepared = prepare_manifest(&manifest_json, entries)?;
+    let mut final_manifest = prepared.manifest;
+
+    let signature = manifest::decode_signature_base64(signature_base64)?;
+    ed25519_verify(&author, &prepared.signature_message, &signature).map_err(|_| {
+        CoreError::Signature("author signature does not verify against the package".into())
+    })?;
+    final_manifest.signature.value = base64::engine::general_purpose::STANDARD.encode(signature);
+
+    let manifest_bytes = manifest::to_jcs(&final_manifest)?;
+    let mut zip_files: Vec<(String, Vec<u8>)> = payload_files(entries)
+        .iter()
+        .map(|entry| (entry.path.clone(), entry.data.clone()))
+        .collect();
+    zip_files.push((MANIFEST_PATH.to_string(), manifest_bytes));
+    zip_files.push((SIGNATURE_PATH.to_string(), signature.to_vec()));
+    canonical_zip(zip_files)
+}
+
+/// Build an unsigned package. Only `make-fixtures.mjs` uses this to exercise the
+/// "signature missing" path; normal packing goes through
+/// `prepare` → sign → `finalize_with_signature`.
+pub fn build_unsigned(manifest_json: &str, entries: &[MappEntry]) -> CoreResult<Vec<u8>> {
+    let prepared = prepare_manifest(manifest_json, entries)?;
+    let manifest_bytes = manifest::to_jcs(&prepared.manifest)?;
+    let mut zip_files: Vec<(String, Vec<u8>)> = payload_files(entries)
+        .iter()
+        .map(|entry| (entry.path.clone(), entry.data.clone()))
+        .collect();
+    zip_files.push((MANIFEST_PATH.to_string(), manifest_bytes));
+    canonical_zip(zip_files)
+}
+
+/// Sign a prepared package with a seed-backed key and finalize it.
+///
+/// This is the CLI path: `prepare` → `ed25519_sign` → `finalize_with_signature`.
+pub fn pack_with_key(
+    manifest_json: &str,
+    entries: &[MappEntry],
+    author: &SigningKey,
+) -> CoreResult<Vec<u8>> {
+    let public = crate::crypto::ed25519_public(author);
+    let key_id = format!("ed25519:{}", hex_lower(&public));
+
+    // `keyId` is part of the digest and of the signed message, so it must be
+    // filled before the message is produced.
+    let mut manifest = manifest::parse(manifest_json)?;
+    if manifest.signature.key_id.is_empty() {
+        manifest.signature.key_id = key_id;
+    } else if manifest.signature.key_id != key_id {
+        return Err(CoreError::Signature(
+            "manifest signature.keyId does not match the author key".into(),
+        ));
+    }
+    let manifest_json = String::from_utf8(manifest::to_jcs(&manifest)?)
+        .map_err(|_| CoreError::Package("manifest is not UTF-8".into()))?;
+
+    let prepared = prepare_manifest(&manifest_json, entries)?;
+    let signature = crate::crypto::ed25519_sign(author, &prepared.signature_message);
+    let signature_base64 = base64::engine::general_purpose::STANDARD.encode(signature);
+    finalize_with_signature(
+        &manifest_json,
+        entries,
+        &signature_base64,
+        &hex_lower(&public),
+    )
+}
+
+pub fn parse_pubkey(hex: &str) -> CoreResult<[u8; KEY_LEN]> {
+    let bytes = crate::crypto::hex_decode(hex)
+        .map_err(|_| CoreError::Signature("public key is not hex".into()))?;
+    if bytes.len() != KEY_LEN {
+        return Err(CoreError::Signature("public key must be 32 bytes".into()));
+    }
+    let mut out = [0u8; KEY_LEN];
+    out.copy_from_slice(&bytes);
+    Ok(out)
 }
 
 /// Extract every entry while enforcing size, count, path, and symlink guards.
@@ -227,10 +378,14 @@ pub fn extract_entries(bytes: &[u8]) -> CoreResult<Vec<MappEntry>> {
         let name = file.name().to_string();
         let is_dir = file.is_dir();
         let trimmed = name.trim_end_matches('/').to_string();
-        guard::check_path(&trimmed)?;
         if trimmed.is_empty() {
             return Err(CoreError::Package("empty entry name".into()));
         }
+        if name.contains('\\') {
+            return Err(CoreError::Package(format!("entry {name} uses a backslash")));
+        }
+        guard::check_path(&trimmed)
+            .map_err(|_| CoreError::Package(format!("entry {name} escapes the package root")))?;
         if !seen.insert(name.clone()) {
             return Err(CoreError::Package(format!("duplicate entry {name}")));
         }
@@ -239,8 +394,12 @@ pub fn extract_entries(bytes: &[u8]) -> CoreResult<Vec<MappEntry>> {
         }
         if let Some(mode) = file.unix_mode() {
             let file_type = mode & 0o170000;
-            if file_type == 0o120000 {
-                return Err(CoreError::Package(format!("symlink entry rejected: {name}")));
+            // 0 means the writer did not record a type; accept it for
+            // interoperability, reject devices/FIFOs/sockets.
+            if file_type != 0 && file_type != 0o100000 && file_type != 0o040000 {
+                return Err(CoreError::Package(format!(
+                    "entry {name} is not a regular file or directory"
+                )));
             }
         }
         let declared = file.size();
@@ -262,196 +421,153 @@ pub fn extract_entries(bytes: &[u8]) -> CoreResult<Vec<MappEntry>> {
     Ok(entries)
 }
 
-/// Verify a package: guards → manifest → digest → signatures per install source.
+fn verify_key_id(manifest: &Manifest, key: &[u8; KEY_LEN], field: &str) -> CoreResult<()> {
+    let expected = format!("ed25519:{}", hex_lower(key));
+    if manifest.signature.key_id != expected {
+        return Err(CoreError::Signature(format!(
+            "{field} keyId does not match the supplied public key"
+        )));
+    }
+    Ok(())
+}
+
+/// Verify a package: guards → manifest → layout → per-file digests → contentHash
+/// → author signature (and registry co-signature for registry/enterprise).
 pub fn verify(
     bytes: &[u8],
     source: InstallSource,
     author_pubkey: Option<&[u8; KEY_LEN]>,
     registry_pubkey: Option<&[u8; KEY_LEN]>,
-) -> CoreResult<VerifiedMapp> {
+) -> CoreResult<VerifiedPackage> {
     let entries = extract_entries(bytes)?;
-    let manifest_raw = entries
-        .iter()
-        .find(|entry| entry.path == MANIFEST_PATH && !entry.is_dir)
-        .ok_or_else(|| CoreError::Package("manifest.json missing".into()))?;
-    let manifest_json = String::from_utf8(manifest_raw.data.clone())
-        .map_err(|_| CoreError::Package("manifest.json is not UTF-8".into()))?;
-    let manifest = manifest::parse(&manifest_json)?;
-    ensure_layout(&entries)?;
 
-    let signature_at = |path: &str| -> Option<[u8; SIGNATURE_LEN]> {
-        entries
-            .iter()
-            .find(|entry| entry.path == path && !entry.is_dir)
-            .and_then(|entry| {
-                if entry.data.len() == SIGNATURE_LEN {
-                    let mut out = [0u8; SIGNATURE_LEN];
-                    out.copy_from_slice(&entry.data);
-                    Some(out)
-                } else {
-                    None
-                }
-            })
-    };
-    let author_signature = signature_at(AUTHOR_SIGNATURE_PATH);
-    let registry_signature = signature_at(REGISTRY_SIGNATURE_PATH);
+    let manifest_entry = find_file(&entries, MANIFEST_PATH)
+        .ok_or_else(|| CoreError::Package(format!("{MANIFEST_PATH} is missing")))?;
+    let manifest_json = std::str::from_utf8(&manifest_entry.data)
+        .map_err(|_| CoreError::Package("manifest is not UTF-8".into()))?;
+    let manifest = manifest::parse(manifest_json)?;
 
-    // Rebuild the canonical placeholder ZIP from extracted entries.
-    let mut placeholder_entries: Vec<MappEntry> = entries
+    // Layout: every entry must be part of the v2 roots and the archive must
+    // carry exactly one detached signature file.
+    for entry in &entries {
+        let trimmed = entry.path.trim_end_matches('/');
+        check_layout_path(trimmed, entry.is_dir)?;
+    }
+    let signature_entry = find_file(&entries, SIGNATURE_PATH)
+        .ok_or_else(|| CoreError::Signature(format!("{SIGNATURE_PATH} is missing")))?;
+    if signature_entry.data.len() != SIGNATURE_LEN {
+        return Err(CoreError::Signature(format!(
+            "{SIGNATURE_PATH} must contain 64 raw bytes"
+        )));
+    }
+    if find_file(&entries, &manifest.entry.bundle).is_none() {
+        return Err(CoreError::Package(format!(
+            "entry.bundle {} is missing from the package",
+            manifest.entry.bundle
+        )));
+    }
+
+    // Per-file digests: every payload file must have exactly one matching entry.
+    let payload = payload_files(&entries);
+    let declared = &manifest.integrity.files;
+    if manifest.integrity.algorithm != "sha256" {
+        return Err(CoreError::Digest("integrity.algorithm must be sha256".into()));
+    }
+    if payload.len() != declared.len() {
+        return Err(CoreError::Digest(
+            "integrity.files does not cover exactly the payload files".into(),
+        ));
+    }
+    for entry in &payload {
+        let expected = declared.get(&entry.path).ok_or_else(|| {
+            CoreError::Digest(format!("integrity.files is missing {}", entry.path))
+        })?;
+        let actual = hex_lower(&sha256(&entry.data));
+        if expected != &actual {
+            return Err(CoreError::Digest(format!(
+                "digest mismatch for {}",
+                entry.path
+            )));
+        }
+    }
+
+    // contentHash over the canonical ZIP projection.
+    let hash_manifest = manifest::canonical_hash_jcs(&manifest)?;
+    let mut zip_files: Vec<(String, Vec<u8>)> = payload
         .iter()
-        .filter(|entry| entry.path != MANIFEST_PATH && !entry.path.starts_with("signatures/"))
-        .cloned()
+        .map(|entry| (entry.path.clone(), entry.data.clone()))
         .collect();
-    placeholder_entries.push(MappEntry::file(
-        MANIFEST_PATH,
-        manifest::jcs_with_placeholder(&manifest)?,
-    ));
-    let rebuilt = canonical_zip(&placeholder_entries)?;
-    let digest = sha256(&rebuilt);
-    let expected = format!("sha256-{}", crate::crypto::hex_lower(&digest));
-    if manifest.content_hash != expected {
-        return Err(CoreError::Package("contentHash does not match canonical ZIP".into()));
+    zip_files.push((MANIFEST_PATH.to_string(), hash_manifest));
+    let digest = sha256(&canonical_zip(zip_files)?);
+    let digest_hex = hex_lower(&digest);
+    if manifest.integrity.content_hash != digest_hex {
+        return Err(CoreError::Digest(
+            "integrity.contentHash does not match the canonical ZIP".into(),
+        ));
     }
 
-    match source {
-        InstallSource::Local => {
-            let signature = author_signature
-                .ok_or_else(|| CoreError::Package("author signature required for local install".into()))?;
-            let key = author_pubkey.ok_or_else(|| {
-                CoreError::Package("author public key required for local install".into())
-            })?;
-            ed25519_verify(key, &digest, &signature)?;
-            check_publisher(&manifest, key)?;
-            if let (Some(registry_signature), Some(registry_key)) = (registry_signature, registry_pubkey)
-            {
-                ed25519_verify(registry_key, &digest, &registry_signature)?;
-            }
+    // Author signature: manifest value and detached file must be identical.
+    let author_signature = manifest::decode_signature_base64(&manifest.signature.value)?;
+    if author_signature.as_slice() != signature_entry.data.as_slice() {
+        return Err(CoreError::Signature(
+            "signature.ed25519 does not match signature.value".into(),
+        ));
+    }
+    let author = author_pubkey.ok_or_else(|| {
+        CoreError::Signature("author public key is required to verify the package".into())
+    })?;
+    let message = manifest::signature_message(&manifest)?;
+    ed25519_verify(author, &message, &author_signature).map_err(|_| {
+        CoreError::Signature("author signature does not verify against the manifest".into())
+    })?;
+    verify_key_id(&manifest, author, "signature")?;
+
+    let mut registry_signature = None;
+    if source.requires_registry_signature() {
+        let registry_key = registry_pubkey.ok_or_else(|| {
+            CoreError::Signature(format!(
+                "registry public key is required for {} installs",
+                source.as_str()
+            ))
+        })?;
+        let block = manifest.signature.registry.as_ref().ok_or_else(|| {
+            CoreError::Signature(format!(
+                "signature.registry is required for {} installs",
+                source.as_str()
+            ))
+        })?;
+        if crate::crypto::ct_eq(author, registry_key) {
+            return Err(CoreError::Signature(
+                "author and registry keys must differ".into(),
+            ));
         }
-        InstallSource::Registry | InstallSource::Enterprise => {
-            let author_signature = author_signature.ok_or_else(|| {
-                CoreError::Package("author signature required for registry install".into())
-            })?;
-            let registry_signature = registry_signature.ok_or_else(|| {
-                CoreError::Package("registry signature required for registry install".into())
-            })?;
-            let author_key = author_pubkey
-                .ok_or_else(|| CoreError::Package("author public key required".into()))?;
-            let registry_key = registry_pubkey
-                .ok_or_else(|| CoreError::Package("registry public key required".into()))?;
-            if ct_eq(author_key, registry_key) {
-                return Err(CoreError::Package("author and registry keys must differ".into()));
-            }
-            ed25519_verify(author_key, &digest, &author_signature)?;
-            ed25519_verify(registry_key, &digest, &registry_signature)?;
-            check_publisher(&manifest, author_key)?;
+        let registry_bytes = manifest::decode_signature_base64(&block.value)?;
+        ed25519_verify(registry_key, &message, &registry_bytes).map_err(|_| {
+            CoreError::Signature("registry signature does not verify".into())
+        })?;
+        let expected = format!("ed25519:{}", hex_lower(registry_key));
+        if block.key_id != expected {
+            return Err(CoreError::Signature(
+                "signature.registry.keyId does not match the registry key".into(),
+            ));
         }
-        InstallSource::Git => {
-            // Unsigned Git installs are allowed only with an explicit warning
-            // surfaced by the host; signatures, when present, must still verify.
-            if let Some(signature) = author_signature {
-                let key = author_pubkey.ok_or_else(|| {
-                    CoreError::Package("author signature present but no author key supplied".into())
-                })?;
-                ed25519_verify(key, &digest, &signature)?;
-                check_publisher(&manifest, key)?;
-            }
-            if let Some(signature) = registry_signature {
-                let key = registry_pubkey.ok_or_else(|| {
-                    CoreError::Package("registry signature present but no registry key supplied".into())
-                })?;
-                ed25519_verify(key, &digest, &signature)?;
-            }
-        }
+        registry_signature = Some(registry_bytes.to_vec());
     }
 
-    Ok(VerifiedMapp {
+    let decompressed_bytes = entries
+        .iter()
+        .filter(|entry| !entry.is_dir)
+        .map(|entry| entry.data.len() as u64)
+        .sum();
+
+    Ok(VerifiedPackage {
         manifest,
         digest,
-        author_signature: author_signature.map(|s| s.to_vec()),
-        registry_signature: registry_signature.map(|s| s.to_vec()),
+        author_signature: author_signature.to_vec(),
+        registry_signature,
         entry_count: entries.len(),
-        decompressed_bytes: entries.iter().map(|e| e.data.len() as u64).sum(),
+        decompressed_bytes,
     })
-}
-
-/// Cross-check `publisher` fields against the author public key (M-07).
-pub fn check_publisher(manifest: &Manifest, author_pubkey: &[u8; KEY_LEN]) -> CoreResult<()> {
-    let digest = sha256(author_pubkey);
-    let fingerprint = crate::crypto::hex_lower(&digest);
-    let key_id = &fingerprint[..16];
-    if manifest.publisher.fingerprint != fingerprint {
-        return Err(CoreError::Package("publisher fingerprint does not match author key".into()));
-    }
-    if manifest.publisher.key_id != key_id {
-        return Err(CoreError::Package("publisher keyId does not match author key".into()));
-    }
-    let expected_entry = format!("ed25519-{key_id}");
-    if manifest.entry.signature != expected_entry {
-        return Err(CoreError::Package("entry.signature does not match publisher keyId".into()));
-    }
-    Ok(())
-}
-
-/// Build a manifest JSON string for a package with a freshly signed contentHash.
-///
-/// Callers (CLI, tests) use this to produce the file that `pack` consumes.
-pub fn manifest_template(
-    id: &str,
-    name: &str,
-    version: &str,
-    author_pubkey: &[u8; KEY_LEN],
-    content_hash: &str,
-) -> Manifest {
-    let digest = sha256(author_pubkey);
-    let fingerprint = crate::crypto::hex_lower(&digest);
-    let key_id = fingerprint[..16].to_string();
-    Manifest {
-        schema_version: manifest::SCHEMA_VERSION.to_string(),
-        id: id.to_string(),
-        name: name.to_string(),
-        version: version.to_string(),
-        license: "MIT".to_string(),
-        repository: "https://example.com/repo".to_string(),
-        publisher: manifest::Publisher {
-            key_id: key_id.clone(),
-            fingerprint,
-            source: Some("local".to_string()),
-        },
-        min_host_version: "2.0.0".to_string(),
-        content_hash: content_hash.to_string(),
-        reproducible_build: None,
-        entry: manifest::Entry {
-            bundle: "dist/app.bundle.js".to_string(),
-            assets_dir: "assets/".to_string(),
-            ui_engine: "hybrid-native".to_string(),
-            integrity: "sha384-AAAA".to_string(),
-            signature: format!("ed25519-{key_id}"),
-        },
-        offline: manifest::Offline {
-            mode: "offline-first".to_string(),
-            requires_internet: false,
-            local_db_schema: "db/migrations/".to_string(),
-            sync_strategy: "crdt-hlc".to_string(),
-        },
-        runtime: manifest::Runtime {
-            isolation: "strict-sandbox".to_string(),
-            max_memory_mb: 128,
-            supported_viewports: vec!["mobile".to_string(), "tablet".to_string(), "desktop".to_string()],
-            secure_display: false,
-        },
-        permissions: manifest::Permissions {
-            required: vec!["storage.local.sqlite".to_string()],
-            optional: vec![],
-            network_allowlist: vec![],
-            quotas: None,
-        },
-        local_ai: None,
-        capabilities: manifest::Capabilities {
-            intents_in: vec![],
-            intents_out: vec![],
-            widgets: vec![],
-        },
-    }
 }
 
 /// Group entries by top-level directory for inspection output.

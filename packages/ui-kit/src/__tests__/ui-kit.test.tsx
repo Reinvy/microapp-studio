@@ -1101,7 +1101,10 @@ describe('layout and navigation', () => {
     const second = tabs[1] as HTMLElement;
     expect(first).toHaveAttribute('aria-selected', 'true');
     expect(first).toHaveAttribute('id', 'paket-tab-installed');
-    expect(first).toHaveAttribute('aria-controls', 'paket-panel-installed');
+    // No `aria-controls`: the bar is also used as a filter, and a reference to a
+    // panel that does not exist is a serious ARIA violation (axe
+    // aria-valid-attr-value). Consumers that render a panel wire it themselves.
+    expect(first).not.toHaveAttribute('aria-controls');
     expect(first).toHaveAttribute('tabindex', '0');
     expect(second).toHaveAttribute('tabindex', '-1');
 

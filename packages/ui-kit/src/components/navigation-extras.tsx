@@ -86,7 +86,6 @@ export function TabBar({ tabs, activeId, onChange, label, idPrefix, className }:
               role="tab"
               id={`${prefix}-tab-${tab.id}`}
               aria-selected={selected}
-              aria-controls={`${prefix}-panel-${tab.id}`}
               tabIndex={selected ? 0 : -1}
               disabled={tab.disabled}
               className={cx('mads-tab', selected && 'mads-tab--selected')}

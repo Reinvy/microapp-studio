@@ -31,8 +31,17 @@ function lookup(dictionary: Record<string, unknown>, key: string): string | unde
   return typeof current === 'string' ? current : undefined;
 }
 
+/**
+ * Detect the locale from an explicit tag, else the browser.
+ *
+ * `window` is the guard, not `navigator`: Node 21+ exposes a `navigator` with
+ * `language: 'en-US'`, so checking `navigator` would make the server render
+ * English while the browser renders Indonesian (a hydration mismatch and a wrong
+ * first paint).
+ */
 export function detectLocale(language?: string): Locale {
-  const tag = (language ?? (typeof navigator === 'undefined' ? 'id-ID' : navigator.language)).toLowerCase();
+  const explicit = language ?? (typeof window === 'undefined' ? undefined : window.navigator.language);
+  const tag = (explicit ?? 'id-ID').toLowerCase();
   if (tag.startsWith('id')) return 'id-ID';
   if (tag.startsWith('en')) return 'en-US';
   return 'id-ID';

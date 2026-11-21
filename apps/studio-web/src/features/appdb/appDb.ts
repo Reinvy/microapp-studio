@@ -115,6 +115,30 @@ export class AppDatabase {
     }));
   }
 
+  /** Insert only missing keys in one transaction (backup merge mode). */
+  async mergeRows(records: AppDbRecord[]): Promise<number> {
+    await this.ready();
+    return this.client.appTransaction(this.key, async () => {
+      let written = 0;
+      for (const record of records) {
+        written += await this.client.appExec(
+          this.key,
+          `INSERT OR IGNORE INTO kv (key, value_json, updated_at_ms) VALUES (?, ?, ?)`,
+          [record.key, JSON.stringify(record.value ?? null), record.updatedAtMs],
+        );
+      }
+      return written;
+    });
+  }
+
+  /** Consistent SQLite export for restore rollback; `null` without worker support. */
+  async snapshot(): Promise<Uint8Array | null> {
+    await this.ready();
+    const client = this.client as WorkerHostDb & { appSnapshot?: (key: AppDbKey) => Promise<Uint8Array> };
+    if (typeof client.appSnapshot !== 'function') return null;
+    return client.appSnapshot(this.key);
+  }
+
   /** Replace every row in one transaction; a failure leaves the DB untouched. */
   async replaceRows(records: AppDbRecord[]): Promise<number> {
     await this.ready();

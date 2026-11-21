@@ -37,7 +37,7 @@ export class IdentityService {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error('E-AUTH-006 identity worker timed out'));
+        reject(new Error('E-AUTH-001 identity worker timed out'));
       }, CALL_TIMEOUT_MS);
       this.pending.set(id, {
         resolve: (value) => {
@@ -145,6 +145,35 @@ export class IdentityService {
     const bytes = new Uint8Array(decoded.length);
     for (let index = 0; index < decoded.length; index += 1) bytes[index] = decoded.charCodeAt(index);
     return bytes;
+  }
+
+  /**
+   * Public identity key for package authoring (`ed25519:<hex>` key ids).
+   * The phrase stays inside the worker's call frame and is never logged.
+   */
+  async publicIdentity(input: { phrase: string; passphrase: string; hkdfSaltHex: string }): Promise<string> {
+    const result = await this.request<{ publicKeyHex: string }>('publicIdentity', {
+      phrase: input.phrase,
+      passphrase: input.passphrase,
+      hkdfSaltHex: input.hkdfSaltHex,
+    });
+    return result.publicKeyHex;
+  }
+
+  /** Sign a prepared manifest message; returns base64 (64-byte signature). */
+  async signIdentityMessage(input: {
+    phrase: string;
+    passphrase: string;
+    hkdfSaltHex: string;
+    messageBase64: string;
+  }): Promise<string> {
+    const result = await this.request<{ signatureBase64: string }>('signIdentityMessage', {
+      phrase: input.phrase,
+      passphrase: input.passphrase,
+      hkdfSaltHex: input.hkdfSaltHex,
+      messageBase64: input.messageBase64,
+    });
+    return result.signatureBase64;
   }
 
   destroy(): void {

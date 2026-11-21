@@ -1,407 +1,253 @@
 /**
- * MUIP v1 validation: nodes, props, events, style tokens, and accessibility.
+ * MUIP validation.
  *
- * A node that fails any rule rejects the whole document (U-03/U-08): the
- * renderer must never end up half-applied. Text is only ever rendered as text.
+ * Validation is fail-closed: the first violation throws a `BridgeError`, so a
+ * partially valid document never reaches the renderer. Every rule below comes
+ * from `docs/03-specs/ui-protocol.md`:
+ *
+ *   - one root, depth ≤ 32, ≤ 2000 nodes, ≤ 512 KiB payload;
+ *   - `type` must be one of the 120 catalog components (unknown types are
+ *     rejected, never remapped);
+ *   - `id` is `^[a-zA-Z][a-zA-Z0-9_-]{0,63}$` and unique per document;
+ *   - only `type`, `id`, `props`, `children`, `on` are allowed on a node;
+ *     `html`, `css`, `style`, and `script` are rejected by name;
+ *   - props must be in the component allowlist, ≤ 24 per node, strings ≤ 2048
+ *     characters, arrays ≤ 64 items;
+ *   - `items`, `options`, `columns`, `rows` may hold arrays of small flat
+ *     objects (≤ 64 items, 16 scalar keys) — the documented "objek terbatas"
+ *     allowance; every other prop stays scalar or array-of-scalar;
+ *   - `on` accepts exactly the six documented events, each with one declarative
+ *     action.
  */
 
-import { COMPONENT_CATALOG, catalogComponent } from './catalog.generated';
 import { BridgeError } from '../bridge/errors';
 import { isRecord } from '../types/guards';
+import { COMPONENT_CATALOG } from './catalog.generated';
+import { allowedProps, canContainChildren, isComplexListProp } from './props';
 
 export const MUIP_VERSION = 1;
-export const MAX_DEPTH = 64;
-export const MAX_NODES = 10_000;
-export const MAX_PAYLOAD_BYTES = 1024 * 1024;
-export const MAX_STRING_LENGTH = 64 * 1024;
+export const MAX_DEPTH = 32;
+export const MAX_NODES = 2000;
+export const MAX_PAYLOAD_BYTES = 512 * 1024;
+export const MAX_STRING_LENGTH = 2048;
 export const MAX_ID_LENGTH = 64;
+export const MAX_PROPS = 24;
+export const MAX_ARRAY_ITEMS = 64;
+export const MAX_OBJECT_KEYS = 16;
 
-const ID_PATTERN = /^[A-Za-z0-9._:-]{1,64}$/;
-const EVENT_PATTERN = /^on[A-Z][A-Za-z]*$/;
+export const EVENTS = ['press', 'change', 'submit', 'focus', 'blur', 'longPress'] as const;
+export type MuipEvent = (typeof EVENTS)[number];
 
-/** Actions the phase-1 renderer can dispatch directly. */
-export const PHASE1_ACTIONS = [
-  'open.route',
-  'navigate.back',
-  'submit',
-  'reset',
-  'refresh',
-  'intent.send',
-  'close',
-] as const;
+export const ACTIONS = ['navigate', 'setState', 'callBridge', 'openSheet', 'closeSheet', 'toast'] as const;
+export type MuipActionName = (typeof ACTIONS)[number];
 
-/** Accepted by the schema now, rejected with E-SBX-005 when dispatched. */
-export const PHASE3_ACTIONS = ['ai.prompt', 'workflow.run'] as const;
-
-export type MuipAction = (typeof PHASE1_ACTIONS)[number] | (typeof PHASE3_ACTIONS)[number];
-
-const ALL_ACTIONS: ReadonlySet<string> = new Set<string>([...PHASE1_ACTIONS, ...PHASE3_ACTIONS]);
-
-/** Components the 2.0.0 host renders natively; everything else is a placeholder. */
-export const SUPPORTED_COMPONENTS: readonly string[] = [
-  'AppShell',
-  'Stack',
-  'Grid',
-  'Card',
-  'Button',
-  'TextField',
-  'TextArea',
-  'Select',
-  'Checkbox',
-  'Switch',
-  'SearchField',
-  'EmptyState',
-  'Badge',
-  'Alert',
-  'Toast',
-  'Banner',
-  'Progress',
-  'Skeleton',
-  'Modal',
-  'Sheet',
-  'Toolbar',
-  'Sidebar',
-  'Dock',
-  'WorkspaceSwitcher',
-  'CommandPalette',
-  'DataTable',
-  'StatCard',
-  'Image',
-  'ErrorBoundary',
-  'OfflineBanner',
-  'VirtualList',
-];
-
-const SUPPORTED: ReadonlySet<string> = new Set(SUPPORTED_COMPONENTS);
-
-const BASE_PROP_KEYS = [
-  'label',
-  'text',
-  'title',
-  'description',
-  'placeholder',
-  'value',
-  'disabled',
-  'required',
-  'loading',
-  'icon',
-  'href',
-  'src',
-  'alt',
-  'size',
-  'variant',
-  'kind',
-  'open',
-  'items',
-  'options',
-  'columns',
-  'rows',
-  'gap',
-  'span',
-  'level',
-  'min',
-  'max',
-  'step',
-  'format',
-  'emptyTitle',
-  'emptyDescription',
-] as const;
-
-const EXTRA_PROPS: Record<string, readonly string[]> = {
-  DataTable: ['rows', 'columns', 'page', 'pageSize', 'sortKey', 'sortDirection'],
-  Grid: ['columns', 'rows', 'gap', 'span'],
-  Stack: ['direction', 'gap', 'align', 'justify', 'wrap'],
-  Image: ['src', 'alt', 'width', 'height'],
-  Progress: ['value', 'max', 'state'],
-  Select: ['options', 'value', 'placeholder'],
-  TextField: ['type', 'value', 'placeholder', 'inputMode'],
-  TextArea: ['value', 'placeholder', 'rows'],
-  Modal: ['open', 'title'],
-  Sheet: ['open', 'title', 'side'],
-  Alert: ['variant', 'title', 'description'],
-  Badge: ['variant', 'text'],
-  Button: ['variant', 'size', 'loading', 'icon', 'href'],
-  StatCard: ['label', 'value', 'delta', 'trend'],
-  VirtualList: ['items', 'itemHeight', 'overscan'],
-};
-
-const SPACING_TOKENS = ['none', 'xs', 'sm', 'md', 'lg', 'xl', '2xl'];
-const RADIUS_TOKENS = ['none', 'sm', 'md', 'lg', 'xl', 'full'];
-const COLOR_TOKENS = ['fg', 'muted', 'bg', 'surface', 'border', 'accent', 'success', 'warning', 'error', 'inherit'];
-const FONT_SIZE_TOKENS = ['xs', 'sm', 'md', 'lg', 'xl', '2xl'];
-const FONT_WEIGHT_TOKENS = ['regular', 'medium', 'semibold', 'bold'];
-const ALIGN_TOKENS = ['start', 'center', 'end', 'stretch', 'baseline'];
-const JUSTIFY_TOKENS = ['start', 'center', 'end', 'between', 'around'];
-const DIRECTION_TOKENS = ['row', 'column', 'row-reverse', 'column-reverse'];
-const STATE_TOKENS = ['default', 'success', 'warning', 'error'];
-
-const STYLE_TOKENS: Record<string, readonly string[]> = {
-  padding: SPACING_TOKENS,
-  paddingX: SPACING_TOKENS,
-  paddingY: SPACING_TOKENS,
-  margin: SPACING_TOKENS,
-  gap: SPACING_TOKENS,
-  radius: RADIUS_TOKENS,
-  color: COLOR_TOKENS,
-  background: COLOR_TOKENS,
-  borderColor: COLOR_TOKENS,
-  fontSize: FONT_SIZE_TOKENS,
-  fontWeight: FONT_WEIGHT_TOKENS,
-  align: ALIGN_TOKENS,
-  justify: JUSTIFY_TOKENS,
-  direction: DIRECTION_TOKENS,
-  width: ['full', 'auto', 'fit'],
-  height: ['full', 'auto', 'fit'],
-  state: STATE_TOKENS,
-};
-
-const A11Y_KEYS = ['label', 'description', 'role', 'live', 'disabled', 'required'];
-const A11Y_ROLES = [
-  'button',
-  'link',
-  'heading',
-  'list',
-  'listitem',
-  'navigation',
-  'main',
-  'dialog',
-  'status',
-  'alert',
-  'img',
-  'group',
-  'region',
-];
-const A11Y_LIVE = ['off', 'polite', 'assertive'];
-const NODE_KEYS = ['type', 'id', 'props', 'children', 'events', 'style', 'a11y'];
-
-export interface A11yProps {
-  label?: string;
-  description?: string;
-  role?: string;
-  live?: string;
-  disabled?: boolean;
-  required?: boolean;
+export interface MuipAction {
+  action: MuipActionName;
+  target?: string;
+  /** `"<ns>.<method>"` for `callBridge`, e.g. `"storage.set"`. */
+  method?: string;
+  params?: Record<string, string | number | boolean>;
 }
 
-export interface EventBinding {
-  action?: string;
-  intent?: string;
-  params?: Record<string, unknown>;
-}
+export type MuipBindings = Partial<Record<MuipEvent, MuipAction>>;
 
 export interface MuipNode {
   type: string;
   id: string;
   props?: Record<string, unknown>;
   children?: MuipNode[];
-  events?: Record<string, EventBinding>;
-  style?: Record<string, string>;
-  a11y?: A11yProps;
+  on?: MuipBindings;
 }
 
 export interface ValidationResult {
   node: MuipNode;
   nodeCount: number;
-  /** Nodes whose component is catalogued but not implemented by this host. */
+  /** Nodes whose component is catalogued as `advanced` (rendered as placeholders). */
   placeholders: string[];
-  /** Dispatched actions that must fail closed until phase 3. */
-  deferredActions: string[];
+  /** Bridge calls declared by `on.callBridge`, for the audit trail. */
+  bridgeCalls: string[];
 }
+
+const SUPPORTED: ReadonlySet<string> = new Set(COMPONENT_CATALOG.map((component) => component.name));
+
+const FORBIDDEN_FIELDS = ['html', 'css', 'style', 'script', 'innerHTML', 'href', 'src'];
+
+const ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
+const CALL_BRIDGE_METHOD = /^[a-z][a-zA-Z]*\.[a-z][a-zA-Z]*$/;
 
 function fail(reason: string, details?: Record<string, unknown>): never {
-  throw new BridgeError('E-SBX-005', { reason, ...details });
+  throw new BridgeError('E-RUN-004', { reason, ...details });
 }
 
-function checkString(value: string, field: string): void {
+function checkString(value: string, path: string): string {
   if (value.length > MAX_STRING_LENGTH) {
-    fail('string_too_long', { field, maxLength: MAX_STRING_LENGTH });
+    fail('string_too_long', { path, maxLength: MAX_STRING_LENGTH });
   }
+  return value;
 }
 
-function checkValue(value: unknown, field: string, depth = 0): void {
-  if (depth > 8) fail('value_too_deep', { field });
-  if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint') {
-    fail('unsupported_value', { field });
-  }
-  if (typeof value === 'string') {
-    checkString(value, field);
-    return;
+function isScalar(value: unknown): value is string | number | boolean | null {
+  return (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'boolean' ||
+    (typeof value === 'number' && Number.isFinite(value))
+  );
+}
+
+/** Scalars for a normal prop; arrays of scalars when the prop is a list. */
+function checkPropValue(prop: string, value: unknown, path: string): unknown {
+  if (isScalar(value)) {
+    return typeof value === 'string' ? checkString(value, path) : value;
   }
   if (Array.isArray(value)) {
-    for (const item of value) checkValue(item, field, depth + 1);
-    return;
-  }
-  if (isRecord(value)) {
-    for (const [key, nested] of Object.entries(value)) {
-      checkString(key, `${field}.key`);
-      checkValue(nested, `${field}.${key}`, depth + 1);
+    if (value.length > MAX_ARRAY_ITEMS) {
+      fail('prop_array_too_long', { path, maxItems: MAX_ARRAY_ITEMS });
     }
+    if (isComplexListProp(prop)) {
+      return value.map((item, index) => checkFlatObject(prop, item, `${path}[${index}]`));
+    }
+    return value.map((item, index) => {
+      if (!isScalar(item)) fail('prop_value_unsupported', { path: `${path}[${index}]` });
+      return typeof item === 'string' ? checkString(item, `${path}[${index}]`) : item;
+    });
   }
+  fail('prop_value_unsupported', { path, prop });
 }
 
-function validateProps(type: string, props: unknown): Record<string, unknown> {
-  if (props === undefined) return {};
-  if (!isRecord(props)) fail('props_not_object', { type });
-  const allowed = new Set<string>(BASE_PROP_KEYS);
-  for (const key of EXTRA_PROPS[type] ?? []) allowed.add(key);
+/** The documented "objek terbatas": flat, scalar-valued, bounded. */
+function checkFlatObject(prop: string, value: unknown, path: string): Record<string, unknown> {
+  if (!isRecord(value)) fail('complex_prop_item_not_object', { path, prop });
+  const entries = Object.entries(value);
+  if (entries.length > MAX_OBJECT_KEYS) {
+    fail('complex_prop_item_too_wide', { path, maxKeys: MAX_OBJECT_KEYS });
+  }
   const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(props)) {
-    if (!allowed.has(key)) {
-      fail('unknown_prop', { type, prop: key });
-    }
-    if (/^on[A-Z]/.test(key)) {
-      fail('event_handler_prop_forbidden', { type, prop: key });
-    }
-    checkValue(value, `props.${key}`);
-    out[key] = value;
+  for (const [key, nested] of entries) {
+    checkString(key, `${path}.key`);
+    if (!isScalar(nested)) fail('complex_prop_item_not_scalar', { path: `${path}.${key}` });
+    out[key] = typeof nested === 'string' ? checkString(nested, `${path}.${key}`) : nested;
   }
   return out;
 }
 
-function validateEvents(events: unknown): Record<string, EventBinding> {
-  if (events === undefined) return {};
-  if (!isRecord(events)) fail('events_not_object');
-  const out: Record<string, EventBinding> = {};
-  for (const [name, binding] of Object.entries(events)) {
-    if (!EVENT_PATTERN.test(name)) fail('invalid_event_name', { event: name });
-    if (!isRecord(binding)) fail('event_binding_not_object', { event: name });
-    const keys = Object.keys(binding);
-    for (const key of keys) {
-      if (!['action', 'intent', 'params'].includes(key)) {
-        fail('unknown_event_key', { event: name, key });
-      }
-    }
-    const action = binding.action;
-    const intent = binding.intent;
-    if (action === undefined && intent === undefined) {
-      fail('event_without_action', { event: name });
-    }
-    if (action !== undefined && intent !== undefined) {
-      fail('event_action_and_intent', { event: name });
-    }
-    if (action !== undefined) {
-      if (typeof action !== 'string' || !ALL_ACTIONS.has(action)) {
-        fail('unknown_action', { event: name });
-      }
-    }
-    if (intent !== undefined) {
-      if (typeof intent !== 'string' || intent.length === 0) {
-        fail('invalid_intent', { event: name });
-      }
-    }
-    if (binding.params !== undefined) {
-      if (!isRecord(binding.params)) fail('event_params_not_object', { event: name });
-      checkValue(binding.params, `events.${name}.params`);
-    }
-    out[name] = {
-      action: action as string | undefined,
-      intent: intent as string | undefined,
-      params: binding.params as Record<string, unknown> | undefined,
-    };
+function checkProps(type: string, raw: unknown, path: string): Record<string, unknown> {
+  if (!isRecord(raw)) fail('props_not_object', { path });
+  const entries = Object.entries(raw);
+  if (entries.length > MAX_PROPS) fail('too_many_props', { path, maxProps: MAX_PROPS });
+  const allowed = allowedProps(type);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of entries) {
+    if (FORBIDDEN_FIELDS.includes(key)) fail('forbidden_prop', { path: `${path}.${key}` });
+    if (!allowed.has(key)) fail('prop_not_allowed', { path: `${path}.${key}`, type });
+    out[key] = checkPropValue(key, value, `${path}.${key}`);
   }
   return out;
 }
 
-function validateStyle(style: unknown): Record<string, string> {
-  if (style === undefined) return {};
-  if (!isRecord(style)) fail('style_not_object');
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(style)) {
-    const tokens = STYLE_TOKENS[key];
-    if (!tokens) fail('unknown_style_token', { token: key });
-    if (typeof value !== 'string' || !tokens.includes(value)) {
-      fail('invalid_style_value', { token: key, value: String(value) });
-    }
-    out[key] = value;
+function checkAction(raw: unknown, path: string): MuipAction {
+  if (!isRecord(raw)) fail('action_not_object', { path });
+  const keys = Object.keys(raw);
+  for (const key of keys) {
+    if (!['action', 'target', 'method', 'params'].includes(key)) fail('action_field_not_allowed', { path, key });
   }
-  return out;
+  const name = raw.action;
+  if (typeof name !== 'string' || !(ACTIONS as readonly string[]).includes(name)) {
+    fail('action_not_allowed', { path, action: String(name) });
+  }
+  const action: MuipAction = { action: name as MuipActionName };
+  if (raw.target !== undefined) {
+    if (typeof raw.target !== 'string' || raw.target.length > 128) fail('action_target_invalid', { path });
+    action.target = raw.target;
+  }
+  if (raw.method !== undefined) {
+    if (typeof raw.method !== 'string' || raw.method.length > 64) fail('action_method_invalid', { path });
+    action.method = raw.method;
+  }
+  if (name === 'callBridge') {
+    if (!action.method || !CALL_BRIDGE_METHOD.test(action.method)) {
+      fail('action_method_invalid', { path, method: action.method ?? null });
+    }
+  }
+  if (raw.params !== undefined) {
+    if (!isRecord(raw.params)) fail('action_params_invalid', { path });
+    const entries = Object.entries(raw.params);
+    if (entries.length > MAX_OBJECT_KEYS) fail('action_params_invalid', { path });
+    const params: Record<string, string | number | boolean> = {};
+    for (const [key, value] of entries) {
+      if (!isScalar(value) || value === null) fail('action_params_invalid', { path: `${path}.${key}` });
+      params[key] = value as string | number | boolean;
+    }
+    action.params = params;
+  }
+  return action;
 }
 
-function validateA11y(a11y: unknown): A11yProps {
-  if (a11y === undefined) return {};
-  if (!isRecord(a11y)) fail('a11y_not_object');
-  const out: A11yProps = {};
-  for (const [key, value] of Object.entries(a11y)) {
-    if (!A11Y_KEYS.includes(key)) fail('unknown_a11y_key', { key });
-    if (key === 'label' || key === 'description') {
-      if (typeof value !== 'string') fail('a11y_string_expected', { key });
-      checkString(value, `a11y.${key}`);
-      if (key === 'label') out.label = value;
-      else out.description = value;
-    } else if (key === 'role') {
-      if (typeof value !== 'string' || !A11Y_ROLES.includes(value)) {
-        fail('invalid_a11y_role', { role: String(value) });
-      }
-      out.role = value;
-    } else if (key === 'live') {
-      if (typeof value !== 'string' || !A11Y_LIVE.includes(value)) {
-        fail('invalid_a11y_live', { live: String(value) });
-      }
-      out.live = value;
-    } else {
-      if (typeof value !== 'boolean') fail('a11y_boolean_expected', { key });
-      if (key === 'disabled') out.disabled = value;
-      else out.required = value;
-    }
+function checkBindings(raw: unknown, path: string): MuipBindings {
+  if (!isRecord(raw)) fail('on_not_object', { path });
+  const bindings: MuipBindings = {};
+  for (const [event, value] of Object.entries(raw)) {
+    if (!(EVENTS as readonly string[]).includes(event)) fail('event_not_allowed', { path, event });
+    bindings[event as MuipEvent] = checkAction(value, `${path}.${event}`);
   }
-  return out;
+  return bindings;
 }
 
 interface WalkState {
   seen: Set<string>;
   count: number;
-  placeholders: string[];
-  deferredActions: string[];
+  placeholders: Set<string>;
+  bridgeCalls: Set<string>;
 }
 
-function walk(node: unknown, state: WalkState, depth: number): MuipNode {
-  if (depth > MAX_DEPTH) fail('tree_too_deep', { maxDepth: MAX_DEPTH });
-  if (!isRecord(node)) fail('node_not_object');
-  for (const key of Object.keys(node)) {
-    if (!NODE_KEYS.includes(key)) fail('unknown_node_key', { key });
+function walk(raw: unknown, state: WalkState, depth: number, path: string): MuipNode {
+  if (depth > MAX_DEPTH) fail('depth_exceeded', { path, maxDepth: MAX_DEPTH });
+  if (!isRecord(raw)) fail('node_not_object', { path });
+
+  for (const key of Object.keys(raw)) {
+    if (FORBIDDEN_FIELDS.includes(key)) fail('forbidden_field', { path, field: key });
+    if (!['type', 'id', 'props', 'children', 'on'].includes(key)) fail('field_not_allowed', { path, field: key });
   }
-  const type = node.type;
-  const id = node.id;
-  if (typeof type !== 'string' || !catalogComponent(type)) {
-    // U-02/U-16: unknown types are rejected; they never fall through to a
-    // generic element and they are audited by the caller.
-    fail('unknown_component', { type: String(type) });
-  }
-  if (typeof id !== 'string' || !ID_PATTERN.test(id) || id.length > MAX_ID_LENGTH) {
-    fail('invalid_node_id', { id: String(id) });
-  }
-  if (state.seen.has(id)) fail('duplicate_node_id', { id });
+
+  const type = raw.type;
+  if (typeof type !== 'string' || type.length === 0) fail('type_missing', { path });
+  if (!SUPPORTED.has(type)) fail('component_unknown', { path, type });
+
+  const id = raw.id;
+  if (typeof id !== 'string' || !ID_PATTERN.test(id)) fail('id_invalid', { path, id: String(id) });
+  if (state.seen.has(id)) fail('id_duplicate', { path, id });
   state.seen.add(id);
+
   state.count += 1;
   if (state.count > MAX_NODES) fail('too_many_nodes', { maxNodes: MAX_NODES });
-  if (!SUPPORTED.has(type)) state.placeholders.push(type);
 
-  const props = validateProps(type, node.props);
-  const events = validateEvents(node.events);
-  for (const binding of Object.values(events)) {
-    if (binding.action && (PHASE3_ACTIONS as readonly string[]).includes(binding.action)) {
-      state.deferredActions.push(binding.action);
+  if (COMPONENT_CATALOG.find((component) => component.name === type)?.level === 'advanced') {
+    state.placeholders.add(type);
+  }
+
+  const node: MuipNode = { type, id };
+
+  if (raw.props !== undefined) node.props = checkProps(type, raw.props, `${path}.props`);
+  if (raw.on !== undefined) {
+    const bindings = checkBindings(raw.on, `${path}.on`);
+    for (const binding of Object.values(bindings)) {
+      if (binding?.action === 'callBridge' && binding.method) state.bridgeCalls.add(binding.method);
     }
-  }
-  const style = validateStyle(node.style);
-  const a11y = validateA11y(node.a11y);
-
-  let children: MuipNode[] | undefined;
-  if (node.children !== undefined) {
-    if (!Array.isArray(node.children)) fail('children_not_array', { id });
-    children = node.children.map((child) => walk(child, state, depth + 1));
+    node.on = bindings;
   }
 
-  const result: MuipNode = { type, id };
-  if (Object.keys(props).length > 0) result.props = props;
-  if (children && children.length > 0) result.children = children;
-  if (Object.keys(events).length > 0) result.events = events;
-  if (Object.keys(style).length > 0) result.style = style;
-  if (Object.keys(a11y).length > 0) result.a11y = a11y;
-  return result;
+  if (raw.children !== undefined) {
+    if (!canContainChildren(type)) fail('children_not_allowed', { path, type });
+    if (!Array.isArray(raw.children)) fail('children_not_array', { path });
+    node.children = raw.children.map((child, index) =>
+      walk(child, state, depth + 1, `${path}.children[${index}]`),
+    );
+  }
+
+  return node;
 }
 
-/** Validate a full document; throws BridgeError on the first violation. */
+/** Validate a full document. Accepts a single root node or a one-element array. */
 export function validateDocument(raw: unknown): ValidationResult {
   let payload: string;
   try {
@@ -412,13 +258,17 @@ export function validateDocument(raw: unknown): ValidationResult {
   if (new TextEncoder().encode(payload).length > MAX_PAYLOAD_BYTES) {
     fail('payload_too_large', { maxBytes: MAX_PAYLOAD_BYTES });
   }
-  const state: WalkState = { seen: new Set(), count: 0, placeholders: [], deferredActions: [] };
-  const node = walk(raw, state, 0);
+
+  const roots = Array.isArray(raw) ? raw : [raw];
+  if (roots.length !== 1) fail('root_count_invalid', { count: roots.length });
+
+  const state: WalkState = { seen: new Set(), count: 0, placeholders: new Set(), bridgeCalls: new Set() };
+  const node = walk(roots[0], state, 0, '$');
   return {
     node,
     nodeCount: state.count,
-    placeholders: [...new Set(state.placeholders)],
-    deferredActions: [...new Set(state.deferredActions)],
+    placeholders: [...state.placeholders],
+    bridgeCalls: [...state.bridgeCalls],
   };
 }
 
@@ -431,169 +281,77 @@ export function catalogSize(): number {
 }
 
 // ---------------------------------------------------------------------------
-// Patches (U-08, U-09)
+// Patches
 // ---------------------------------------------------------------------------
 
 const PATCH_OPS: readonly string[] = ['insert', 'update', 'remove', 'move'];
 
 export type PatchOperation =
   | { op: 'insert'; parentId: string; index: number; node: MuipNode }
-  | { op: 'update'; id: string; props?: Record<string, unknown>; style?: Record<string, string>; events?: Record<string, EventBinding> }
+  | { op: 'update'; id: string; props: Record<string, unknown> }
   | { op: 'remove'; id: string }
   | { op: 'move'; id: string; parentId: string; index: number };
 
-interface Indexed {
-  nodes: Map<string, MuipNode>;
-  parents: Map<string, string | null>;
+function clone(node: MuipNode): MuipNode {
+  return JSON.parse(JSON.stringify(node)) as MuipNode;
 }
 
-function indexTree(root: MuipNode): Indexed {
-  const nodes = new Map<string, MuipNode>();
-  const parents = new Map<string, string | null>();
-  const stack: Array<{ node: MuipNode; parentId: string | null }> = [{ node: root, parentId: null }];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) break;
-    nodes.set(current.node.id, current.node);
-    parents.set(current.node.id, current.parentId);
-    for (const child of current.node.children ?? []) {
-      stack.push({ node: child, parentId: current.node.id });
-    }
+function findParent(root: MuipNode, id: string): MuipNode | null {
+  for (const child of root.children ?? []) {
+    if (child.id === id) return root;
+    const nested = findParent(child, id);
+    if (nested) return nested;
   }
-  return { nodes, parents };
+  return null;
 }
 
-function cloneTree(node: MuipNode): MuipNode {
-  return {
-    ...node,
-    props: node.props ? structuredClone(node.props) : undefined,
-    events: node.events ? structuredClone(node.events) : undefined,
-    style: node.style ? { ...node.style } : undefined,
-    a11y: node.a11y ? { ...node.a11y } : undefined,
-    children: node.children?.map(cloneTree),
-  };
-}
-
-function findParentList(root: MuipNode, parentId: string): MuipNode[] | undefined {
-  if (parentId === root.id) {
-    root.children ??= [];
-    return root.children;
-  }
-  const stack = [...(root.children ?? [])];
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node) break;
-    if (node.id === parentId) {
-      node.children ??= [];
-      return node.children;
+/** Apply structural patches to a validated document, returning a new tree. */
+export function applyPatch(root: MuipNode, operations: PatchOperation[]): MuipNode {
+  let tree = clone(root);
+  for (const operation of operations) {
+    if (!PATCH_OPS.includes(operation.op)) fail('patch_op_unknown', { op: String(operation.op) });
+    if (operation.op === 'insert') {
+      const parent = operation.parentId === tree.id ? tree : findBy(tree, operation.parentId);
+      if (!parent) fail('patch_parent_missing', { id: operation.parentId });
+      if (!canContainChildren(parent.type)) fail('patch_parent_not_container', { id: parent.id });
+      parent.children = parent.children ?? [];
+      const index = Math.max(0, Math.min(operation.index, parent.children.length));
+      parent.children.splice(index, 0, clone(operation.node));
+      continue;
     }
-    stack.push(...(node.children ?? []));
+    if (operation.op === 'update') {
+      const target = findBy(tree, operation.id);
+      if (!target) fail('patch_node_missing', { id: operation.id });
+      target.props = checkProps(target.type, operation.props, `$.${operation.id}.props`);
+      continue;
+    }
+    if (operation.op === 'remove') {
+      if (operation.id === tree.id) fail('patch_root_remove');
+      const parent = findParent(tree, operation.id);
+      if (!parent) fail('patch_node_missing', { id: operation.id });
+      parent.children = (parent.children ?? []).filter((child) => child.id !== operation.id);
+      continue;
+    }
+    const parent = findBy(tree, operation.parentId);
+    if (!parent) fail('patch_parent_missing', { id: operation.parentId });
+    if (!canContainChildren(parent.type)) fail('patch_parent_not_container', { id: parent.id });
+    const current = findParent(tree, operation.id);
+    if (!current) fail('patch_node_missing', { id: operation.id });
+    const node = findBy(tree, operation.id);
+    current.children = (current.children ?? []).filter((child) => child.id !== operation.id);
+    parent.children = parent.children ?? [];
+    const index = Math.max(0, Math.min(operation.index, parent.children.length));
+    parent.children.splice(index, 0, node as MuipNode);
+  }
+  tree = clone(tree);
+  return tree;
+}
+
+function findBy(root: MuipNode, id: string): MuipNode | undefined {
+  if (root.id === id) return root;
+  for (const child of root.children ?? []) {
+    const found = findBy(child, id);
+    if (found) return found;
   }
   return undefined;
-}
-
-function removeById(root: MuipNode, id: string): boolean {
-  const stack: MuipNode[] = [root];
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node?.children) continue;
-    const index = node.children.findIndex((child) => child.id === id);
-    if (index >= 0) {
-      node.children.splice(index, 1);
-      return true;
-    }
-    stack.push(...node.children);
-  }
-  return false;
-}
-
-function isDescendant(root: MuipNode, ancestorId: string, candidateId: string): boolean {
-  const { parents } = indexTree(root);
-  let cursor = parents.get(candidateId) ?? null;
-  while (cursor) {
-    if (cursor === ancestorId) return true;
-    cursor = parents.get(cursor) ?? null;
-  }
-  return false;
-}
-
-/**
- * Apply a patch batch atomically: either every operation succeeds or the
- * original tree is returned untouched. The tree is cloned first so callers keep
- * referential stability for unchanged nodes.
- */
-export function applyPatch(root: MuipNode, operations: PatchOperation[]): MuipNode {
-  if (!Array.isArray(operations) || operations.length === 0) {
-    fail('empty_patch');
-  }
-  const working = cloneTree(root);
-  for (const operation of operations) {
-    if (!isRecord(operation) || typeof operation.op !== 'string') {
-      fail('invalid_patch_operation');
-    }
-    if (!PATCH_OPS.includes(operation.op)) {
-      fail('unknown_patch_operation', { op: operation.op });
-    }
-    const { nodes } = indexTree(working);
-    switch (operation.op) {
-      case 'insert': {
-        if (typeof operation.parentId !== 'string' || !nodes.has(operation.parentId)) {
-          fail('insert_parent_missing', { parentId: String(operation.parentId) });
-        }
-        const validated = validateDocument(operation.node).node;
-        if (nodes.has(validated.id)) fail('duplicate_node_id', { id: validated.id });
-        const list = findParentList(working, operation.parentId);
-        if (!list) fail('insert_parent_missing');
-        const index = clampIndex(operation.index, list.length);
-        list.splice(index, 0, validated);
-        break;
-      }
-      case 'update': {
-        const target = nodes.get(operation.id);
-        if (!target) fail('update_target_missing', { id: operation.id });
-        if (operation.props !== undefined) {
-          target.props = { ...(target.props ?? {}), ...validateProps(target.type, operation.props) };
-        }
-        if (operation.style !== undefined) {
-          target.style = { ...(target.style ?? {}), ...validateStyle(operation.style) };
-        }
-        if (operation.events !== undefined) {
-          target.events = { ...(target.events ?? {}), ...validateEvents(operation.events) };
-        }
-        break;
-      }
-      case 'remove': {
-        if (operation.id === working.id) fail('remove_root_forbidden');
-        if (!removeById(working, operation.id)) {
-          fail('remove_target_missing', { id: operation.id });
-        }
-        break;
-      }
-      case 'move': {
-        if (operation.id === working.id) fail('move_root_forbidden');
-        if (!nodes.has(operation.id)) fail('move_target_missing', { id: operation.id });
-        if (!nodes.has(operation.parentId)) fail('move_parent_missing', { parentId: operation.parentId });
-        if (isDescendant(working, operation.id, operation.parentId)) {
-          fail('move_cycle', { id: operation.id, parentId: operation.parentId });
-        }
-        const target = nodes.get(operation.id);
-        if (!target) fail('move_target_missing');
-        removeById(working, operation.id);
-        const list = findParentList(working, operation.parentId);
-        if (!list) fail('move_parent_missing');
-        list.splice(clampIndex(operation.index, list.length), 0, target);
-        break;
-      }
-      default:
-        fail('unknown_patch_operation');
-    }
-  }
-  // Re-validate invariants of the final tree (ids unique, depth, node count).
-  const doc = validateDocument(working);
-  return doc.node;
-}
-
-function clampIndex(index: unknown, length: number): number {
-  if (typeof index !== 'number' || !Number.isFinite(index)) return length;
-  return Math.max(0, Math.min(Math.trunc(index), length));
 }

@@ -32,20 +32,20 @@ export interface VaultItem {
 }
 
 export function assertEnvelope(keyId: Uint8Array, nonce: Uint8Array, envelope: Uint8Array): void {
-  if (keyId.byteLength !== 16) throw new Error('E-CRYPTO-001 key_id must be 16 bytes');
-  if (nonce.byteLength !== 12) throw new Error('E-CRYPTO-001 nonce must be 12 bytes');
+  if (keyId.byteLength !== 16) throw new Error('E-AUTH-001 key_id must be 16 bytes');
+  if (nonce.byteLength !== 12) throw new Error('E-AUTH-001 nonce must be 12 bytes');
   if (envelope.byteLength < 1 + 16 + 12 + 16) {
-    throw new Error('E-CRYPTO-001 envelope too short');
+    throw new Error('E-AUTH-001 envelope too short');
   }
-  if (envelope[0] !== 1) throw new Error('E-CRYPTO-001 unsupported envelope version');
+  if (envelope[0] !== 1) throw new Error('E-AUTH-001 unsupported envelope version');
   for (let index = 0; index < 16; index += 1) {
     if (envelope[1 + index] !== keyId[index]) {
-      throw new Error('E-CRYPTO-001 key_id does not match envelope');
+      throw new Error('E-AUTH-001 key_id does not match envelope');
     }
   }
   for (let index = 0; index < 12; index += 1) {
     if (envelope[17 + index] !== nonce[index]) {
-      throw new Error('E-CRYPTO-001 nonce does not match envelope');
+      throw new Error('E-AUTH-001 nonce does not match envelope');
     }
   }
 }
@@ -127,7 +127,7 @@ export async function softDeleteVaultItem(
     'UPDATE vault_items SET deleted_at_ms = ?, updated_at_ms = ? WHERE id = ? AND workspace_id = ?',
     [nowMs, nowMs, itemId, workspaceId],
   );
-  if (changed === 0) throw new Error('E-HOST-007 vault item not found in workspace');
+  if (changed === 0) throw new Error('E-DATA-001 vault item not found in workspace');
 }
 
 /** Grant an app read access to exactly one vault item (FR-HOST-017). */
@@ -193,10 +193,10 @@ export interface KeyWrapInput {
 
 /** Store a new active key wrap, retiring the previous one for the workspace. */
 export async function saveKeyWrap(db: HostDb, input: KeyWrapInput): Promise<string> {
-  if (input.salt.byteLength !== 16) throw new Error('E-CRYPTO-001 salt must be 16 bytes');
-  if (input.nonce.byteLength !== 12) throw new Error('E-CRYPTO-001 nonce must be 12 bytes');
+  if (input.salt.byteLength !== 16) throw new Error('E-AUTH-001 salt must be 16 bytes');
+  if (input.nonce.byteLength !== 12) throw new Error('E-AUTH-001 nonce must be 12 bytes');
   if (input.memoryKib < 65_536 || input.iterations < 3 || input.parallelism < 1) {
-    throw new Error('E-CRYPTO-001 argon2id parameters below the documented floor');
+    throw new Error('E-AUTH-001 argon2id parameters below the documented floor');
   }
   const now = input.nowMs ?? Date.now();
   const id = uuidv7(now);

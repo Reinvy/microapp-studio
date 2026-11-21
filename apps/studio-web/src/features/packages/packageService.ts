@@ -126,7 +126,9 @@ export async function installVerified(
 ): Promise<InstallOutcome> {
   const now = options.nowMs ?? Date.now();
   const existing = await getApp(db, workspace.id, pkg.manifest.id);
-  const fingerprint = pkg.authorSignature ? await fingerprintOf(pkg.digestHex) : 'unsigned-local';
+  // The manifest keyId is the author identity the host trusts; it is covered by
+  // the signed contentHash, so a key change is detected before any row change.
+  const fingerprint = pkg.manifest.signature.keyId || 'unsigned-local';
   const plan = planInstall(existing, { version: pkg.manifest.version, authorKeyFingerprint: fingerprint }, options);
   if (!plan.ready) {
     throw new Error(plan.warnings[0].message);
@@ -171,7 +173,7 @@ export async function installVerified(
   await revokeUndeclaredGrants(db, {
     workspaceId: workspace.id,
     appInstallId: installed.id,
-    declared: pkg.manifest.permissions.required,
+    declared: pkg.manifest.permissions,
     nowMs: now,
   });
   await indexRecord(db, {
@@ -331,10 +333,4 @@ function hexToBytes32(hex: string): Uint8Array {
     out[index] = Number.parseInt(normalized.slice(index * 2, index * 2 + 2), 16) || 0;
   }
   return out;
-}
-
-/** Short, stable author fingerprint derived from the verified digest. */
-async function fingerprintOf(digestHex: string): Promise<string> {
-  const digest = await sha256Hex(new TextEncoder().encode(digestHex));
-  return `sha256:${digest.slice(0, 32)}`;
 }

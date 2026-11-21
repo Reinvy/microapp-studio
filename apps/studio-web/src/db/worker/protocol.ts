@@ -28,7 +28,11 @@ export type HostDbOp =
   | 'appCommit'
   | 'appRollback'
   | 'appClose'
-  | 'appList';
+  | 'appList'
+  | 'snapshot'
+  | 'appSnapshot'
+  | 'detach'
+  | 'reopen';
 
 export interface HostDbRequest {
   id: number;
@@ -49,6 +53,8 @@ export interface HostDbSuccess {
   path?: string;
   /** Open app database keys, for diagnostics and uninstall cleanup. */
   appKeys?: string[];
+  /** Consistent SQLite export, used by restore snapshots. */
+  bytes?: Uint8Array;
 }
 
 export interface HostDbFailure {

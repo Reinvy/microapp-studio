@@ -75,6 +75,21 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: '/registry',
+        destination: '/packages?tab=sources',
+        permanent: true,
+      },
+      {
+        source: '/settings/backup',
+        destination: '/settings/data',
+        permanent: true,
+      },
+      {
+        source: '/settings/storage',
+        destination: '/settings/data',
+        permanent: true,
+      },
+      {
         source: '/dashboard',
         destination: '/',
         permanent: true,
