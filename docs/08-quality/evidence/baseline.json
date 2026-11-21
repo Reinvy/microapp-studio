@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-21T02:35:49.118Z",
-  "commit": "e8cc58408b5b23d5aba1d6b69eac3d05877d585b",
+  "generatedAt": "2026-11-21T08:00:59.323Z",
+  "commit": "d8dc98bff338d0042b2366b31672889da867f672",
   "result": "pass",
   "commands": [
     {
@@ -13,6 +13,41 @@
     {
       "name": "catalog-check",
       "command": "node scripts/generate-catalog.mjs --check",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "tokens-check",
+      "command": "node scripts/check-tokens.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "migrations-check",
+      "command": "node scripts/generate-migrations.mjs --check",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "migrations-test",
+      "command": "node scripts/test-migrations.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "error-codes",
+      "command": "node scripts/check-error-codes.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "security-scan",
+      "command": "node scripts/check-security.mjs",
       "status": "pass",
       "exitCode": 0,
       "mandatory": true
@@ -46,6 +81,13 @@
       "mandatory": true
     },
     {
+      "name": "budget",
+      "command": "node scripts/check-budget.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
       "name": "cargo-test",
       "command": "cargo test --manifest-path packages/core-rust/Cargo.toml",
       "status": "pass",
@@ -67,6 +109,61 @@
       "mandatory": true
     }
   ],
-  "requirements": [],
+  "requirements": [
+    {
+      "id": "SEC-009",
+      "claim": "no eval/new Function/innerHTML",
+      "gate": "security-scan",
+      "status": "proven"
+    },
+    {
+      "id": "SEC-010",
+      "claim": "CSP + COOP/COEP headers",
+      "gate": "e2e",
+      "status": "proven"
+    },
+    {
+      "id": "SEC-012",
+      "claim": "backup container is sealed",
+      "gate": "cargo-test",
+      "status": "proven"
+    },
+    {
+      "id": "U-01",
+      "claim": "MUIP limits and catalog",
+      "gate": "test",
+      "status": "proven"
+    },
+    {
+      "id": "NFR-03",
+      "claim": "route JS budget",
+      "gate": "budget",
+      "status": "proven"
+    },
+    {
+      "id": "NFR-04",
+      "claim": "a11y sweep",
+      "gate": "e2e",
+      "status": "proven"
+    },
+    {
+      "id": "FR-DATA-002",
+      "claim": "migrations forward/rollback",
+      "gate": "migrations-test",
+      "status": "proven"
+    },
+    {
+      "id": "DESIGN-CLAY",
+      "claim": "token-only stylesheets",
+      "gate": "tokens-check",
+      "status": "proven"
+    },
+    {
+      "id": "SPEC-ERROR",
+      "claim": "27-code catalog only",
+      "gate": "error-codes",
+      "status": "proven"
+    }
+  ],
   "limitations": []
 }

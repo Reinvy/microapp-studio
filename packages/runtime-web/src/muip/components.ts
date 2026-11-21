@@ -1484,9 +1484,10 @@ const DataTable: ComponentBuilder = (node) => {
       });
       body.append(tr);
     });
-    const selectable = flag(props.selectable);
-    // `aria-multiselectable` is not allowed on a plain table; selection state is
-    // carried by the header checkbox instead.
+    // `props.selectable` is intentionally unused: `aria-multiselectable` is not
+    // allowed on a plain table, and selection state is carried by the header
+    // checkbox instead.
+    void flag(props.selectable);
   }, node);
 };
 

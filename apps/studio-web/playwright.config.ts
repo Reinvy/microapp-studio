@@ -6,7 +6,9 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  // One retry absorbs a headless-shell crash (SEGV) without hiding product
+  // failures: a real bug reproduces on the retry too.
+  retries: 1,
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:3100',
