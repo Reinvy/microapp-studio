@@ -1,48 +1,77 @@
 'use client';
 
-/** Draft project detail: shows the stored document and status. */
+/**
+ * Builder route.
+ *
+ * `/studio/<projectId>` is the editor; `?preview=1` swaps in the sandboxed
+ * preview while keeping the same project (and its autosave) untouched.
+ */
 
-import { useEffect, useState } from 'react';
-import type { ReactElement } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { Suspense, useState, type ReactElement } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Skeleton } from '@microapp/ui-kit';
 import { useHost } from '@/features/host/HostProvider';
+import { BuilderScreen } from '@/features/studio/BuilderScreen';
+import { PreviewScreen } from '@/features/studio/PreviewScreen';
+import type { StudioDevice, StudioDocument } from '@/features/studio/types';
 
-export default function StudioProjectPage(): ReactElement {
-  const host = useHost();
+function StudioRoute(): ReactElement {
   const params = useParams<{ projectId: string }>();
-  const projectId = typeof params?.projectId === 'string' ? params.projectId : '';
-  const [row, setRow] = useState<{ name: string; status: string; document_json: string; revision: number } | null>(null);
+  const search = useSearchParams();
+  const router = useRouter();
+  const host = useHost();
+  const projectId = typeof params?.projectId === 'string' ? decodeURIComponent(params.projectId) : '';
+  const [previewDocument, setPreviewDocument] = useState<StudioDocument | null>(null);
 
-  useEffect(() => {
-    if (!host.db || !host.workspace || !projectId) return;
-    void (async () => {
-      const rows = await host.db!.select<{ name: string; status: string; document_json: string; revision: number }>(
-        'SELECT name, status, document_json, revision FROM studio_project WHERE id = ? AND workspace_id = ?',
-        [projectId, host.workspace!.id],
-      );
-      setRow(rows[0] ?? null);
-    })();
-  }, [host.db, host.workspace, projectId]);
+  if (!projectId) {
+    return (
+      <div className="mads-page">
+        <p>{host.t('errors.E-STUDIO-001')}</p>
+        <button type="button" className="mads-button" onClick={() => router.push('/')}>
+          {host.t('studio.backHome')}
+        </button>
+      </div>
+    );
+  }
+
+  const preview = search?.get('preview') === '1';
+
+  if (preview && previewDocument) {
+    return (
+      <PreviewScreen
+        projectId={projectId}
+        document={previewDocument}
+        onEdit={() => {
+          setPreviewDocument(null);
+          router.replace(`/studio/${projectId}`);
+        }}
+        onDeviceChange={(device: StudioDevice) => setPreviewDocument({ ...previewDocument, device })}
+      />
+    );
+  }
 
   return (
-    <main id="mads-main" className="screen">
-      <div className="screen-header">
-        <h1>{row?.name ?? host.t('common.loading')}</h1>
-        <Link className="button" href="/studio">
-          {host.t('common.back')}
-        </Link>
-      </div>
-      {row ? (
-        <div className="card">
-          <p>
-            Status: {row.status} · revisi {row.revision}
-          </p>
-          <pre>{row.document_json}</pre>
+    <BuilderScreen
+      projectId={projectId}
+      onOpenPreview={(document) => {
+        setPreviewDocument(document);
+        router.replace(`/studio/${projectId}?preview=1`);
+      }}
+    />
+  );
+}
+
+export default function StudioPage(): ReactElement {
+  return (
+    <Suspense
+      fallback={
+        <div className="mads-page" aria-busy="true">
+          <Skeleton height="2rem" />
+          <Skeleton height="16rem" />
         </div>
-      ) : (
-        <p role="status">{host.t('common.loading')}</p>
-      )}
-    </main>
+      }
+    >
+      <StudioRoute />
+    </Suspense>
   );
 }
