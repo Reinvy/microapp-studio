@@ -16,9 +16,11 @@ Menetapkan tiga fase refactor web-only, langkah per fase, gate, dan status. Road
 
 | Fase | Fokus | Gate keluar | Status |
 |---|---|---|---|
-| **Fase 1 Foundation** | Shell, identitas lokal, host DB, sandbox, package, backup, permission. | Test dan E2E fase 1 lulus; dokumen tidak mengklaim builder. | partial |
-| **Fase 2 Builder** | Create (template/AI/blank), visual builder, preview draft, share. | Draft → preview → export `.mapp` berjalan end-to-end. | missing |
-| **Fase 3 Delight** | Clay UI menyeluruh, AI assist, galeri template, polish a11y. | axe bersih, budget performa lulus, clay diterapkan. | missing |
+| **Fase 1 Foundation** | Shell, identitas lokal, host DB, sandbox, package, backup, permission. | Test dan E2E fase 1 lulus; dokumen tidak mengklaim builder. | done |
+| **Fase 2 Builder** | Create (template/AI/blank), visual builder, preview draft, share. | Draft → preview → export `.mapp` berjalan end-to-end. | done |
+| **Fase 3 Delight** | Clay UI menyeluruh, AI assist, galeri template, polish a11y. | axe bersih, budget performa lulus, clay diterapkan. | done |
+
+Status di tabel ini mengikuti bukti otomatis di [baseline.md](../08-quality/evidence/baseline.md) dan `npm run verify:web`; tidak ada fase yang ditandai `done` tanpa gate yang dijalankan.
 
 ## 3. Fase 1 Foundation
 
@@ -54,6 +56,14 @@ Menetapkan tiga fase refactor web-only, langkah per fase, gate, dan status. Road
 | 3.3 | AI assist dengan rencana yang ditinjau. | Playwright plan review. |
 | 3.4 | Galeri template dan polish copy. | Review konten + i18n. |
 | 3.5 | Audit aksesibilitas dan performa. | axe + Lighthouse. |
+
+## 5b. Status Bukti per Fase
+
+| Fase | Gate yang dijalankan | Status bukti |
+|---|---|---|
+| Fase 1 | `e2e/host.spec.ts`, `e2e/security.spec.ts`, Vitest shell/identitas/data, `cargo test` | lulus |
+| Fase 2 | `e2e/packages.spec.ts`, `e2e/builder.spec.ts`, Vitest builder/palette/history/autosave | lulus |
+| Fase 3 | `e2e/a11y.spec.ts`, `e2e/perf.spec.ts`, `e2e/rtl.spec.ts`, `npm run tokens:check`, `npm run budget:check` | lulus |
 
 ## 6. Gate per Fase
 

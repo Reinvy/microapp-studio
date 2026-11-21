@@ -4,7 +4,10 @@
   "title": "MUIP UI Node v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["type", "id"],
+  "required": [
+    "type",
+    "id"
+  ],
   "properties": {
     "type": {
       "type": "string",
@@ -17,16 +20,45 @@
     "props": {
       "type": "object",
       "maxProperties": 24,
+      "properties": {
+        "items": {
+          "$ref": "#/$defs/complexList"
+        },
+        "options": {
+          "$ref": "#/$defs/complexList"
+        },
+        "columns": {
+          "$ref": "#/$defs/complexList"
+        },
+        "rows": {
+          "$ref": "#/$defs/complexList"
+        }
+      },
       "additionalProperties": {
         "oneOf": [
-          { "type": "string", "maxLength": 2048 },
-          { "type": "number" },
-          { "type": "boolean" },
-          { "type": "null" },
+          {
+            "type": "string",
+            "maxLength": 2048
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
           {
             "type": "array",
             "maxItems": 64,
-            "items": { "type": ["string", "number", "boolean"] }
+            "items": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            }
           }
         ]
       }
@@ -34,18 +66,32 @@
     "children": {
       "type": "array",
       "maxItems": 2000,
-      "items": { "$ref": "#" }
+      "items": {
+        "$ref": "#"
+      }
     },
     "on": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "press": { "$ref": "#/$defs/action" },
-        "change": { "$ref": "#/$defs/action" },
-        "submit": { "$ref": "#/$defs/action" },
-        "focus": { "$ref": "#/$defs/action" },
-        "blur": { "$ref": "#/$defs/action" },
-        "longPress": { "$ref": "#/$defs/action" }
+        "press": {
+          "$ref": "#/$defs/action"
+        },
+        "change": {
+          "$ref": "#/$defs/action"
+        },
+        "submit": {
+          "$ref": "#/$defs/action"
+        },
+        "focus": {
+          "$ref": "#/$defs/action"
+        },
+        "blur": {
+          "$ref": "#/$defs/action"
+        },
+        "longPress": {
+          "$ref": "#/$defs/action"
+        }
       }
     }
   },
@@ -53,7 +99,9 @@
     "action": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["action"],
+      "required": [
+        "action"
+      ],
       "properties": {
         "action": {
           "enum": [
@@ -65,12 +113,50 @@
             "toast"
           ]
         },
-        "target": { "type": "string", "maxLength": 128 },
-        "method": { "type": "string", "maxLength": 64 },
+        "target": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "method": {
+          "type": "string",
+          "maxLength": 64
+        },
         "params": {
           "type": "object",
           "maxProperties": 16,
-          "additionalProperties": { "type": ["string", "number", "boolean"] }
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        }
+      }
+    },
+    "complexList": {
+      "description": "Objek terbatas: array of flat objects with scalar values, used only by items/options/columns/rows.",
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "maxProperties": 16,
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 2048
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     }

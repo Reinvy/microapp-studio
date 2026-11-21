@@ -49,7 +49,7 @@ Aturan field:
 |---|---|---|
 | `type` | Ya | Nama komponen katalog, case-sensitive. |
 | `id` | Ya | Unik dalam dokumen, `^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`. |
-| `props` | Tidak | Objek; nilai skalar, array skalar, atau objek terbatas. |
+| `props` | Tidak | Objek; nilai skalar, array skalar, atau objek terbatas. Objek terbatas hanya untuk `items`, `options`, `columns`, dan `rows`: array berisi objek datar dengan nilai skalar, maksimum 64 item dan 16 kunci per objek. Prop lain tetap skalar atau array skalar sesuai `ui-node.v1.schema.json`. |
 | `children` | Tidak | Array node; hanya komponen yang mengizinkan children. |
 | `on` | Tidak | Peta event ke aksi deklaratif. |
 
