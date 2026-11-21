@@ -3,249 +3,161 @@ id: ARCH-THREAT
 title: Threat Model
 status: accepted
 owner: security
-prd_refs: ["§5.1", "§5.2"]
+prd_refs: ["§8", "§11"]
 ---
 
 # Threat Model
 
-Dokumen ini menetapkan model ancaman normatif untuk seluruh ekosistem MicroApp Studio. Setiap kontrol yang disebut di sini wajib tercermin pada spec terkait; setiap baris risiko wajib memiliki suite pengujian di [security test plan](../08-quality/security-test-plan.md).
+## 1. Tujuan
 
-## 1. Ruang Lingkup dan Metode
+Dokumen ini menetapkan ancaman yang relevan untuk produk web-only dan kontrol yang mengikat. Fokusnya adalah data lokal pengguna, identitas, vault, package, dan batas sandbox. Tidak ada server aplikasi, P2P, atau LAN, sehingga ancaman terhadap komponen tersebut tidak berlaku.
 
-Model ancaman mencakup Host Shell web dan native, sandbox runtime, host bridge, penyimpanan lokal, sinkronisasi E2EE, registry, self-host server, pipeline AI/workflow, serta pipeline rilis dan publish. Metode yang dipakai:
-
-1. Inventaris aset dan aktor.
-2. Pemetaan trust boundary dan aliran data lintas boundary.
-3. Analisis STRIDE per komponen.
-4. Register risiko dengan mitigasi, residual risk, dan bukti uji.
-5. Peninjauan ulang setiap perubahan kontrak (manifest, bridge, sync, permission, crypto, registry) dan setiap release.
-
-Ancaman di luar cakupan: physical access tanpa kunci perangkat, side-channel hardware, dan kompromi compiler tingkat lanjut. Keduanya dicatat sebagai residual risk yang tidak dimitigasi oleh perangkat lunak.
+Kontrol yang disebut di sini harus tercermin di [03-specs/permissions.md](../03-specs/permissions.md), [03-specs/03-sandbox-runtime.md](../03-specs/03-sandbox-runtime.md), dan [08-quality/security-test-plan.md](../08-quality/security-test-plan.md).
 
 ## 2. Aset
 
-| Aset | Lokasi | Dampak bila kompromi | Klasifikasi |
+| Aset | Lokasi | Dampak bila bocor atau rusak |
+|---|---|---|
+| Data app dan draft | OPFS | Kehilangan pekerjaan, kebocoran data pribadi |
+| Kunci identitas | Worker + IndexedDB | Pemalsuan package, kehilangan kepercayaan |
+| Frasa pemulihan | IndexedDB terenkripsi | Pengambilalihan identitas dan backup |
+| Vault dan BYOK | `vault_items` terenkripsi | Biaya API, akses ke layanan pihak ketiga |
+| Package `.mapp` | OPFS dan file unduhan | Eksekusi kode berbahaya, suplai malware |
+| Audit lokal | `audit_log_chain` | Hilangnya bukti insiden |
+| Ketersediaan shell | Service worker dan cache | Kehilangan akses ke app terpasang |
+| Integritas build | npm dan pipeline deploy | Backdoor pada seluruh pengguna |
+
+## 3. Aktor
+
+| Aktor | Kepercayaan | Kemampuan |
+|---|---|---|
+| Pengguna | Dipercaya untuk perangkatnya | Membuka file, memberi consent, mencabut izin |
+| Penulis app pihak ketiga | Tidak dipercaya | Mengirim kode dan manifest |
+| Penyedia package/index | Tidak dipercaya | Menyajikan file dan metadata |
+| Dependensi npm | Tidak dipercaya sampai ditinjau | Menjalankan kode saat build atau runtime |
+| Jaringan | Tidak dipercaya | Menyadap atau mengubah respons tanpa HTTPS |
+| Ekstensi browser atau malware lokal | Di luar kendali | Membaca halaman, mencuri storage |
+| Endpoint AI BYOK | Tidak dipercaya | Menerima prompt, mengembalikan output |
+| Operator hosting | Tidak dipercaya untuk data | Menyajikan aset; tidak menerima data pengguna |
+
+## 4. STRIDE
+
+| Kategori | Ancaman konkret | Kontrol utama | Residual |
 |---|---|---|---|
-| Seed identitas dan subkey | Keychain/Keystore/WebCrypto non-extractable | Pemalsuan identitas, dekripsi data E2EE | Kritis |
-| Recovery Phrase 24 kata | Hanya ditampilkan saat setup, tidak disimpan | Kehilangan total akses data bila bocor | Kritis |
-| Data micro-app | SQLite lokal per `app_id` | Kebocoran data pribadi/organisasi | Tinggi |
-| Vault item dan kredensial BYOK | Tabel `vault_items`, envelope AES-256-GCM | Akses tidak sah ke layanan pihak ketiga | Kritis |
-| Vault key terbalut | Tabel `vault_key_wraps` (Argon2id + AES-256-GCM) | Dekripsi seluruh Vault tanpa PIN/passphrase | Kritis |
-| Manifest dan signature `.mapp` | Registry, cache lokal, file impor | Eksekusi kode jahat | Tinggi |
-| Mutation log dan cursor sync | SQLite lokal, transport E2EE | Kebocoran metadata aktivitas | Sedang |
-| Audit log chain | Server dan perangkat | Hilangnya bukti forensik | Tinggi |
-| Konfigurasi server dan kunci TLS | `microapp.yaml`, volume server | Pengambilalihan server | Kritis |
-| Kunci signing registry/author | Offline signing environment | Distribusi malware bersignature sah | Kritis |
-| Model AI dan prompt | Penyimpanan lokal, provider BYOK | Kebocoran data ke pihak ketiga | Tinggi |
+| Spoofing | Package mengaku dari penulis lain; deep link menyamar sebagai app resmi | Signature Ed25519, fingerprint, peringatan perubahan key, konfirmasi deep link | Pengguna tetap dapat menyetujui key baru yang salah |
+| Tampering | Byte package diubah; backup dimodifikasi; audit dihapus | Digest per file, content hash, AES-GCM, rantai hash audit | Serangan dengan akses penuh ke perangkat dapat menulis ulang seluruh storage |
+| Repudiation | Pengguna menyangkal memberi consent | Audit lokal dengan waktu dan hasil | Audit hanya lokal, tidak dapat menjadi bukti pihak ketiga |
+| Information disclosure | XSS membaca token; app membaca data app lain; log membocorkan BYOK | React escaping, CSP, iframe opaque origin, isolasi DB, redaksi log | Bug browser atau ekstensi berbahaya tetap dapat membaca halaman |
+| Denial of service | Loop tak terbatas; storage penuh; cache diusir | Watchdog, restart budget, kuota, peringatan 80%, ekspor | Browser dapat mengusir data kapan saja |
+| Elevation of privilege | App memanggil method tanpa grant; sandbox escape | Zero privilege, consent JIT, allowlist bridge, fail closed | Kerentanan browser di luar kendali produk |
+| Supply chain | Dependensi npm berbahaya; service worker dimodifikasi | Lockfile, review dependency, CSP, cakupan cache terbatas | Build host tetap dapat dikompromikan |
+| AI-specific | Prompt berisi rahasia terkirim; endpoint mengembalikan instruksi berbahaya | Aksi eksplisit, minimisasi prompt, kunci di vault, output divalidasi | Endpoint pengguna dapat menyimpan prompt |
 
-Aturan umum: aset kritis tidak pernah keluar dari perangkat dalam bentuk plaintext. Server hanya menerima ciphertext untuk data pengguna.
+## 5. Skenario dan Mitigasi
 
-## 3. Aktor dan Kemampuan
+### 5.1 XSS di shell
 
-| Aktor | Kemampuan | Kepercayaan | Tujuan |
-|---|---|---|---|
-| Pengguna sah | Akses perangkat, kunci, dan UI | Dipercaya | Menggunakan dan membangun micro-app |
-| Micro-app pihak ketiga | Menjalankan kode di dalam sandbox | Tidak dipercaya | Bisa jadi jahat atau rentan |
-| Author jahat/terkompromi | Menerbitkan `.mapp` bersignature | Tidak dipercaya | Menyisipkan malware atau mencuri data |
-| Registry terkompromi | Mengubah index dan blob | Tidak dipercaya | Menyajikan paket palsu |
-| Penyerang LAN | Sniffing, ARP spoofing, evil twin AP | Tidak dipercaya | Menyadap atau menyamar sebagai peer/server |
-| Penyerang server | Akses ke host/DB server | Tidak dipercaya untuk plaintext | Mencuri metadata, melakukan DoS |
-| Insider operator | Akses administratif terbatas | Dipercaya secara operasional, tidak untuk plaintext | Penyalahgunaan wewenang |
-| Penyedia AI BYOK | Menerima prompt yang dikirim eksplisit | Tidak dipercaya | Retensi atau penyalahgunaan prompt |
-| Plugin/driver pihak ketiga | Kode di sisi server atau host | Tidak dipercaya | Supply chain compromise |
+Jika shell memiliki XSS, penyerang dapat membaca seluruh data dan kunci yang dapat diakses halaman. Mitigasi:
 
-## 4. Trust Boundary
+- Tidak ada `dangerouslySetInnerHTML`, `innerHTML`, `eval`, atau `new Function` di jalur render.
+- CSP membatasi script ke origin sendiri dan nonce; tidak ada `unsafe-eval`.
+- Input pengguna dirender sebagai teks; markdown, bila ada, melalui renderer yang menghasilkan node MUIP, bukan HTML.
+- Dependency yang menyentuh HTML ditinjau dan dipin.
+- Cookie tidak dipakai untuk identitas, sehingga tidak ada sesi yang dapat dicuri.
 
-```mermaid
-flowchart TB
-    subgraph Device[Perangkat Pengguna - trusted]
-        HOST[Host Shell]
-        BRIDGE[Capability Broker]
-        SBX[Sandbox Isolate - untrusted code]
-        DB[(SQLite lokal)]
-        VAULT[(Vault terenkripsi)]
-        CORE[Rust core: crypto, verifikasi, parser]
-        HOST --> BRIDGE
-        BRIDGE --> SBX
-        SBX -->|MUIP + bridge request| BRIDGE
-        BRIDGE --> DB
-        BRIDGE --> VAULT
-        CORE --> DB
-    end
-    subgraph Net[Jaringan - untrusted]
-        LAN[LAN / WebRTC peers]
-        REG[Registry host]
-        SRV[Self-host server]
-        AI[AI provider]
-    end
-    HOST -->|ciphertext E2EE| LAN
-    HOST -->|ciphertext E2EE| SRV
-    HOST -->|index + .mapp| REG
-    HOST -->|prompt eksplisit| AI
-    REG -->|signed index| CORE
-    SRV -->|signed blob| CORE
-```
+XSS tetap dianggap sebagai kegagalan total untuk origin tersebut. Tidak ada klaim bahwa CSP menggantikan sanitasi.
 
-Aturan boundary:
+### 5.2 Sandbox escape
 
-- Kode micro-app **MUST** berada di sisi tidak dipercaya dan hanya berkomunikasi via bridge terstruktur.
-- Data yang melintasi jaringan **MUST** berupa ciphertext atau artefak bersignature; tidak ada plaintext data pengguna.
-- Verifikasi signature **MUST** terjadi di `core-rust` sebelum parsing lebih lanjut.
-- Server dan registry **MUST NOT** dianggap sebagai otoritas kebenaran data pengguna.
-- Setiap query data pengguna **MUST** menyertakan `workspace_id`; pelanggaran isolasi menghasilkan `E-HOST-007` dan diaudit.
-- `audit_log_chain` adalah satu-satunya tabel audit append-only; `sandbox_audit` adalah VIEW atas tabel tersebut, dan rantai tidak valid menghasilkan `E-HOST-006` yang memblokir aksi sensitif.
-- Micro-app dengan `runtime.secureDisplay = true` **MUST NOT** muncul sebagai screenshot atau preview di app switcher maupun Media Capture.
+Iframe opaque origin mencegah akses DOM dan storage host, tetapi app tetap berbagi renderer process. Mitigasi:
 
-## 5. STRIDE per Komponen
+- `sandbox="allow-scripts"` tanpa `allow-same-origin`.
+- CSP `default-src 'none'` dan `connect-src 'none'`.
+- Hanya MUIP yang dirender; tidak ada HTML mentah.
+- Bridge memeriksa asal pesan dan `event.source`.
+- Bila sandbox tidak tersedia, app tidak dijalankan.
 
-### 5.1 Host Shell dan UI
+Kerentanan browser yang memungkinkan escape adalah residual risk yang harus diperbaiki melalui pembaruan browser dan tidak dapat diselesaikan sepenuhnya oleh aplikasi.
 
-| Kategori | Ancaman | Kontrol |
+### 5.3 Package berbahaya
+
+Signature hanya membuktikan asal, bukan niat baik. Mitigasi:
+
+- Verifikasi manifest, digest, dan signature sebelum ekstraksi.
+- Preview permission dan risk tier sebelum instalasi.
+- Zero privilege setelah instalasi; consent JIT tetap berlaku.
+- Offline cage default aktif.
+- Package yang meminta permission critical ditolak karena tidak ada permission tersebut.
+
+### 5.4 Pencurian storage
+
+App tidak boleh membaca OPFS secara langsung. Mitigasi:
+
+- Hanya worker host yang membuka SQLite; app memanggil bridge.
+- Query app dibatasi ke DB app sendiri dan workspace aktif.
+- Tabel host (`local_identity`, `vault_items`, `audit_log_chain`) tidak dapat di-query app.
+- Nama file app deterministik tetapi tidak dapat diakses dari iframe.
+
+### 5.5 Kebocoran BYOK
+
+Mitigasi:
+
+- Kunci disimpan di vault dengan AES-GCM dan hanya empat karakter terakhir ditampilkan.
+- Kunci tidak masuk log, ekspor settings, backup plaintext, atau pesan error.
+- Prompt dikirim hanya setelah aksi eksplisit dan hanya ke endpoint yang dikonfigurasi pengguna.
+- Tidak ada telemetry prompt atau hasil.
+
+### 5.6 Supply chain npm dan service worker
+
+Mitigasi:
+
+- Satu lockfile dengan versi terpin; dependency baru ditinjau.
+- Build memakai `npm ci` di CI, bukan instalasi bebas.
+- Service worker hanya mencache aset dari origin sendiri dengan daftar yang dibatasi; tidak mencache respons pihak ketiga.
+- Header keamanan dan CSP diverifikasi pada deployment.
+- Perubahan dependency yang menyentuh kripto, sandbox, atau HTML memerlukan review keamanan.
+
+## 6. Kepercayaan dan Batas
+
+| Batas | Yang dilindungi | Yang tidak dilindungi |
 |---|---|---|
-| Spoofing | UI palsu menyerupai dialog permission | Dialog dirender Host, bukan micro-app; origin dan label app selalu terlihat |
-| Tampering | Manipulasi state UI via devtools | State otoritatif di DB/broker; UI hanya proyeksi |
-| Repudiation | Aksi destruktif tanpa jejak | Audit lokal dan toast undo 10 detik |
-| Information disclosure | Data app A terlihat di app B | Isolasi `workspace_id`, renderer per app, dan penolakan query lintas workspace `E-HOST-007` |
-| Information disclosure | Screenshot app switcher membocorkan app sensitif | `runtime.secureDisplay` memaksa placeholder dan melarang screenshot/Media Capture |
-| Repudiation | Aksi sensitif tanpa jejak yang dapat diverifikasi | `audit_log_chain` hash-chained; tamper menghasilkan `E-HOST-006` |
-| Denial of service | Render loop atau payload besar | Batas MUIP 10.000 node/1 MiB, watchdog |
-| Elevation of privilege | Shortcut menembus broker | Tidak ada API host langsung dari renderer |
+| Origin shell | Data dan kunci dari app pihak ketiga | XSS di shell, ekstensi, malware lokal |
+| Iframe app | DOM dan storage host | Kerentanan browser, serangan hardware |
+| Signature package | Integritas dan asal byte | Niat jahat penulis yang memegang kunci |
+| Vault | Rahasia saat disimpan | Perangkat yang sudah dikompromikan saat vault terbuka |
+| Backup | Kerahasiaan file di disk | Passphrase lemah atau bocor |
 
-### 5.2 Sandbox Runtime
+## 7. Ancaman yang Tidak Berlaku
 
-| Kategori | Ancaman | Kontrol |
-|---|---|---|
-| Spoofing | Micro-app mengaku sebagai app lain | `app_id` dan capability diikat saat mount, bukan dari klaim runtime |
-| Tampering | Escape dari iframe/isolate | Opaque origin, tanpa `allow-same-origin`, CSP `default-src 'none'`, QuickJS/Wasmtime tanpa ambient |
-| Repudiation | Aktivitas sensitif tanpa bukti | Audit event bridge dan lifecycle |
-| Information disclosure | Membaca DOM induk atau storage host | Tidak ada akses DOM induk; storage hanya via bridge |
-| Denial of service | Infinite loop atau alokasi memori besar | Watchdog 5 detik, kuota 128 MB mobile/512 MB desktop |
-| Elevation of privilege | Memanggil capability tanpa grant | Broker zero-privilege memeriksa manifest dan grant |
+Tidak ada ancaman server-side request forgery pada backend produk, eskalasi RBAC server, serangan sync peer, evil twin LAN, atau kompromi registry terfederasi karena komponen tersebut tidak ada. Permintaan jaringan hanya berasal dari browser ke endpoint yang dipilih pengguna dan ke origin yang dideklarasikan package.
 
-### 5.3 Host Bridge dan MUIP
+## 8. Verifikasi Keamanan
 
-| Kategori | Ancaman | Kontrol |
-|---|---|---|
-| Spoofing | Request atas nama app lain | Envelope membawa `app_id` dari sesi isolate, bukan dari payload |
-| Tampering | Method confusion atau parameter tambahan | Skema method tertutup, `additionalProperties: false` |
-| Repudiation | Request tanpa korelasi | `id` request unik, audit log |
-| Information disclosure | Streaming data lintas app | Scope per `app_id`, validasi permission |
-| Denial of service | Flood request | Rate limit per app dan timeout 10 detik |
-| Elevation of privilege | Raw HTML/JS di MUIP | Tipe node whitelist, tanpa HTML/JS mentah |
+| Uji | Harapan |
+|---|---|
+| Sandbox escape | `allow-same-origin` tidak ada; akses `parent.document` gagal |
+| CSP | Script tanpa nonce diblokir; `fetch` dari iframe gagal |
+| Permission bypass | Method tanpa grant ditolak; revoke langsung berlaku |
+| Signature tamper | Satu byte berubah menggagalkan impor |
+| Key mismatch | Public key baru memblokir sampai konfirmasi |
+| XSS | Payload teks tidak menjadi elemen atau atribut aktif |
+| Storage isolation | Query lintas app/workspace ditolak |
+| BYOK leak | Kunci tidak muncul di log, ekspor, atau pesan error |
+| Service worker | Hanya aset origin sendiri yang masuk cache |
 
-### 5.4 Data dan Vault Lokal
+Rencana uji rinci ada di [08-quality/security-test-plan.md](../08-quality/security-test-plan.md). Temuan dengan severity tinggi memblokir rilis sesuai [08-quality/release-gates.md](../08-quality/release-gates.md).
 
-| Kategori | Ancaman | Kontrol |
-|---|---|---|
-| Spoofing | Akses DB memakai identitas app lain | Nama database diturunkan dari `app_id` |
-| Tampering | Modifikasi file DB langsung | SQLCipher native; web field-level encryption + integritas GCM |
-| Tampering | Penggantian atau downgrade `vault_key_wraps` | Pembungkus diikat ke `workspace_id` dan `kdf`; envelope AAD memuat `key_id`; mismatch gagal dekripsi |
-| Repudiation | Perubahan tanpa audit | Audit event untuk operasi sensitif; `audit_log_chain` append-only |
-| Information disclosure | Backup atau file DB dicuri | Enkripsi, passphrase, auto-lock vault 300.000 ms |
-| Denial of service | DB korup | WAL, snapshot sebelum migrasi, export |
-| Elevation of privilege | Query lintas database | Koneksi terpisah per app, tanpa `ATTACH` dari sandbox, `E-HOST-007` |
+## 9. Risiko Residual
 
-### 5.5 Sync dan Jaringan
+| Risiko | Penerimaan |
+|---|---|
+| Browser 0-day yang melewati iframe | Tidak dapat dimitigasi aplikasi; patch browser |
+| Ekstensi berbahaya | Di luar batas produk; pengguna mengendalikan ekstensi |
+| Pengguna menyetujui key atau permission berbahaya | Dikurangi dengan copy jelas dan fokus default Tolak |
+| Passphrase lemah | Dikurangi dengan Argon2id dan panjang minimum, tidak dihilangkan |
+| Storage eviction | Dikurangi dengan persist request dan pengingat backup, tidak dijamin |
+| Hosting menyajikan bundle yang dimodifikasi | Dikurangi dengan kontrol deploy dan integritas build, tidak dijamin untuk semua pengguna |
 
-| Kategori | Ancaman | Kontrol |
-|---|---|---|
-| Spoofing | Peer palsu atau evil twin | Pairing QR + SAS 6 digit, TLS pinning per device |
-| Tampering | Mutation diubah di transit | AES-256-GCM envelope dengan AAD |
-| Repudiation | Batch tanpa pengirim | Signature device certificate |
-| Information disclosure | Metadata aktivitas | Minimisasi metadata; server hanya ciphertext |
-| Denial of service | Reconnect storm | Backoff 1/2/5/10/30/60 detik + jitter 20% |
-| Elevation of privilege | Device yang dicabut tetap sync | Revocation dan penolakan cursor lama |
+## 10. Status Implementasi
 
-### 5.6 Registry dan Supply Chain
-
-| Kategori | Ancaman | Kontrol |
-|---|---|---|
-| Spoofing | Registry atau author palsu | Kunci registry dan author terpisah, TOFU per author |
-| Tampering | Paket diganti setelah publish | Detached Ed25519 signature, `contentHash`, reproducible build |
-| Repudiation | Author menyangkal rilis | Log publish dan signature yang dapat diverifikasi |
-| Information disclosure | Index membocorkan data internal | Index statis publik tanpa data pengguna |
-| Denial of service | Index/blob tidak tersedia | Cache 24 jam, pakai offline tanpa kedaluwarsa |
-| Elevation of privilege | Auto-update membawa permission baru | Consent ulang untuk permission baru, pin opsional |
-
-### 5.7 Self-Host Server
-
-| Kategori | Ancaman | Kontrol |
-|---|---|---|
-| Spoofing | Sesi atau token palsu | OIDC/OAuth2/SAML/LDAP, passkey, magic link; access token 15 menit |
-| Tampering | Perubahan konfigurasi tanpa izin | RBAC/ABAC, audit hash chain |
-| Repudiation | Admin menyangkal aksi | Audit append-only dengan hash chain |
-| Information disclosure | Operator membaca data pengguna | E2EE; server tidak memiliki kunci |
-| Denial of service | Banjir request | Rate limit, graceful shutdown, resource budget |
-| Elevation of privilege | Eskalasi role | Pemisahan role, least privilege, revoke per device |
-
-### 5.8 AI dan Workflow
-
-| Kategori | Ancaman | Kontrol |
-|---|---|---|
-| Spoofing | Provider AI palsu di endpoint lokal | Konfigurasi eksplisit pengguna, TLS, verifikasi endpoint |
-| Tampering | Prompt injection mengubah rencana | Validasi skema, preview sandbox, consent |
-| Repudiation | Eksekusi workflow tanpa jejak | `outbox.state` dan `diagnostic_log` append-only plus audit |
-| Information disclosure | Kunci BYOK bocor ke log | Kunci hanya di vault, redaksi log |
-| Denial of service | Retry tak terbatas | Maksimal 8 attempt, cap 1 jam |
-| Elevation of privilege | Workflow menjalankan kode di luar sandbox | Runner hanya memanggil connector/bridge; tidak ada eval |
-
-## 6. Register Risiko
-
-Setiap baris wajib diverifikasi oleh suite di [security test plan](../08-quality/security-test-plan.md). Kolom Test menyebut nama suite, bukan anchor.
-
-| # | Ancaman | Dampak | Mitigasi | Residual risk | Test |
-|---|---|---|---|---|---|
-| R-01 | Micro-app jahat mencoba escape sandbox dan membaca data host | Pencurian data seluruh perangkat | Opaque origin, QuickJS/Wasmtime isolate, broker zero-privilege, tanpa ambient API, CSP ketat | Celah 0-day pada engine sandbox | [security test plan](../08-quality/security-test-plan.md) — sandbox escape |
-| R-02 | Registry hijacking: index atau blob diganti penyerang | Instalasi malware | Signature registry dan author terpisah, TOFU, verifikasi setiap load, reproducible build | Kunci author dicuri sebelum TOFU terbentuk | [security test plan](../08-quality/security-test-plan.md) — registry signature |
-| R-03 | Kompromi server self-host | Kebocoran metadata, DoS, perubahan index internal | E2EE ciphertext-only, RBAC, audit chain, rotasi kunci, least privilege | Metadata timing dan ukuran tetap terlihat | [security test plan](../08-quality/security-test-plan.md) — server compromise |
-| R-04 | Evil twin/LAN attacker menyamar sebagai peer atau server | Penyadapan, injeksi mutation | Pairing QR + SAS, TLS, pinning device, handshake versi, tolak peer tak dikenal | Penyerang dengan akses fisik ke jaringan dan perangkat | [security test plan](../08-quality/security-test-plan.md) — LAN adversary |
-| R-05 | SSRF melalui node workflow HTTP | Akses layanan internal/cloud metadata | Allowlist skema dan host, blokir IP privat secara default, resolusi DNS aman, `security.allowPrivateEgress` eksplisit | Redirect tak terduga pada host yang diizinkan | [security test plan](../08-quality/security-test-plan.md) — SSRF |
-| R-06 | XSS/MUIP injection: node atau props berisi HTML/JS mentah | Eksekusi skrip di konteks Host | MUIP hanya tipe node whitelist, tanpa `innerHTML`, renderer di iframe, CSP | Bug renderer pada props teks | [security test plan](../08-quality/security-test-plan.md) — MUIP injection |
-| R-07 | Path traversal atau zip bomb pada `.mapp` | Tulis file di luar direktori, kehabisan disk/memori | Normalisasi path tanpa `..`, batas ukuran entry dan total, decompression ratio limit, parse di `core-rust` | Arsip valid tetapi sangat besar | [security test plan](../08-quality/security-test-plan.md) — archive parsing |
-| R-08 | Bridge method confusion: memanggil method namespace lain dengan parameter yang salah | Akses capability tanpa izin | Skema per method, validasi namespace dan `app_id`, `additionalProperties: false`, permission check sebelum eksekusi | Kombinasi method yang sah disalahgunakan | [security test plan](../08-quality/security-test-plan.md) — bridge fuzzing |
-| R-09 | Replay/nonce reuse pada sync atau bridge | Aksi ganda, kebocoran data | Nonce unik per envelope, idempotency key UUIDv7, window replay, cursor monotonik | Rollback state lokal oleh penyerang dengan akses disk | [security test plan](../08-quality/security-test-plan.md) — replay |
-| R-10 | Key exfiltration dari penyimpanan | Pemalsuan identitas dan dekripsi data | Non-extractable WebCrypto, Keychain/Keystore, zeroize, tanpa log kunci, signing di Rust core | Malware dengan kontrol OS-level | [security test plan](../08-quality/security-test-plan.md) — key handling |
-| R-11 | Brute force backup terenkripsi | Dekripsi snapshot | KDF memory-hard, passphrase kuat, rate limit percobaan, tanpa verifier offline yang bocor | Passphrase lemah yang dipilih pengguna | [security test plan](../08-quality/security-test-plan.md) — backup crypto |
-| R-12 | Admin takeover pada self-host | Kontrol penuh server | Passkey/MFA, session 15 menit, rotasi refresh, revoke per device, audit, least privilege | Phishing kredensial SSO | [security test plan](../08-quality/security-test-plan.md) — authz matrix |
-| R-13 | Audit tampering | Hilangnya bukti dan penyangkalan aksi | Hash chain append-only `audit_log_chain`, verifikasi `seq_id`/hash, `E-HOST-006` memblokir aksi sensitif, ekspor SIEM | Penyerang dengan kontrol penuh host | [security test plan](../08-quality/security-test-plan.md) — audit integrity |
-| R-14 | Plugin/driver supply chain | Eksekusi kode di server atau host | Plugin ditandatangani, permission eksplisit, isolasi proses, review registry policy | Plugin sah dengan bug | [security test plan](../08-quality/security-test-plan.md) — dependency scan |
-| R-15 | DoS via payload, loop, atau request flood | App/servis tidak tersedia | Batas MUIP, watchdog 5 detik, kuota memori, rate limit, timeout bridge, graceful degradation | Serangan volumetrik di luar kendali aplikasi | [security test plan](../08-quality/security-test-plan.md) — resource exhaustion |
-| R-16 | Prompt injection dari konten micro-app ke AI | AI menghasilkan kode berbahaya | Prompt diperlakukan sebagai data, validasi output, security linter, preview sandbox, consent | Model tetap bisa menghasilkan output tidak aman | [security test plan](../08-quality/security-test-plan.md) — AI pipeline |
-| R-17 | Dependency confusion pada paket npm/crate/Go | Build berisi kode jahat | Registry internal, lockfile, SBOM, signature artefak, review dependency | Paket upstream yang sah namun rentan | [security test plan](../08-quality/security-test-plan.md) — supply chain |
-| R-18 | Rollback/stale cache menyajikan versi rentan | Regresi ke versi dengan CVE | Pin versi, penolakan downgrade tanpa consent, cache tetap diverifikasi signature | Pengguna memilih pin versi rentan secara sadar | [security test plan](../08-quality/security-test-plan.md) — update integrity |
-| R-19 | Kebocoran metadata sync | Inferensi aktivitas pengguna | Minimisasi field, padding opsional, server ciphertext-only | Pola waktu koneksi | [security test plan](../08-quality/security-test-plan.md) — metadata leak |
-| R-20 | Data lokal dibaca malware setelah perangkat terbuka | Kebocoran data | SQLCipher native, enkripsi field-level web, auto-lock vault, kunci non-extractable | Malware dengan hak root | [security test plan](../08-quality/security-test-plan.md) — at-rest encryption |
-| R-21 | Vault key terbalut diganti atau di-downgrade | Dekripsi seluruh Vault atau pemulihan gagal permanen | `vault_key_wraps` diikat ke `workspace_id` dan `kdf`, salt/nonce unik, envelope AAD memuat `key_id`, pembungkus lama ditandai `retired_at_ms` | Penyerang dengan kontrol penuh DB lokal dapat menghapus pembungkus (data menjadi tidak terbaca) | [security test plan](../08-quality/security-test-plan.md) — vault wrapping |
-| R-22 | Query atau grant melintasi `workspace_id` | Kebocoran data antar workspace | Repository wajib menyertakan `workspace_id`, test isolasi, penolakan `E-HOST-007` dan audit | Bug repository baru yang belum tercakup test | [security test plan](../08-quality/security-test-plan.md) — workspace isolation |
-| R-23 | Screenshot app switcher atau Media Capture membocorkan app sensitif | Kebocoran data di layar | `runtime.secureDisplay` memaksa placeholder berlabel, melarang screenshot, dan tidak menyimpan preview | Tangkapan layar oleh OS di luar kendali aplikasi | [security test plan](../08-quality/security-test-plan.md) — secure display |
-
-## 7. Mitigasi Lintas Potong
-
-| Kontrol | Cakupan | Aturan |
-|---|---|---|
-| Zero trust | Semua boundary | Tidak ada komponen yang dipercaya hanya karena berada di jaringan atau proses yang sama |
-| Least privilege | Sandbox, bridge, server | Capability harus diminta di manifest dan disetujui pengguna |
-| Fail closed | Sandbox, crypto, sync | Bila isolasi atau verifikasi tidak tersedia, hentikan operasi; jangan fallback ke mode tidak aman |
-| Defense in depth | Registry, server, update | Signature, hash, reproducible build, dan review diterapkan sekaligus |
-| Minimisasi data | Sync, AI, telemetry | Hanya field yang dibutuhkan; AI tidak menerima data tanpa aksi pengguna |
-| Auditability | Semua aksi sensitif | Audit lokal dan server, hash chain, ekspor |
-| Redaksi log | Semua komponen | Tidak ada kunci, token, atau PII di log |
-
-## 8. Residual Risk dan Review
-
-Residual risk yang diterima:
-
-1. Penyerang dengan kontrol penuh OS dapat membaca memori proses dan mengalahkan enkripsi at-rest.
-2. Metadata timing dan ukuran payload pada server tidak sepenuhnya dapat disembunyikan.
-3. Model AI dapat menghasilkan output tidak aman meskipun validasi dan linter dijalankan; preview sandbox dan consent tetap wajib.
-4. Kunci signing yang dicuri sebelum TOFU terbentuk tidak dapat dideteksi secara kriptografis; deteksi bergantung pada transparency dan laporan komunitas.
-
-Review wajib dilakukan pada setiap perubahan kontrak (manifest, bridge, sync, permission, crypto, registry), setiap temuan insiden, dan minimal sekali per release. Temuan baru **MUST** masuk register ini dengan pemilik dan tenggat perbaikan sesuai SLA di [security test plan](../08-quality/security-test-plan.md).
-
-## 9. Referensi
-
-- [system-overview.md](system-overview.md), [identity-crypto.md](identity-crypto.md), [sandbox-capabilities.md](sandbox-capabilities.md)
-- [sync-crdt.md](sync-crdt.md), [registry-supply-chain.md](registry-supply-chain.md), [host-bridge-intents.md](host-bridge-intents.md)
-- [ai-workflow.md](ai-workflow.md), [selfhost.md](selfhost.md)
-- [03-specs/permissions.md](../03-specs/permissions.md), [03-specs/error-codes.md](../03-specs/error-codes.md)
-- [08-quality/security-test-plan.md](../08-quality/security-test-plan.md)
+Iframe opaque origin, CSP, broker dengan permission check, watchdog, signature package, vault terenkripsi, dan audit chain sudah ada. Uji eksploitasi sandbox dan audit menyeluruh belum menjadi gate CI. Daftar bukti ada di [00-foundation/implementation-status.md](../00-foundation/implementation-status.md).

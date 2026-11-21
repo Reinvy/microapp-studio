@@ -1,173 +1,142 @@
 ---
 id: ARCH-SYSTEM
-title: Ringkasan Sistem
+title: System Overview
 status: accepted
 owner: architecture
-prd_refs: ["§1.1", "§2.1", "§4.1", "§4.2"]
+prd_refs: ["§1", "§7", "§8"]
 ---
 
-# Ringkasan Sistem
+# System Overview
 
-MicroApp Studio adalah satu ekosistem dengan empat mode operasi yang berbagi kontrak yang sama. Dokumen ini memberi peta arsitektur; keputusan rinci ada pada ADR dan spec.
+## 1. Tujuan
 
-## 1. Konteks (C4 Level 1)
+Dokumen ini memetakan arsitektur MicroApp Studio sebagai satu aplikasi web: PWA Next.js yang berjalan di browser desktop, tablet, dan mobile. Tidak ada aplikasi native, server wajib, akun, atau sinkronisasi. Semua data produk disimpan di perangkat pengguna.
 
-```mermaid
-flowchart LR
-    U[Pengguna] --> HOST[Host Shell]
-    DEV[Developer / Maker] --> HOST
-    ADMIN[Admin Organisasi] --> SRV[Self-Hosted Server]
-    HOST -->|install .mapp, sync| REG[Federated Registry]
-    HOST -->|E2EE mutation| PEER[Perangkat peer]
-    HOST -->|E2EE sync, workflow| SRV
-    SRV -->|index, blobs| REG
-    HOST -->|prompt / inference| AI[AI lokal atau BYOK]
-    AUD[Auditor] --> REG
-```
+Peta ini menjadi titik masuk sebelum membaca spec modul. Kontrak rinci ada di [03-specs/01-app-shell.md](../03-specs/01-app-shell.md), [03-specs/03-sandbox-runtime.md](../03-specs/03-sandbox-runtime.md), dan [03-specs/04-data.md](../03-specs/04-data.md). Keputusan yang mengikat dicatat di [ADR-0017](adr/0017-web-only-nextjs-pwa.md) dan [ADR-0018](adr/0018-browser-local-first-data.md).
 
-Aktor eksternal yang tidak dipercaya: micro-app pihak ketiga, registry yang dikompromikan, perangkat peer di jaringan yang sama, operator server (untuk data E2EE), dan penyedia AI BYOK (hanya menerima prompt yang dikirim pengguna secara eksplisit).
+## 2. Prinsip Arsitektur
 
-## 2. Container (C4 Level 2)
+1. **Satu origin, satu aplikasi.** Shell, Studio, runner, Packages, dan Settings berada dalam satu Next.js App Router. Tidak ada aplikasi pendamping.
+2. **Client-first.** Tidak ada backend wajib. Deployment dapat berupa Node host atau static export selama seluruh fitur berjalan di browser.
+3. **Local-first.** Host DB dan data app berada di OPFS. Tidak ada unggahan otomatis dan tidak ada cloud sync.
+4. **Zero privilege.** Micro-app dimulai tanpa izin; akses hanya lewat bridge setelah consent.
+5. **Fail closed.** Bila sandbox, WebCrypto, atau OPFS tidak tersedia, fitur yang bergantung padanya berhenti dengan pesan jelas, bukan memakai jalur alternatif yang lebih longgar.
+6. **WASM untuk kriptografi dan format.** `packages/core-rust` dikompilasi ke WebAssembly untuk signature, derivasi kunci, verifikasi manifest, dan format `.mapp`. Tidak ada binding native.
+
+## 3. Konteks Browser
 
 ```mermaid
 flowchart TB
-    subgraph Device[Perangkat Pengguna]
-        UI[Host UI<br/>Flutter native / Next.js PWA]
-        STUDIO[Studio IDE<br/>apps/studio-web]
-        RTW[runtime-web<br/>iframe + worker + WASM]
-        RTN[runtime-native<br/>QuickJS + Wasmtime]
-        CORE[core-rust<br/>crypto, CRDT, .mapp, guard]
-        DB[(SQLite<br/>WASM+OPFS / native)]
-        WF[Workflow runner lokal]
-    end
-    subgraph Server[Self-Hosted Server]
-        API[Go API + sync hub]
-        PDB[(SQLite WAL / PostgreSQL)]
-        BLOB[(MinIO / S3)]
-        JOBS[NATS JetStream / local queue]
-    end
-    UI --> STUDIO
-    UI --> RTW
-    UI --> RTN
-    RTW --> CORE
-    RTN --> CORE
-    STUDIO --> CORE
-    CORE --> DB
-    UI --> DB
-    WF --> DB
-    API --> PDB
-    API --> BLOB
-    JOBS --> API
-    CORE -->|ciphertext| API
-    CORE -->|ciphertext| BLOB
+  subgraph Tab["Browser tab"]
+    SW["Service worker<br/>shell cache"]
+    UI["Next.js App Router UI<br/>React 19 + Tailwind v4"]
+    DBW["Host DB worker<br/>SQLite WASM"]
+    RT["runtime-web<br/>bridge broker + watchdog"]
+    IF["Iframe sandbox<br/>opaque origin"]
+    MUIP["MUIP renderer"]
+    CORE["core-rust WASM<br/>crypto + manifest + .mapp"]
+  end
+  OPFS[("OPFS<br/>host DB + app DB")]
+  IDB[("IndexedDB<br/>CryptoKey + metadata")]
+  PKG["File lokal<br/>.mapp / .mapp-backup"]
+  AI["Endpoint AI pengguna<br/>BYOK, aksi eksplisit"]
+  UI --> SW
+  SW --> UI
+  UI --> DBW
+  DBW --> OPFS
+  UI --> RT
+  RT --> IF
+  IF --> MUIP
+  RT --> CORE
+  CORE --> PKG
+  UI --> IDB
+  UI -.->|hanya saat pengguna memicu| AI
 ```
 
-Aturan yang mengikat:
+Tidak ada kotak server, container, atau peer jaringan. Hosting hanya menyajikan aset statis dan, bila dipilih, route server Next.js untuk rendering awal; keduanya tidak menyimpan data pengguna.
 
-- **Hanya `packages/core-rust`** yang mengimplementasikan crypto, verifikasi signature, parser `.mapp`, CRDT/HLC, dan sandbox guard. Tidak ada duplikasi di TypeScript atau Dart.
-- **Hanya `apps/studio-web`** yang memuat UI Studio. Desktop Flutter memuat build Studio lokal yang dibundel; mobile tidak memuat Studio.
-- Server **tidak pernah** mendekripsi payload sinkronisasi.
+## 4. Komponen
 
-## 3. Mode Runtime
-
-```mermaid
-flowchart LR
-    A[Standalone Offline] -->|pairing| B[P2P Mesh]
-    A -->|server opsional| C[Personal Self-Host]
-    C -->|scale| D[Cluster]
-    B -->|tetap offline| A
-```
-
-| Mode | Komponen aktif | Jaringan | Sumber kebenaran |
+| Komponen | Lokasi | Tanggung jawab | Batas |
 |---|---|---|---|
-| Standalone Offline | Host, Studio, sandbox, SQLite lokal, workflow lokal | Tidak ada | SQLite lokal |
-| P2P Mesh | Standalone + sync peer + BYOS | LAN/WebRTC/BYOS | CRDT antar peer |
-| Personal Self-Host | Standalone + server Lite/Standard + auth | HTTPS ke server sendiri | CRDT + server sebagai relay ciphertext |
-| Cluster | + HA Postgres, NATS, S3, OTel, SSO | HTTPS | CRDT + server cluster |
+| Shell | `apps/studio-web/src/app` | Route, layout, navigasi, i18n, error surface | Tidak menyentuh data app secara langsung |
+| Host provider | `apps/studio-web/src/features/host` | Boot, workspace aktif, koneksi DB, audit, install | Satu-satunya pemilik state host |
+| Host DB worker | `apps/studio-web/src/db/worker` | SQLite WASM, migrasi, query, FTS5 | Tidak ada akses SQLite dari main thread |
+| Identity worker | `apps/studio-web/src/features/identity` | Pembuatan kunci, derivasi, vault, recovery | Kunci privat tidak keluar dari worker |
+| Runtime | `packages/runtime-web` | Sandbox, MUIP, broker, watchdog, loader `.mapp` | Tidak mempercayai kode app |
+| Core | `packages/core-rust` | Kriptografi, signature, manifest, ZIP deterministik | Hanya dipanggil lewat WASM |
+| UI kit | `packages/ui-kit` | Token clay dan komponen MADS | Tidak memuat logika produk |
+| Service worker | `apps/studio-web/public/sw.js` | Cache shell dan aset statis | Tidak menyimpan respons API pengguna |
 
-Perpindahan mode tidak mengubah format data. Semua mode memakai skema lokal, manifest, MUIP, dan envelope yang sama.
+## 5. Route
 
-## 4. Process Model
+Route yang ada saat ini:
 
-| Proses | Tanggung jawab | Isolasi | Gagal berarti |
+| Route | Isi |
+|---|---|
+| `/` | Home/Library, pencarian, empty state, entry install |
+| `/app/[appId]` | Runner app terpasang di sandbox |
+| `/studio` | Daftar draft project |
+| `/studio/[projectId]` | Detail draft dan, pada target, visual builder |
+| `/registry` | Sumber paket yang dikonfigurasi pengguna |
+| `/settings/{permissions,storage,vault,sync,backup,notifications}` | Settings lama |
+| `/dev/tools` | Diagnostik lokal |
+| `/admin` | Status internal dan feature flag lokal |
+
+Route target menambahkan `/templates`, `/create`, `/packages`, `/packages/import`, dan mengganti Settings lama dengan `/settings/{general,ai,about,dev,data}`. Route Settings lama tetap dialihkan agar tautan yang sudah beredar tidak rusak. Peta layar lengkap ada di [02-design/information-architecture.md](../02-design/information-architecture.md).
+
+## 6. Alur Boot dan Eksekusi
+
+Boot shell:
+
+1. Service worker menyajikan dokumen shell dari cache.
+2. Host DB worker membuka SQLite WASM di OPFS. Bila OPFS tidak tersedia, worker memakai memori dan melaporkan `storage: 'memory'`.
+3. Identity worker memuat `local_identity`. Bila kosong, identitas lokal dibuat otomatis tanpa modal.
+4. Shell merender Home dari data lokal.
+5. Bila langkah 2 atau 3 gagal, Home tetap tampil dalam mode `ephemeral` dengan badge dan aksi ekspor.
+
+Eksekusi micro-app:
+
+1. Runner memuat manifest terverifikasi dan menulis bundle ke iframe dengan `sandbox="allow-scripts"`.
+2. Iframe memakai origin opaque dan CSP ketat; renderer MUIP membangun DOM dari node tervalidasi.
+3. Setiap panggilan ke host melewati broker: validasi amplop, method, permission, rate limit, lalu audit.
+4. Watchdog memantau heartbeat. Freeze 5 detik memicu penghentian dan error boundary.
+5. App lain dan shell tidak terkena kegagalan satu app.
+
+## 7. Batas Kepercayaan
+
+| Batas | Sisi dipercaya | Sisi tidak dipercaya | Kontrol |
 |---|---|---|---|
-| UI thread | Render Host/Studio, input, routing | Tidak ada akses ke isolate micro-app | UI error boundary; micro-app tetap aman |
-| DB worker | SQLite WASM, query, migrasi, FTS/vector index | Worker terpisah; pesan terstruktur | Query gagal; Host menampilkan `E-DATA-*` |
-| Sync worker | Handshake, batch mutation, retry, cursor | Worker terpisah, hanya ciphertext | Sync berhenti; data lokal tetap utuh |
-| Sandbox isolate | Eksekusi bundle micro-app dan MUIP | Opaque origin + worker/QuickJS/Wasmtime | `E-SBX-*`; isolate dibunuh, Host hidup |
-| Workflow runner | Eksekusi graph, outbox, retry | Worker; akses hanya lewat bridge | Run `failed`; outbox tetap persisten |
-| Native bridge | FFI ke Rust/QuickJS/SQLite | Proses host Flutter | Fail closed; micro-app tidak dijalankan |
+| Shell ↔ micro-app | Shell dan broker | Bundle app, dokumen MUIP | Iframe opaque origin, CSP, bridge allowlist |
+| Shell ↔ package | Host | File `.mapp` dari mana pun | Manifest, signature, digest, preview permission |
+| Shell ↔ endpoint AI | Pengguna | Endpoint BYOK dan output model | Aksi eksplisit, kunci di vault, validasi output |
+| Shell ↔ penyimpanan | Worker DB | Isi record app | Isolasi per app, query ber-scope workspace |
+| Browser ↔ hosting | Browser | Aset yang disajikan hosting | HTTPS, CSP, integritas deployment, tanpa secret di bundle |
 
-Batas proses ini yang menjamin prinsip zero-crash: kegagalan pada satu baris tidak boleh menjatuhkan baris lain.
+## 8. Deployment
 
-## 5. Trust Boundary
-
-| Boundary | Dipercaya | Tidak dipercaya | Kontrol |
-|---|---|---|---|
-| Host ↔ micro-app | Host | Semua kode micro-app | Sandbox opaque origin, capability broker, MUIP tanpa HTML/JS mentah |
-| Micro-app ↔ data | Hanya DB milik `app_id` | Akses lintas app | Isolasi database per `app_id`, query scope |
-| Client ↔ server | Kunci di perangkat | Server dan operatornya | E2EE, server hanya ciphertext |
-| Client ↔ registry | Kunci registry/authors yang di-pin | Registry host | Verifikasi Ed25519, TOFU, reproducible build |
-| Client ↔ AI provider | Provider yang dipilih eksplisit | Prompt injection dari konten | Tidak ada silent switch, redaksi rahasia, consent per provider |
-| Admin ↔ server | Admin terautentikasi | Jaringan internal | RBAC/ABAC, audit chain, SSRF guard |
-
-## 6. Port dan Protokol
-
-| Kanal | Protokol | Port default | Catatan |
-|---|---|---|---|
-| Host web | HTTPS | 443 | PWA; CSP ketat |
-| Server HTTP | HTTP | 8080 | Redirect ke HTTPS bila TLS aktif |
-| Server HTTPS | HTTPS | 8443 | Auto-HTTPS pada Lite |
-| Sync server | WebSocket/HTTP2 | 8443 | Envelope E2EE, batch 500 |
-| PostgreSQL | PostgreSQL wire | 5432 | Standard/Cluster |
-| Valkey/Redis | RESP | 6379 | Standard/Cluster |
-| MinIO/S3 | S3 API | 9000 (API), 9001 (console) | Standard/Cluster |
-| NATS | NATS | 4222 | Cluster |
-| OTLP HTTP | HTTP | 4318 | Observability opt-in |
-| LAN sync | mDNS + TLS | ephemeral | Pairing wajib |
-| WebRTC | DTLS/SRTP data channel | ephemeral | Signaling minimal |
-| Dev server | HTTP | 5173 | `microapp dev` |
-| Hot reload | WebSocket lokal | ephemeral | QR pairing |
-
-## 7. Perilaku Offline
-
-| Operasi | Offline | Bukti |
+| Mode | Kapan | Konsekuensi |
 |---|---|---|
-| Buka micro-app | Ya, dari cache/DB lokal | Cold start < 150 ms |
-| Baca/tulis data | Ya | SQLite lokal |
-| Pencarian | Ya, FTS5; vector opsional | Index lokal |
-| Install dari registry | Hanya dari cache index dan `.mapp` lokal | Cache 24 jam, tanpa kedaluwarsa |
-| Workflow dengan HTTP | Antre di outbox `waiting_network` | Retry backoff |
-| AI lokal | Ya bila model tersedia | WebLLM/Ollama |
-| AI BYOK | Tidak | Status tidak tersedia, tanpa fallback diam |
-| Sync | Ditunda, lalu dikirim saat koneksi kembali | Mutation log persisten |
+| Node host (Vercel atau setara) | Default; route server untuk rendering awal | Tidak menyimpan data pengguna; header keamanan wajib |
+| Static export | Bila seluruh fitur client-side tersedia | Tidak ada route server; PWA cache menjadi jalur utama |
 
-Tidak ada operasi inti yang bergantung pada jaringan. Bila sebuah fitur tidak dapat berjalan offline, UI wajib menyatakannya sebelum aksi.
+Keduanya menyajikan origin yang sama untuk shell dan app. Cross-origin isolation (`COOP: same-origin`, `COEP: require-corp`) diperlukan agar VFS OPFS SQLite dapat memakai `SharedArrayBuffer`. Header ini bukan pengganti CSP sandbox; iframe app tetap memakai origin opaque dan kebijakan sendiri.
 
-## 8. Failure Domain
+## 9. Yang Tidak Ada
 
-| Kegagalan | Dampak maksimum | Pemulihan |
-|---|---|---|
-| Isolate micro-app crash/freeze | Satu micro-app | Error boundary, restart, rollback, export |
-| DB worker crash | Sesi baca/tulis sementara | Restart worker, WAL recovery |
-| Disk penuh | Tulis baru gagal | Pembersihan cache saja; DB tidak dihapus |
-| Server mati | Sync tertunda | Outbox dan cursor; lanjut saat hidup |
-| Registry mati | Install baru gagal | Cache index dan `.mapp` lokal |
-| AI provider mati | Fitur AI gagal | Status eksplisit; tanpa pindah provider otomatis |
-| Kunci hilang | Data E2EE tidak terbaca | Recovery Phrase/passkey |
+Tidak ada server aplikasi, database jaringan, akun, cloud sync, CRDT, P2P, workflow engine, CLI, SDK, marketplace, publish pipeline, atau bundel desktop. Ketiadaan ini bukan utang teknis, melainkan batas produk. Permintaan yang membutuhkan salah satunya harus melalui ADR baru dan tidak boleh menyelundup ke dokumen aktif.
 
-## 9. Alur yang Diukur
+## 10. Status Implementasi
 
-Cold start dan warm switch adalah alur yang diinstrumentasi, bukan klaim:
+Kode saat ini sudah memiliki shell PWA, host DB worker dengan migrasi 001/002 dan FTS5, identitas lokal, iframe sandbox, broker, watchdog, loader `.mapp`, backup terenkripsi, dan draft project. Visual builder, template gallery, Magic Create, tema clay penuh, dan pembukaan DB per app di runner belum ada. Rincian bukti dan daftar klaim yang dilarang ada di [00-foundation/implementation-status.md](../00-foundation/implementation-status.md).
 
-1. **Cold start** — dari tap ikon sampai frame pertama micro-app. Target < 150 ms; diukur pada perangkat referensi di [08-quality/performance-budgets.md](../08-quality/performance-budgets.md).
-2. **Warm switch** — dari app switcher sampai micro-app terlihat, termasuk restore state. Target < 50 ms.
-3. **First render Host** — dari launch sampai frame Home pertama. Target < 500 ms.
+## 11. Dokumen Terkait
 
-Setiap regresi > 10% dari baseline wajib diselidiki sebelum release; lihat gate di [08-quality/release-gates.md](../08-quality/release-gates.md).
-
-## 10. Referensi
-
-- [monorepo.md](monorepo.md), [data-model.md](data-model.md), [identity-crypto.md](identity-crypto.md)
-- [sandbox-capabilities.md](sandbox-capabilities.md), [sync-crdt.md](sync-crdt.md), [threat-model.md](threat-model.md)
-- [03-specs/01-host-shell.md](../03-specs/01-host-shell.md), [03-specs/03-sandbox-runtime.md](../03-specs/03-sandbox-runtime.md)
+- [monorepo.md](monorepo.md) untuk batas paket dan perintah.
+- [data-model.md](data-model.md) untuk tabel host dan aturan migrasi.
+- [identity-crypto.md](identity-crypto.md) untuk kunci dan penyimpanan rahasia.
+- [sandbox-runtime.md](sandbox-runtime.md) untuk isolasi dan watchdog.
+- [package-distribution.md](package-distribution.md) untuk `.mapp`.
+- [host-bridge-intents.md](host-bridge-intents.md) untuk bridge dan intent.
+- [threat-model.md](threat-model.md) untuk ancaman dan mitigasi.
+- [ai-assist.md](ai-assist.md) untuk BYOK.
