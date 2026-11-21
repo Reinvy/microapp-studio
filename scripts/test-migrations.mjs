@@ -99,15 +99,20 @@ const required = [
   'local_identity',
   'workspaces',
   'installed_microapps',
+  'app_versions',
+  'dev_log',
   'permission_grants',
   'vault_items',
   'audit_log_chain',
-  'outbox',
   'schema_migrations',
   'studio_project',
 ];
 for (const table of required) {
   expect(tables.includes(table), `missing table ${table}`);
+}
+// Native-era surfaces are removed by 003 and must not come back.
+for (const table of ['outbox', 'widgets', 'dock_items', 'registry_pins']) {
+  expect(!tables.includes(table), `native-era table still present: ${table}`);
 }
 expect(tables.includes('search_index'), 'missing FTS5 search_index');
 

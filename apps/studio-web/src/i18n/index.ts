@@ -19,6 +19,8 @@ export const SUPPORTED_LOCALES: Locale[] = ['id-ID', 'en-US'];
 
 const RTL_LANGUAGES = ['ar', 'fa', 'he', 'ur'];
 
+let activeLocale: Locale = 'id-ID';
+
 function lookup(dictionary: Record<string, unknown>, key: string): string | undefined {
   const parts = key.split('.');
   let current: unknown = dictionary;
@@ -55,6 +57,58 @@ export function createTranslator(locale: Locale): Translate {
   };
 }
 
+/** Locale used by the `format*` helpers when no explicit locale is passed. */
+export function setActiveLocale(locale: Locale): void {
+  activeLocale = locale;
+}
+
+export function getActiveLocale(): Locale {
+  return activeLocale;
+}
+
+/** Short date, formatted per locale (`21 Nov 2026` / `Nov 21, 2026`). */
+export function formatDate(
+  value: Date | number,
+  locale: Locale = activeLocale,
+  options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' },
+): string {
+  return new Intl.DateTimeFormat(locale, options).format(value);
+}
+
+export function formatNumber(
+  value: number,
+  locale: Locale = activeLocale,
+  options?: Intl.NumberFormatOptions,
+): string {
+  return new Intl.NumberFormat(locale, options).format(value);
+}
+
+/**
+ * File size with a locale-aware separator and unit label, using the documented
+ * 1024-byte base (kB/MB/GB).
+ */
+export function formatBytes(bytes: number, locale: Locale = activeLocale): string {
+  const safe = Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
+  const gigabyte = 1024 ** 3;
+  const megabyte = 1024 ** 2;
+  const kilobyte = 1024;
+  let unit: 'kilobyte' | 'megabyte' | 'gigabyte' = 'kilobyte';
+  let value = safe / kilobyte;
+  if (safe >= gigabyte) {
+    unit = 'gigabyte';
+    value = safe / gigabyte;
+  } else if (safe >= megabyte) {
+    unit = 'megabyte';
+    value = safe / megabyte;
+  }
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit,
+    unitDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 /** Assert both locales expose the same key set (used by tests). */
 export function localeKeys(locale: Locale): string[] {
   const keys: string[] = [];
@@ -72,3 +126,5 @@ export function localeKeys(locale: Locale): string[] {
   walk(DICTIONARIES[locale], '');
   return keys.sort();
 }
+
+activeLocale = detectLocale();

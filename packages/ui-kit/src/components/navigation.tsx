@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
 } from 'react';
 import { cx, useDialogFocus } from './utils';
@@ -14,8 +15,15 @@ export interface SidebarItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  badge?: ReactNode;
   active?: boolean;
-  onSelect: () => void;
+  /** Route to link to. When omitted the item renders as a button. */
+  href?: string;
+  /**
+   * Called with the item href (or its id when no href is set). When provided
+   * the click is cancelled first so the app router can push the route.
+   */
+  onNavigate?: (href: string, event: MouseEvent<HTMLElement>) => void;
 }
 
 export interface SidebarProps {
@@ -24,25 +32,55 @@ export interface SidebarProps {
   className?: string;
 }
 
+function itemClickHandler(item: SidebarItem) {
+  if (!item.onNavigate) return undefined;
+  return (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    item.onNavigate?.(item.href ?? item.id, event);
+  };
+}
+
+function SidebarItemContent({ item }: { item: SidebarItem }) {
+  return (
+    <>
+      {item.icon ? (
+        <span className="mads-sidebar__icon" aria-hidden="true">
+          {item.icon}
+        </span>
+      ) : null}
+      <span className="mads-sidebar__label">{item.label}</span>
+      {item.badge !== undefined && item.badge !== null ? (
+        <span className="mads-sidebar__badge">{item.badge}</span>
+      ) : null}
+    </>
+  );
+}
+
 export function Sidebar({ items, label, className }: SidebarProps) {
   return (
     <nav className={cx('mads-sidebar', className)} aria-label={label}>
       <ul className="mads-sidebar__list">
         {items.map((item) => (
           <li key={item.id}>
-            <button
-              type="button"
-              className="mads-sidebar__item"
-              aria-current={item.active ? 'page' : undefined}
-              onClick={item.onSelect}
-            >
-              {item.icon ? (
-                <span className="mads-sidebar__icon" aria-hidden="true">
-                  {item.icon}
-                </span>
-              ) : null}
-              <span>{item.label}</span>
-            </button>
+            {item.href ? (
+              <a
+                className="mads-sidebar__item"
+                href={item.href}
+                aria-current={item.active ? 'page' : undefined}
+                onClick={itemClickHandler(item)}
+              >
+                <SidebarItemContent item={item} />
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="mads-sidebar__item"
+                aria-current={item.active ? 'page' : undefined}
+                onClick={itemClickHandler(item)}
+              >
+                <SidebarItemContent item={item} />
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -56,7 +94,10 @@ export interface DockItem {
   id: string;
   label: string;
   icon?: ReactNode;
-  onSelect: () => void;
+  badge?: ReactNode;
+  active?: boolean;
+  href?: string;
+  onNavigate?: (href: string, event: MouseEvent<HTMLElement>) => void;
 }
 
 export interface DockProps {
@@ -65,20 +106,47 @@ export interface DockProps {
   className?: string;
 }
 
+function DockItemContent({ item }: { item: DockItem }) {
+  return (
+    <>
+      {item.icon ? (
+        <span className="mads-dock__icon" aria-hidden="true">
+          {item.icon}
+        </span>
+      ) : null}
+      <span className="mads-dock__label">{item.label}</span>
+      {item.badge !== undefined && item.badge !== null ? (
+        <span className="mads-dock__badge">{item.badge}</span>
+      ) : null}
+    </>
+  );
+}
+
 export function Dock({ items, label, className }: DockProps) {
   return (
     <nav className={cx('mads-dock', className)} aria-label={label}>
       <ul className="mads-dock__list">
         {items.map((item) => (
           <li key={item.id}>
-            <button type="button" className="mads-dock__item" onClick={item.onSelect}>
-              {item.icon ? (
-                <span className="mads-dock__icon" aria-hidden="true">
-                  {item.icon}
-                </span>
-              ) : null}
-              <span>{item.label}</span>
-            </button>
+            {item.href ? (
+              <a
+                className="mads-dock__item"
+                href={item.href}
+                aria-current={item.active ? 'page' : undefined}
+                onClick={itemClickHandler(item)}
+              >
+                <DockItemContent item={item} />
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="mads-dock__item"
+                aria-current={item.active ? 'page' : undefined}
+                onClick={itemClickHandler(item)}
+              >
+                <DockItemContent item={item} />
+              </button>
+            )}
           </li>
         ))}
       </ul>

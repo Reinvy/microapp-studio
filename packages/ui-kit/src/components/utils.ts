@@ -46,12 +46,18 @@ type DialogInitialFocus = 'container' | 'first';
 
 /**
  * Dialog focus management: moves focus in on open, traps Tab, closes on
- * Escape, and restores focus to the previously focused element on close.
+ * Escape, restores focus to the previously focused element on close, and
+ * stops the page behind the dialog from scrolling.
+ *
+ * `initialFocusSelector` wins over `initialFocus` when it matches a
+ * descendant, which lets a dialog put focus on a specific control (for
+ * example Cancel on a destructive confirmation).
  */
 export function useDialogFocus(
   open: boolean,
   onClose: () => void,
-  initialFocus: DialogInitialFocus = 'container',
+  initialFocus: DialogInitialFocus = 'first',
+  initialFocusSelector?: string,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -62,8 +68,16 @@ export function useDialogFocus(
     const container = containerRef.current;
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const target = initialFocus === 'first' ? (getFocusable(container)[0] ?? container) : container;
+    const preferred = initialFocusSelector
+      ? container?.querySelector<HTMLElement>(initialFocusSelector)
+      : null;
+    const target =
+      preferred ??
+      (initialFocus === 'first' ? (getFocusable(container)[0] ?? container) : container);
     target?.focus();
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -93,9 +107,10 @@ export function useDialogFocus(
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocused?.focus();
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
     };
-  }, [open, initialFocus]);
+  }, [open, initialFocus, initialFocusSelector]);
 
   return containerRef;
 }

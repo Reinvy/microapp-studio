@@ -1,12 +1,17 @@
 /**
- * Host search repository (FTS5) plus storage pins, settings, Studio drafts, and
- * the Phase 0 migration ledger.
+ * Host search repository (FTS5) plus storage pins and the Phase 0 migration
+ * ledger. Settings, Studio projects, and the DevTools log live in their own
+ * repositories.
  */
 
 import type { HostDb } from '../driver';
 import { uuidv7 } from '../ids';
 
-export type SearchKind = 'app' | 'record' | 'note' | 'form';
+/**
+ * `app` = installed micro-app, `project` = Studio draft, `record` = a row owned by
+ * an installed app (its key), `action` = a static host command.
+ */
+export type SearchKind = 'app' | 'project' | 'record' | 'action';
 
 export interface SearchRecord {
   workspaceId: string;
@@ -82,24 +87,30 @@ export async function search(
   }));
 }
 
-/** Rebuild the FTS index from the repository-owned source rows. */
+/**
+ * Rebuild the FTS index from the repository-owned source rows.
+ * Projects are indexed here as well so a fresh install and a rebuild agree; per
+ * row updates still go through `indexRecord`.
+ */
 export async function rebuildSearchIndex(db: HostDb, workspaceId: string): Promise<number> {
   return db.transaction(async (tx) => {
     await tx.exec('DELETE FROM search_index WHERE workspace_id = ?', [workspaceId]);
-    const apps = await tx.select<{ id: string; app_id: string; manifest_json: string }>(
-      'SELECT id, app_id, manifest_json FROM installed_microapps WHERE workspace_id = ?',
+    const apps = await tx.select<{ id: string; app_id: string; display_name: string | null; manifest_json: string }>(
+      'SELECT id, app_id, display_name, manifest_json FROM installed_microapps WHERE workspace_id = ?',
       [workspaceId],
     );
     let count = 0;
     for (const app of apps) {
-      let name = app.app_id;
-      try {
-        const parsed: unknown = JSON.parse(app.manifest_json);
-        if (parsed && typeof parsed === 'object' && 'name' in parsed && typeof parsed.name === 'string') {
-          name = parsed.name;
+      let name = app.display_name ?? app.app_id;
+      if (!app.display_name) {
+        try {
+          const parsed: unknown = JSON.parse(app.manifest_json);
+          if (parsed && typeof parsed === 'object' && 'name' in parsed && typeof parsed.name === 'string') {
+            name = parsed.name;
+          }
+        } catch {
+          name = app.app_id;
         }
-      } catch {
-        name = app.app_id;
       }
       await tx.exec(
         `INSERT INTO search_index (workspace_id, kind, ref_id, app_install_id, title, body)
@@ -108,8 +119,39 @@ export async function rebuildSearchIndex(db: HostDb, workspaceId: string): Promi
       );
       count += 1;
     }
+    const projects = await tx.select<{ id: string; name: string; document_json: string }>(
+      'SELECT id, name, document_json FROM studio_project WHERE workspace_id = ?',
+      [workspaceId],
+    );
+    for (const project of projects) {
+      let body = '';
+      try {
+        const parsed: unknown = JSON.parse(project.document_json);
+        if (parsed && typeof parsed === 'object' && 'name' in parsed) {
+          const inner = (parsed as { name?: unknown }).name;
+          if (typeof inner === 'string') body = inner;
+        }
+      } catch {
+        body = '';
+      }
+      await tx.exec(
+        `INSERT INTO search_index (workspace_id, kind, ref_id, app_install_id, title, body)
+         VALUES (?, 'project', ?, NULL, ?, ?)`,
+        [workspaceId, project.id, project.name, body],
+      );
+      count += 1;
+    }
     return count;
   });
+}
+
+/** Drop every index row that points at a deleted source object. */
+export async function removeSearchRef(db: HostDb, workspaceId: string, kind: SearchKind, refId: string): Promise<void> {
+  await db.exec('DELETE FROM search_index WHERE workspace_id = ? AND kind = ? AND ref_id = ?', [
+    workspaceId,
+    kind,
+    refId,
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -163,100 +205,8 @@ export async function listPins(
 }
 
 // ---------------------------------------------------------------------------
-// Settings
+// Phase 0 migration ledger
 // ---------------------------------------------------------------------------
-
-export async function getSetting<T>(db: HostDb, key: string, fallback: T): Promise<T> {
-  const rows = await db.select<{ value_json: string }>('SELECT value_json FROM settings WHERE key = ?', [key]);
-  const row = rows[0];
-  if (!row) return fallback;
-  try {
-    return JSON.parse(row.value_json) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-export async function setSetting(db: HostDb, key: string, value: unknown, nowMs = Date.now()): Promise<void> {
-  await db.exec(
-    `INSERT INTO settings (key, value_json, updated_at_ms) VALUES (?, ?, ?)
-     ON CONFLICT (key) DO UPDATE SET value_json = excluded.value_json, updated_at_ms = excluded.updated_at_ms`,
-    [key, JSON.stringify(value), nowMs],
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Studio drafts and Phase 0 migration ledger
-// ---------------------------------------------------------------------------
-
-export interface StudioDraft {
-  id: string;
-  workspaceId: string;
-  name: string;
-  status: 'draft' | 'active' | 'archived';
-  document: Record<string, unknown>;
-  revision: number;
-}
-
-export async function createStudioDraft(
-  db: HostDb,
-  input: {
-    workspaceId: string;
-    name: string;
-    document?: Record<string, unknown>;
-    sourceLegacyId?: string | null;
-    nowMs?: number;
-  },
-): Promise<StudioDraft> {
-  const now = input.nowMs ?? Date.now();
-  const id = uuidv7(now);
-  await db.exec(
-    `INSERT INTO studio_project
-       (id, workspace_id, name, status, source_legacy_id, document_json, revision, created_at_ms, updated_at_ms)
-     VALUES (?, ?, ?, 'draft', ?, ?, 0, ?, ?)`,
-    [id, input.workspaceId, input.name, input.sourceLegacyId ?? null, JSON.stringify(input.document ?? {}), now, now],
-  );
-  return {
-    id,
-    workspaceId: input.workspaceId,
-    name: input.name,
-    status: 'draft',
-    document: input.document ?? {},
-    revision: 0,
-  };
-}
-
-export async function listStudioDrafts(db: HostDb, workspaceId: string): Promise<StudioDraft[]> {
-  const rows = await db.select<{
-    id: string;
-    name: string;
-    status: 'draft' | 'active' | 'archived';
-    document_json: string;
-    revision: number;
-  }>(
-    'SELECT id, name, status, document_json, revision FROM studio_project WHERE workspace_id = ? ORDER BY updated_at_ms DESC',
-    [workspaceId],
-  );
-  return rows.map((row) => {
-    let document: Record<string, unknown> = {};
-    try {
-      const parsed: unknown = JSON.parse(row.document_json);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        document = parsed as Record<string, unknown>;
-      }
-    } catch {
-      document = {};
-    }
-    return {
-      id: row.id,
-      workspaceId,
-      name: row.name,
-      status: row.status,
-      document,
-      revision: Number(row.revision),
-    };
-  });
-}
 
 export interface MigrationReportInput {
   source: 'dexie-v6' | 'json-v1';

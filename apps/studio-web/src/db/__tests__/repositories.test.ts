@@ -15,7 +15,25 @@ import {
   renameWorkspace,
   setActiveWorkspace,
 } from '../repositories/workspaces';
-import { appPolicy, getApp, installApp, listApps, setOfflineCage, startRuntimeSession } from '../repositories/apps';
+import {
+  appPolicy,
+  duplicateApp,
+  getApp,
+  getVersion,
+  installApp,
+  listApps,
+  listVersions,
+  nextCopyAppId,
+  preserveVersion,
+  recordLaunch,
+  rollbackToVersion,
+  setDisplayName,
+  setOfflineCage,
+  setPinned,
+  startRuntimeSession,
+  uninstallApp,
+} from '../repositories/apps';
+import { listPlacements, placeApp } from '../repositories/launcher';
 import {
   clearSessionGrants,
   grantPermission,
@@ -42,29 +60,19 @@ import {
   scheduleNotification,
 } from '../repositories/notifications';
 import {
-  addDockItem,
-  addWidget,
-  createFolder,
-  listDock,
-  listFolders,
-  listWidgets,
-  placeApp,
-} from '../repositories/launcher';
-import {
-  createStudioDraft,
-  getSetting,
+  finishMigrationReport,
   indexRecord,
   listPins,
-  listStudioDrafts,
   pinStorage,
   rebuildSearchIndex,
-  resolveLegacyMapping,
   recordLegacyMapping,
+  removeSearchRef,
+  resolveLegacyMapping,
   search,
-  setSetting,
   startMigrationReport,
-  finishMigrationReport,
 } from '../repositories/search';
+import { getSetting, setSetting } from '../repositories/settings';
+import { createStudioProject, getStudioProject, listAllProjects } from '../repositories/studio';
 
 const bytes = (length: number, fill = 1): Uint8Array => new Uint8Array(length).fill(fill);
 const hex = (data: Uint8Array): string => [...data].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -99,6 +107,31 @@ async function seed(db: NodeSqliteDriver) {
   return { workspace, app };
 }
 
+/** Install a second app in the same workspace; `sortOrder` follows insertion. */
+async function seedSecondApp(db: NodeSqliteDriver, workspaceId: string, nowMs = 3_000) {
+  return installApp(db, {
+    workspaceId,
+    appId: 'org.reinvy.notes',
+    version: '2.0.0',
+    manifestJson: JSON.stringify({ id: 'org.reinvy.notes', name: 'Catatan', version: '2.0.0' }),
+    contentHash: bytes(32, 5),
+    signature: bytes(64, 6),
+    authorKeyFingerprint: 'a'.repeat(64),
+    installSource: 'local',
+    bundlePath: 'apps/org.reinvy.notes/2.0.0',
+    dbRelativePath: 'workspaces/rumah/apps/org.reinvy.notes.db',
+    schemaVersion: 1,
+    nowMs,
+  });
+}
+
+async function tableNames(db: NodeSqliteDriver): Promise<string[]> {
+  const rows = await db.select<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+  );
+  return rows.map((row) => row.name);
+}
+
 let db: NodeSqliteDriver;
 
 beforeEach(async () => {
@@ -124,20 +157,66 @@ describe('migrations', () => {
   it('applies forward, is idempotent, and rolls back the last migration', async () => {
     const fresh = new NodeSqliteDriver();
     const first = await applyMigrations(fresh);
-    expect(first.applied).toEqual([1, 2]);
+    expect(first.applied).toEqual([1, 2, 3]);
     const second = await applyMigrations(fresh);
     expect(second.applied).toEqual([]);
-    expect(second.alreadyApplied).toEqual([1, 2]);
+    expect(second.alreadyApplied).toEqual([1, 2, 3]);
 
     const rolledBack = await rollbackLastMigration(fresh);
-    expect(rolledBack).toBe(2);
-    const remaining = await fresh.select<{ name: string }>("SELECT name FROM sqlite_master WHERE name = 'search_index'");
-    expect(remaining).toHaveLength(0);
+    expect(rolledBack).toBe(3);
+    // 003 is additive: rolling it back removes the new tables but keeps search.
+    expect(await tableNames(fresh)).not.toContain('app_versions');
+    expect(await tableNames(fresh)).not.toContain('dev_log');
+    expect(await tableNames(fresh)).toContain('outbox');
+    expect(await tableNames(fresh)).toContain('search_index');
     const tables = await fresh.select<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'installed_microapps'",
     );
     expect(tables).toHaveLength(1);
+    const columns = await fresh.select<{ name: string }>('PRAGMA table_info(installed_microapps)');
+    expect(columns.map((column) => column.name)).not.toContain('display_name');
+
+    // Re-running forward restores the v3 surface.
+    expect((await applyMigrations(fresh)).applied).toEqual([3]);
+    expect(await tableNames(fresh)).toContain('app_versions');
     await fresh.close();
+  });
+
+  it('lands the v3 schema and drops the native-era tables', async () => {
+    const tables = await tableNames(db);
+    expect(tables).toContain('app_versions');
+    expect(tables).toContain('dev_log');
+    for (const removed of ['outbox', 'widgets', 'dock_items', 'registry_pins']) {
+      expect(tables).not.toContain(removed);
+    }
+    const columns = await db.select<{ name: string }>('PRAGMA table_info(installed_microapps)');
+    expect(columns.map((column) => column.name)).toEqual(
+      expect.arrayContaining(['display_name', 'package_path']),
+    );
+
+    // `runtime_sessions` was rebuilt so only the web iframe engine is accepted.
+    const workspace = await ensureDefaultWorkspace(db, { name: 'Rumah', nowMs: 1_000 });
+    const app = await installApp(db, {
+      workspaceId: workspace.id,
+      appId: 'org.reinvy.engine',
+      version: '1.0.0',
+      manifestJson: JSON.stringify({ name: 'Engine' }),
+      contentHash: bytes(32),
+      signature: bytes(64),
+      authorKeyFingerprint: 'b'.repeat(64),
+      installSource: 'local',
+      bundlePath: 'apps/org.reinvy.engine/1.0.0',
+      dbRelativePath: 'workspaces/rumah/apps/org.reinvy.engine.db',
+      schemaVersion: 1,
+    });
+    await expect(
+      db.exec(
+        `INSERT INTO runtime_sessions
+           (session_id, workspace_id, app_install_id, engine, state, memory_bytes, started_at_ms, updated_at_ms)
+         VALUES ('legacy-session', ?, ?, 'native-quickjs', 'running', 0, 1, 1)`,
+        [workspace.id, app.id],
+      ),
+    ).rejects.toThrow();
   });
 
   it('refuses to run when an applied migration checksum changed', async () => {
@@ -199,6 +278,8 @@ describe('installed apps', () => {
     const { workspace, app } = await seed(db);
     expect(app.appId).toBe('org.reinvy.kas');
     expect(app.state).toBe('installed');
+    expect(app.displayName).toBeNull();
+    expect(app.name).toBe('KasLokal');
     const policy = await appPolicy(db, workspace.id, app.id);
     expect(policy.offlineCage).toBe(true);
     const dbs = await db.select<{ relative_path: string }>(
@@ -221,17 +302,24 @@ describe('installed apps', () => {
     expect((await appPolicy(db, workspace.id, app.id)).offlineCage).toBe(false);
   });
 
+  it('places an app once, even when the caller repeats the placement', async () => {
+    const { workspace, app } = await seed(db);
+    await placeApp(db, workspace.id, app.id);
+    await placeApp(db, workspace.id, app.id);
+    const placements = await listPlacements(db, workspace.id);
+    expect(placements).toHaveLength(1);
+    expect(placements[0]?.appInstallId).toBe(app.id);
+    expect(placements[0]?.pinned).toBe(false);
+  });
+
   it('keeps workspaces isolated', async () => {
     const { workspace, app } = await seed(db);
-    const other = await ensureDefaultWorkspace(db, { name: 'Second' });
-    // ensureDefaultWorkspace returns the existing default; create a second one manually.
-    await db.exec(
-      `INSERT INTO workspaces (id, name, slug, theme, locale, is_default, created_at_ms, updated_at_ms)
-       VALUES ('ws-2', 'Kedua', 'kedua', 'studio', 'id-ID', 0, 1, 1)`,
-    );
-    expect(other.id).toBe(workspace.id);
-    expect(await getApp(db, 'ws-2', 'org.reinvy.kas')).toBeNull();
-    expect(await listApps(db, 'ws-2')).toHaveLength(0);
+    const second = await createWorkspace(db, { name: 'Kedua' });
+    // ensureDefaultWorkspace returns the existing default.
+    expect(await ensureDefaultWorkspace(db, { name: 'Second' })).toMatchObject({ id: workspace.id });
+    expect(await getApp(db, second.id, 'org.reinvy.kas')).toBeNull();
+    expect(await listApps(db, second.id)).toHaveLength(0);
+    expect(await listVersions(db, second.id, app.id)).toHaveLength(0);
     expect(await listApps(db, workspace.id)).toHaveLength(1);
     await expect(
       installApp(db, {
@@ -249,6 +337,228 @@ describe('installed apps', () => {
       }),
     ).rejects.toThrow();
     void app;
+  });
+
+  it('keeps version history, resolves it by version, and rolls back without losing the newer version', async () => {
+    const { workspace, app } = await seed(db);
+    await preserveVersion(db, { workspaceId: workspace.id, installId: app.id, nowMs: 2_100 });
+    expect((await listVersions(db, workspace.id, app.id)).map((version) => version.version)).toEqual(['1.3.0']);
+
+    await installApp(db, {
+      workspaceId: workspace.id,
+      appId: 'org.reinvy.kas',
+      version: '1.4.0',
+      manifestJson: JSON.stringify({ id: 'org.reinvy.kas', name: 'KasLokal', version: '1.4.0' }),
+      contentHash: bytes(32, 4),
+      signature: bytes(64, 7),
+      authorKeyFingerprint: 'f'.repeat(64),
+      installSource: 'local',
+      bundlePath: 'apps/org.reinvy.kas/1.4.0',
+      dbRelativePath: 'workspaces/rumah/apps/org.reinvy.kas.db',
+      schemaVersion: 1,
+      nowMs: 3_000,
+    });
+    await preserveVersion(db, { workspaceId: workspace.id, installId: app.id, nowMs: 3_100 });
+
+    const versions = await listVersions(db, workspace.id, app.id);
+    expect(versions.map((version) => version.version).sort()).toEqual(['1.3.0', '1.4.0']);
+
+    const storedV1 = await getVersion(db, workspace.id, app.id, '1.3.0');
+    expect(storedV1).not.toBeNull();
+    expect(JSON.parse(storedV1!.manifestJson)).toMatchObject({ version: '1.3.0' });
+    expect(storedV1!.bundlePath).toBe('apps/org.reinvy.kas/1.3.0');
+    expect(await getVersion(db, workspace.id, app.id, '9.9.9')).toBeNull();
+
+    // Caller flow (packageService.rollbackApp): preserve the current version,
+    // then move the installed pointers back to the stored target.
+    await preserveVersion(db, { workspaceId: workspace.id, installId: app.id, nowMs: 4_000 });
+    await rollbackToVersion(db, workspace.id, app.id, storedV1!, 4_100);
+
+    const restored = await getApp(db, workspace.id, 'org.reinvy.kas');
+    expect(restored?.version).toBe('1.3.0');
+    expect(restored?.manifestJson).toBe(storedV1!.manifestJson);
+    expect(hex(restored!.contentHash)).toBe(hex(storedV1!.contentHash));
+    // The rolled-back-from version is still available for a later rollback.
+    expect((await listVersions(db, workspace.id, app.id)).map((version) => version.version).sort()).toEqual([
+      '1.3.0',
+      '1.4.0',
+    ]);
+  });
+
+  it('renames through display_name only and clears back to the manifest name', async () => {
+    const { workspace, app } = await seed(db);
+    expect((await listApps(db, workspace.id))[0]?.name).toBe('KasLokal');
+
+    await setDisplayName(db, workspace.id, app.id, '  Kas Warung  ', 3_000);
+    const renamed = await getApp(db, workspace.id, 'org.reinvy.kas');
+    expect(renamed?.displayName).toBe('Kas Warung');
+    expect(renamed?.name).toBe('KasLokal');
+    expect(renamed?.appId).toBe('org.reinvy.kas');
+    expect(renamed?.manifestJson).toBe(app.manifestJson);
+    expect((await listApps(db, workspace.id))[0]?.displayName).toBe('Kas Warung');
+    const row = await db.select<{ app_id: string; manifest_json: string }>(
+      'SELECT app_id, manifest_json FROM installed_microapps WHERE id = ?',
+      [app.id],
+    );
+    expect(row[0]?.app_id).toBe('org.reinvy.kas');
+    expect(row[0]?.manifest_json).toBe(app.manifestJson);
+
+    await setDisplayName(db, workspace.id, app.id, null, 3_100);
+    const cleared = await getApp(db, workspace.id, 'org.reinvy.kas');
+    expect(cleared?.displayName).toBeNull();
+    expect(cleared?.name).toBe('KasLokal');
+  });
+
+  it('puts pinned apps first regardless of placement order', async () => {
+    const { workspace } = await seed(db);
+    const notes = await seedSecondApp(db, workspace.id);
+    expect((await listApps(db, workspace.id)).map((app) => app.appId)).toEqual([
+      'org.reinvy.kas',
+      'org.reinvy.notes',
+    ]);
+
+    await setPinned(db, workspace.id, notes.id, true);
+    const pinned = await listApps(db, workspace.id);
+    expect(pinned.map((app) => app.appId)).toEqual(['org.reinvy.notes', 'org.reinvy.kas']);
+    expect(pinned[0]?.pinned).toBe(true);
+    expect(pinned[1]?.pinned).toBe(false);
+    expect((await listPlacements(db, workspace.id)).find((row) => row.appInstallId === notes.id)?.pinned).toBe(true);
+
+    await setPinned(db, workspace.id, notes.id, false);
+    expect((await listApps(db, workspace.id)).map((app) => app.appId)).toEqual([
+      'org.reinvy.kas',
+      'org.reinvy.notes',
+    ]);
+  });
+
+  it('records a launch as the workspace resume target', async () => {
+    const { workspace, app } = await seed(db);
+    expect((await loadWorkspaceState(db, workspace.id)).lastAppId).toBeNull();
+    await recordLaunch(db, workspace.id, app.id, 5_000);
+    expect((await loadWorkspaceState(db, workspace.id)).lastAppId).toBe(app.id);
+    const row = await db.select<{ last_launched_at_ms: number }>(
+      'SELECT last_launched_at_ms FROM installed_microapps WHERE id = ?',
+      [app.id],
+    );
+    expect(Number(row[0]?.last_launched_at_ms)).toBe(5_000);
+  });
+
+  it('duplicates into `.copy` ids without copying consent', async () => {
+    const { workspace, app } = await seed(db);
+    await setDisplayName(db, workspace.id, app.id, 'Kas Warung', 2_500);
+    await grantPermission(db, {
+      workspaceId: workspace.id,
+      appInstallId: app.id,
+      permissionId: 'camera',
+      scope: 'persistent',
+      nowMs: 2_600,
+    });
+    const source = (await getApp(db, workspace.id, 'org.reinvy.kas'))!;
+
+    const firstAppId = await nextCopyAppId(db, workspace.id, source.appId);
+    expect(firstAppId).toBe('org.reinvy.kas.copy');
+    const first = await duplicateApp(db, {
+      workspaceId: workspace.id,
+      source,
+      newInstallId: uuidv7(3_000),
+      newAppId: firstAppId,
+      newBundlePath: `apps/${firstAppId}/1.3.0`,
+      newDbRelativePath: `workspaces/rumah/apps/${firstAppId}.db`,
+      nowMs: 3_000,
+    });
+    expect(first.id).not.toBe(app.id);
+    expect(first.appId).toBe('org.reinvy.kas.copy');
+    expect(first.displayName).toBe('Kas Warung salinan');
+    expect(first.version).toBe('1.3.0');
+    expect(first.manifestJson).toBe(source.manifestJson);
+    expect(first.packagePath).toBe(source.packagePath);
+
+    const secondAppId = await nextCopyAppId(db, workspace.id, source.appId);
+    expect(secondAppId).toBe('org.reinvy.kas.copy-2');
+    const second = await duplicateApp(db, {
+      workspaceId: workspace.id,
+      source,
+      newInstallId: uuidv7(3_100),
+      newAppId: secondAppId,
+      newBundlePath: `apps/${secondAppId}/1.3.0`,
+      newDbRelativePath: `workspaces/rumah/apps/${secondAppId}.db`,
+      nowMs: 3_100,
+    });
+    expect(second.appId).toBe('org.reinvy.kas.copy-2');
+    expect(await listApps(db, workspace.id)).toHaveLength(3);
+
+    // A copy starts with no consent, its own database/policy/placement rows.
+    for (const copy of [first, second]) {
+      const grants = await db.select<{ permission_id: string }>(
+        'SELECT permission_id FROM permission_grants WHERE app_install_id = ?',
+        [copy.id],
+      );
+      expect(grants).toHaveLength(0);
+      expect(await appPolicy(db, workspace.id, copy.id)).toMatchObject({ offlineCage: true });
+      expect(await db.select('SELECT 1 FROM app_databases WHERE app_install_id = ?', [copy.id])).toHaveLength(1);
+      expect(await db.select('SELECT 1 FROM app_placements WHERE app_install_id = ?', [copy.id])).toHaveLength(1);
+    }
+    expect(await listActiveGrants(db, workspace.id, app.id)).toHaveLength(1);
+  });
+
+  it('uninstalls the row with its history, grants, placements, search rows, and resume target', async () => {
+    const { workspace, app } = await seed(db);
+    await grantPermission(db, {
+      workspaceId: workspace.id,
+      appInstallId: app.id,
+      permissionId: 'camera',
+      scope: 'persistent',
+    });
+    await preserveVersion(db, { workspaceId: workspace.id, installId: app.id });
+    await indexRecord(db, {
+      workspaceId: workspace.id,
+      kind: 'app',
+      refId: app.id,
+      appInstallId: app.id,
+      title: 'KasLokal',
+      body: 'org.reinvy.kas',
+    });
+    await indexRecord(db, {
+      workspaceId: workspace.id,
+      kind: 'record',
+      refId: `${app.id}:total`,
+      appInstallId: app.id,
+      title: 'total',
+      body: '42',
+    });
+    await recordLaunch(db, workspace.id, app.id, 4_000);
+    expect((await loadWorkspaceState(db, workspace.id)).lastAppId).toBe(app.id);
+
+    const removed = await uninstallApp(db, workspace.id, app.id);
+    expect(removed.id).toBe(app.id);
+
+    expect(await getApp(db, workspace.id, 'org.reinvy.kas')).toBeNull();
+    for (const table of ['app_versions', 'permission_grants', 'app_placements', 'app_databases', 'app_policy']) {
+      expect(await db.select(`SELECT 1 FROM ${table} WHERE app_install_id = ?`, [app.id])).toHaveLength(0);
+    }
+    const searchRows = await db.select<{ ref_id: string }>(
+      'SELECT ref_id FROM search_index WHERE workspace_id = ? AND (ref_id = ? OR app_install_id = ?)',
+      [workspace.id, app.id, app.id],
+    );
+    expect(searchRows).toHaveLength(0);
+    expect((await loadWorkspaceState(db, workspace.id)).lastAppId).toBeNull();
+  });
+
+  it('returns empty/null when another workspace asks for this workspace’s ids', async () => {
+    const { workspace, app } = await seed(db);
+    const project = await createStudioProject(db, {
+      workspaceId: workspace.id,
+      name: 'Kas draft',
+      nowMs: 2_100,
+    });
+    await preserveVersion(db, { workspaceId: workspace.id, installId: app.id });
+    const other = await createWorkspace(db, { name: 'Kedua', nowMs: 2_200 });
+
+    expect(await listApps(db, other.id)).toHaveLength(0);
+    expect(await getStudioProject(db, other.id, project.id)).toBeNull();
+    expect(await listVersions(db, other.id, app.id)).toHaveLength(0);
+    expect(await listAllProjects(db, other.id)).toHaveLength(0);
+    expect(await listVersions(db, workspace.id, app.id)).toHaveLength(1);
   });
 });
 
@@ -445,9 +755,7 @@ describe('vault', () => {
     const active = await activeKeyWrap(db, workspace.id);
     expect(active).not.toBeNull();
     expect(active?.createdAtMs).toBe(2);
-    await expect(
-      saveKeyWrap(db, { ...base, memoryKib: 1024, nowMs: 3 }),
-    ).rejects.toThrow(/argon2id/);
+    await expect(saveKeyWrap(db, { ...base, memoryKib: 1024, nowMs: 3 })).rejects.toThrow(/argon2id/);
   });
 });
 
@@ -478,31 +786,7 @@ describe('notifications', () => {
   });
 });
 
-describe('launcher', () => {
-  it('enforces folder depth, dock size, and widget refresh floor', async () => {
-    const { workspace, app } = await seed(db);
-    const level1 = await createFolder(db, { workspaceId: workspace.id, name: 'Satu' });
-    const level2 = await createFolder(db, { workspaceId: workspace.id, name: 'Dua', parentId: level1.id });
-    const level3 = await createFolder(db, { workspaceId: workspace.id, name: 'Tiga', parentId: level2.id });
-    expect(level3.depth).toBe(3);
-    await expect(
-      createFolder(db, { workspaceId: workspace.id, name: 'Empat', parentId: level3.id }),
-    ).rejects.toThrow(/three levels/);
-    expect(await listFolders(db, workspace.id)).toHaveLength(3);
-
-    await placeApp(db, { workspaceId: workspace.id, appInstallId: app.id, sortOrder: 0, pinned: true });
-    await addDockItem(db, { workspaceId: workspace.id, appInstallId: app.id });
-    expect(await listDock(db, workspace.id)).toEqual([app.id]);
-
-    await addWidget(db, { workspaceId: workspace.id, appInstallId: app.id, kind: 'balance', refreshIntervalMs: 5_000 });
-    await expect(
-      addWidget(db, { workspaceId: workspace.id, appInstallId: app.id, kind: 'fast', refreshIntervalMs: 1_000 }),
-    ).rejects.toThrow(/5 seconds/);
-    expect(await listWidgets(db, workspace.id)).toHaveLength(1);
-  });
-});
-
-describe('search, pins, settings, studio, migration ledger', () => {
+describe('search, pins, settings, migration ledger', () => {
   it('indexes records and searches them per workspace', async () => {
     const { workspace, app } = await seed(db);
     await indexRecord(db, {
@@ -530,6 +814,30 @@ describe('search, pins, settings, studio, migration ledger', () => {
     expect(await search(db, workspace.id, 'teh')).toHaveLength(1);
     expect(await rebuildSearchIndex(db, workspace.id)).toBe(1);
     expect(await search(db, workspace.id, 'KasLokal')).toHaveLength(1);
+    expect((await search(db, workspace.id, 'KasLokal'))[0]?.kind).toBe('app');
+  });
+
+  it('rebuilds app and project entries with their own kinds and can drop one', async () => {
+    const { workspace } = await seed(db);
+    const project = await createStudioProject(db, {
+      workspaceId: workspace.id,
+      name: 'Laporan Bulanan',
+      document: { name: 'Ringkasan penjualan' },
+      nowMs: 2_500,
+    });
+    expect(await rebuildSearchIndex(db, workspace.id)).toBe(2);
+
+    const appHits = await search(db, workspace.id, 'kaslokal');
+    expect(appHits.map((hit) => hit.kind)).toEqual(['app']);
+    const projectHits = await search(db, workspace.id, 'laporan');
+    expect(projectHits.map((hit) => hit.kind)).toEqual(['project']);
+    expect(projectHits[0]?.refId).toBe(project.id);
+    // The document body is indexed too, not just the project name.
+    expect(await search(db, workspace.id, 'penjualan')).toHaveLength(1);
+
+    await removeSearchRef(db, workspace.id, 'project', project.id);
+    expect(await search(db, workspace.id, 'laporan')).toHaveLength(0);
+    expect(await search(db, workspace.id, 'kaslokal')).toHaveLength(1);
   });
 
   it('pins storage and persists settings', async () => {
@@ -546,15 +854,15 @@ describe('search, pins, settings, studio, migration ledger', () => {
     expect(await getSetting(db, 'locale', 'id-ID')).toBe('en-US');
   });
 
-  it('creates Studio drafts and records the Phase 0 migration ledger', async () => {
+  it('records the Phase 0 migration ledger', async () => {
     const { workspace } = await seed(db);
-    const draft = await createStudioDraft(db, {
+    const draft = await createStudioProject(db, {
       workspaceId: workspace.id,
       name: 'Kas draft',
       sourceLegacyId: 'legacy-app-1',
     });
     expect(draft.status).toBe('draft');
-    expect(await listStudioDrafts(db, workspace.id)).toHaveLength(1);
+    expect(await listAllProjects(db, workspace.id)).toHaveLength(1);
     const reportId = await startMigrationReport(db, {
       source: 'dexie-v6',
       counts: { apps: 1 },

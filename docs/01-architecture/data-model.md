@@ -58,11 +58,12 @@ Tabel pendukung yang tetap berada di host DB:
 | Tabel | Peran |
 |---|---|
 | `workspace_state` | App terakhir, posisi scroll, filter Home |
-| `registry_pins` | Fingerprint public key yang pernah disetujui |
-| `folders`, `app_placements`, `dock_items`, `widgets` | Tata letak library dan Home |
+| `folders`, `app_placements` | Pengelompokan opsional dan tata letak library |
+| `app_versions` | Riwayat versi per app terpasang: manifest, digest, signature, bundle, path paket |
 | `permission_sessions` | Grant sementara untuk scope `once`/session |
 | `app_policy` | Offline cage dan mock permission per app |
 | `runtime_sessions` | Status sesi app untuk watchdog dan pemulihan |
+| `dev_log` | Log bridge/error/flag teredaksi untuk DevTools |
 | `vault_grants` | Akses item vault per app |
 | `vault_key_wraps` | Parameter Argon2id dan wrapped vault key |
 | `crash_incident`, `diagnostic_log` | Bukti crash teredaksi untuk DevTools |
@@ -71,13 +72,15 @@ Tabel pendukung yang tetap berada di host DB:
 | `migration_report`, `migration_backup`, `legacy_record_map` | Migrasi Phase 0 dari Dexie |
 | `settings` | Preferensi global non-rahasia |
 
+Kolom tambahan pada `installed_microapps` dari migrasi `003_refactor_v3`: `display_name` (alias lokal untuk rename) dan `package_path` (lokasi `.mapp` asli untuk share/ekspor). Alias dan path tidak mengubah manifest bertanda tangan; `app_id` tetap kunci URL.
+
 ## 5. Tabel yang Tidak Ada
 
 Model target **tidak memiliki** tabel CRDT, mutation log, sync peer, outbox workflow, workflow node, job queue, tenant, RBAC server, sesi server, atau cache cloud. Produk tidak menjalankan sinkronisasi dan tidak memiliki server aplikasi.
 
-Migrasi `001_host` masih membawa tabel `outbox` sebagai sisa model lama. Tabel itu **bukan** bagian kontrak target, tidak dipakai jalur web-only, dan tidak boleh dipakai fitur baru. Penghapusannya dilakukan lewat migrasi bernomor dengan rollback, bukan dengan mengubah migrasi yang sudah diterapkan.
+Migrasi `001_host` masih membawa tabel `outbox`, `widgets`, `dock_items`, dan `registry_pins` sebagai sisa model lama. Tabel itu **bukan** bagian kontrak target, tidak dipakai jalur web-only, dan tidak boleh dipakai fitur baru. Migrasi `003_refactor_v3` menghapusnya beserta rollback-nya, bukan dengan mengubah migrasi yang sudah diterapkan. `app_placements` menjadi satu-satunya sumber pin dan urutan.
 
-Kolom `runtime_sessions.engine` masih memiliki constraint lama yang mengizinkan nilai non-web. Hanya `web-iframe` yang valid untuk produk ini; constraint disempitkan melalui migrasi berikutnya.
+Kolom `runtime_sessions.engine` masih memiliki constraint lama yang mengizinkan nilai non-web. Hanya `web-iframe` yang valid untuk produk ini; constraint disempitkan oleh `003_refactor_v3` melalui rebuild tabel.
 
 ## 6. Relasi Inti
 

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { NodeSqliteDriver } from '@/db/node-sqlite-driver';
 import { applyMigrations } from '@/db/migrate';
 import { ensureDefaultWorkspace } from '@/db/repositories/workspaces';
-import { listStudioDrafts, resolveLegacyMapping } from '@/db/repositories/search';
+import { listAllProjects } from '@/db/repositories/studio';
+import { resolveLegacyMapping } from '@/db/repositories/search';
 import { migratePhase0, type LegacyReader } from '../phase0Migration';
 
 function fakeReader(apps: Array<{ id: string; name: string }>): LegacyReader {
@@ -41,7 +42,7 @@ describe('Phase 0 migration', () => {
     expect(summary).toMatchObject({ apps: 2, drafts: 2, skipped: 0, content: 3, runHistory: 2 });
     expect(summary.checksum).toMatch(/^[0-9a-f]{64}$/);
 
-    const drafts = await listStudioDrafts(db, workspaceId);
+    const drafts = await listAllProjects(db, workspaceId);
     expect(drafts).toHaveLength(2);
     expect(drafts.every((draft) => draft.status === 'draft')).toBe(true);
     const mapping = await resolveLegacyMapping(db, 'apps', 'legacy-1');
@@ -65,7 +66,7 @@ describe('Phase 0 migration', () => {
     expect(first.drafts).toBe(1);
     expect(second.drafts).toBe(0);
     expect(second.skipped).toBe(1);
-    expect(await listStudioDrafts(db, workspaceId)).toHaveLength(1);
+    expect(await listAllProjects(db, workspaceId)).toHaveLength(1);
     await db.close();
   });
 });

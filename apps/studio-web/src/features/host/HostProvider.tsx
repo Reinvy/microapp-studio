@@ -1,86 +1,195 @@
 'use client';
 
 /**
- * Host provider: bootstraps the SQLite worker, identity, workspace, and app list.
+ * Host provider: bootstraps the SQLite worker, identity, workspace, preferences,
+ * and app list, and owns every privileged host operation the screens call.
  *
- * Boot order matters: migrations run inside the worker before any repository
- * call; identity is loaded before the workspace so audit entries always carry an
- * actor; app list is read after the workspace so isolation is guaranteed.
+ * Boot order is load-bearing:
+ *   1. worker + migrations (a failure here is `E-SHELL-001`, limited mode);
+ *   2. identity is created automatically — never through a modal — and a failure
+ *      degrades to ephemeral mode (`E-SHELL-002`) instead of blocking Home;
+ *   3. default workspace, then preferences (the DB copy wins, localStorage is
+ *      what `theme-init.js` used for the first paint);
+ *   4. app list, then `phase = 'ready'`.
+ *
+ * Consent is host-level: `requestPermission` opens one dialog at a time and
+ * resolves with the user's decision after writing the grant and the audit entry.
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
+import { WorkerHostDb, type AppDbKey } from '@/db/client';
 import {
-  WorkerHostDb,
-} from '@/db/client';
-import { ensureDefaultWorkspace, loadWorkspaceState, saveWorkspaceState, type Workspace } from '@/db/repositories/workspaces';
-import { createIdentity, loadIdentity, setDeviceCert, type LocalIdentity } from '@/db/repositories/identity';
+  createWorkspace as createWorkspaceRow,
+  ensureDefaultWorkspace,
+  listWorkspaces,
+  setActiveWorkspace,
+  type Workspace,
+} from '@/db/repositories/workspaces';
+import { loadIdentity, type LocalIdentity } from '@/db/repositories/identity';
 import { appendAudit, type AuditHasher } from '@/db/repositories/audit';
-import { getApp, installApp, listApps, setAppState, type InstalledApp } from '@/db/repositories/apps';
-import { indexRecord, rebuildSearchIndex } from '@/db/repositories/search';
+import {
+  getApp,
+  getAppById,
+  listApps,
+  recordLaunch,
+  setAppState,
+  setPinned as setPinnedRow,
+  type InstalledApp,
+} from '@/db/repositories/apps';
+import { rebuildSearchIndex } from '@/db/repositories/search';
+import { grantPermission } from '@/db/repositories/permissions';
+import { loadPreferences, savePreferences } from '@/db/repositories/settings';
+import {
+  duplicateApp as duplicateAppService,
+  exportPackage,
+  installVerified,
+  renameApp as renameAppService,
+  rollbackApp as rollbackAppService,
+  uninstallApp as uninstallAppService,
+} from '@/features/packages/packageService';
+import { AppDatabase, exportAppDataCsv, exportAppDataJson, validateImport } from '@/features/appdb/appDb';
 import { IdentityService } from '@/features/identity/identityService';
-import { clearIdentitySecret, isDegraded, loadIdentitySecret, saveIdentitySecret } from '@/features/identity/secureStore';
-import type { CreateIdentityResult } from '@/features/identity/types';
-import { createTranslator, detectLocale, type Locale, type Translate } from '@/i18n';
-import { verifyPackage, materialize, type InstallSourceName, type VerifiedPackage } from '@microapp/runtime-web';
+import { ensureLocalIdentity, resetEnsureIdentity } from '@/features/identity/ensureIdentity';
+import { isDegraded, saveIdentitySecret } from '@/features/identity/secureStore';
+import { applyPreferences, mirrorPreferences, watchSystemTheme } from '@/features/preferences/apply';
+import { probeNetwork } from '@/features/shell/connectivity';
+import { parsePreferences, type Preferences } from '@/features/preferences/types';
+import { createTranslator, detectLocale, setActiveLocale, SUPPORTED_LOCALES, type Locale, type Translate } from '@/i18n';
+import { verifyPackage, type InstallSourceName, type VerifiedPackage } from '@microapp/runtime-web';
 
-export type HostPhase = 'booting' | 'first-run' | 'ready' | 'error';
+export type HostPhase = 'booting' | 'ready';
+export type CacheStatus = 'cached' | 'uncached';
+export type PermissionOutcome = 'once' | 'always' | 'denied';
+
+export interface PermissionRequest {
+  appInstallId: string;
+  appId: string;
+  permissionId: string;
+  reason?: string;
+}
+
+export interface PendingPermission {
+  request: PermissionRequest;
+  appName: string;
+}
+
+export interface StorageEstimate {
+  usage: number;
+  quota: number;
+}
 
 export interface HostContextValue {
   phase: HostPhase;
-  error: string | null;
-  storage: 'opfs' | 'memory' | null;
+  /** `E-SHELL-001` when the worker could not open the database. */
+  bootError: string | null;
+  /** `E-SHELL-002` when identity creation failed. */
+  identityError: string | null;
+  /** True when key material is session-only or absent; create stays disabled. */
+  ephemeral: boolean;
   degradedIdentity: boolean;
+  storage: 'opfs' | 'memory' | null;
   db: WorkerHostDb | null;
   identityService: IdentityService | null;
   identity: LocalIdentity | null;
   workspace: Workspace | null;
+  workspaces: Workspace[];
   apps: InstalledApp[];
+  prefs: Preferences;
+  setPrefs: (patch: Partial<Preferences>) => void;
+  prefsError: string | null;
+  retryPrefsSave: () => void;
   locale: Locale;
   t: Translate;
+  online: boolean;
+  cacheStatus: CacheStatus;
+  storageEstimate: StorageEstimate | null;
+  storagePersisted: boolean;
+  requestPersist: () => Promise<void>;
+  refreshStorageEstimate: () => Promise<void>;
+  pendingPermission: PendingPermission | null;
+  resolvePermission: (outcome: PermissionOutcome) => Promise<void>;
+  requestPermission: (input: PermissionRequest) => Promise<PermissionOutcome>;
   refresh: () => Promise<void>;
-  completeOnboarding: (created: CreateIdentityResult, mnemonic: string) => Promise<void>;
-  restoreIdentity: (mnemonic: string) => Promise<void>;
   inspectPackage: (
     file: File,
     source: InstallSourceName,
     keys?: { authorPubkeyHex?: string; registryPubkeyHex?: string },
-  ) => Promise<VerifiedPackage>;
+  ) => Promise<{ pkg: VerifiedPackage; bytes: Uint8Array }>;
   installPackage: (
     file: File,
     source: InstallSourceName,
     approvedPermissions: string[],
-    keys?: { authorPubkeyHex?: string; registryPubkeyHex?: string },
+    options?: {
+      authorPubkeyHex?: string;
+      registryPubkeyHex?: string;
+      allowKeyChange?: boolean;
+      allowDowngrade?: boolean;
+    },
   ) => Promise<InstalledApp>;
+  uninstallApp: (installId: string) => Promise<void>;
+  duplicateApp: (installId: string) => Promise<InstalledApp>;
+  renameApp: (installId: string, name: string | null) => Promise<InstalledApp>;
+  setPinned: (installId: string, pinned: boolean) => Promise<void>;
+  rollbackApp: (installId: string, version: string) => Promise<InstalledApp>;
   launchApp: (appId: string) => Promise<InstalledApp | null>;
   stopApp: (appId: string) => Promise<void>;
+  exportPackageBytes: (installId: string) => Promise<Uint8Array | null>;
   audit: (action: string, target?: string, metadata?: Record<string, unknown>) => Promise<void>;
+  openAppDb: (installId: string) => Promise<AppDatabase>;
+  exportAppData: (installId: string, format: 'json' | 'csv') => Promise<string>;
+  importAppData: (installId: string, payload: unknown) => Promise<number>;
+  switchWorkspace: (workspaceId: string) => Promise<void>;
+  createWorkspace: (name: string) => Promise<Workspace>;
+  restoreIdentity: (mnemonic: string) => Promise<void>;
 }
 
 const HostContext = createContext<HostContextValue | null>(null);
 
-function toBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let index = 0; index < bytes.length; index += 1) {
-    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
-  }
-  return bytes;
-}
+const SHELL_CACHE = 'microapp-shell-v3';
 
 export function HostProvider({ children }: { children: ReactNode }): ReactElement {
   const [phase, setPhase] = useState<HostPhase>('booting');
-  const [error, setError] = useState<string | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [identityError, setIdentityError] = useState<string | null>(null);
   const [storage, setStorage] = useState<'opfs' | 'memory' | null>(null);
   const [identity, setIdentity] = useState<LocalIdentity | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [apps, setApps] = useState<InstalledApp[]>([]);
   const [degradedIdentity, setDegradedIdentity] = useState(false);
+  const [online, setOnline] = useState(true);
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus>('uncached');
+  const [storageEstimate, setStorageEstimate] = useState<StorageEstimate | null>(null);
+  const [storagePersisted, setStoragePersisted] = useState(false);
+  const [prefs, setPrefsState] = useState<Preferences>(() => parsePreferences(null, detectLocale()));
+  const [prefsError, setPrefsError] = useState<string | null>(null);
+  const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null);
+
   const dbRef = useRef<WorkerHostDb | null>(null);
   const [db, setDb] = useState<WorkerHostDb | null>(null);
   const identityServiceRef = useRef<IdentityService | null>(null);
   const [identityService, setIdentityService] = useState<IdentityService | null>(null);
-  const locale = useMemo(() => detectLocale(), []);
+  const prefsRef = useRef(prefs);
+  const consentQueue = useRef<Array<{ request: PermissionRequest; resolve: (outcome: PermissionOutcome) => void }>>([]);
+  const activeConsent = useRef<{ request: PermissionRequest; resolve: (outcome: PermissionOutcome) => void } | null>(
+    null,
+  );
+  const appsRef = useRef(apps);
+  const locale = prefs.locale;
   const t = useMemo(() => createTranslator(locale), [locale]);
+
+  useEffect(() => {
+    prefsRef.current = prefs;
+  }, [prefs]);
+
+  useEffect(() => {
+    appsRef.current = apps;
+  }, [apps]);
+
+  useEffect(() => {
+    setActiveLocale(locale);
+  }, [locale]);
 
   const audit = useCallback<HostContextValue['audit']>(async (action, target, metadata) => {
     const db = dbRef.current;
@@ -94,25 +203,71 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
     await appendAudit(db, { actor: identity?.id ?? 'system', action, target: target ?? null, metadata }, hasher);
   }, [identity]);
 
+  const refreshStorageEstimate = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.storage) return;
+    try {
+      const [estimate, persisted] = await Promise.all([
+        navigator.storage.estimate(),
+        navigator.storage.persisted?.() ?? Promise.resolve(false),
+      ]);
+      setStorageEstimate({ usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 });
+      setStoragePersisted(persisted);
+    } catch {
+      setStorageEstimate(null);
+    }
+  }, []);
+
+  const requestPersist = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.storage?.persist) return;
+    try {
+      await navigator.storage.persist();
+    } catch {
+      // Denied persistence is a documented state, not an error.
+    }
+    await refreshStorageEstimate();
+  }, [refreshStorageEstimate]);
+
+  const setPrefs = useCallback<HostContextValue['setPrefs']>((patch) => {
+    const next = { ...prefsRef.current, ...patch };
+    prefsRef.current = next;
+    setPrefsState(next);
+    applyPreferences(next);
+    mirrorPreferences(next);
+    const db = dbRef.current;
+    if (!db) return;
+    void savePreferences(db, next)
+      .then(() => setPrefsError(null))
+      .catch(() => setPrefsError('E-SET-002'));
+  }, []);
+
+  const retryPrefsSave = useCallback(() => {
+    const db = dbRef.current;
+    if (!db) return;
+    void savePreferences(db, prefsRef.current)
+      .then(() => setPrefsError(null))
+      .catch(() => setPrefsError('E-SET-002'));
+  }, []);
+
+  const loadWorkspaceData = useCallback(
+    async (db: WorkerHostDb, active: Workspace): Promise<void> => {
+      setWorkspace(active);
+      setApps(await listApps(db, active.id));
+      setWorkspaces(await listWorkspaces(db));
+      await refreshStorageEstimate();
+    },
+    [refreshStorageEstimate],
+  );
+
   const refresh = useCallback(async () => {
     const db = dbRef.current;
     if (!db) return;
     const loadedIdentity = await loadIdentity(db);
     setIdentity(loadedIdentity);
-    if (!loadedIdentity) {
-      setPhase('first-run');
-      return;
-    }
-    const ws = await ensureDefaultWorkspace(db, { locale });
-    setWorkspace(ws);
-    setApps(await listApps(db, ws.id));
-    const state = await loadWorkspaceState(db, ws.id);
-    if (state.lastAppId === null) {
-      await saveWorkspaceState(db, ws.id, { ...state, lastAppId: null });
-    }
-    setPhase('ready');
-  }, [locale]);
+    const active = await ensureDefaultWorkspace(db, { locale });
+    await loadWorkspaceData(db, active);
+  }, [locale, loadWorkspaceData]);
 
+  // --- boot ---------------------------------------------------------------
   useEffect(() => {
     if (typeof window === 'undefined') return;
     let cancelled = false;
@@ -121,181 +276,328 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
         const worker = new Worker(new URL('../../db/worker/host-db.worker.ts', import.meta.url), {
           type: 'module',
         });
-        const db = await WorkerHostDb.create(worker);
+        const workerDb = await WorkerHostDb.create(worker);
         if (cancelled) {
-          await db.close();
+          await workerDb.close();
           return;
         }
-        dbRef.current = db;
-        setDb(db);
-        setStorage(db.storage);
-        identityServiceRef.current = IdentityService.spawn();
-        setIdentityService(identityServiceRef.current);
-        const existing = await loadIdentity(db);
-        setIdentity(existing);
-        if (existing) {
-          const secret = await loadIdentitySecret();
-          setDegradedIdentity(secret === null || isDegraded());
+        dbRef.current = workerDb;
+        setDb(workerDb);
+        setStorage(workerDb.storage);
+
+        const service = IdentityService.spawn();
+        identityServiceRef.current = service;
+        setIdentityService(service);
+
+        // Identity: automatic, never a modal. Failure degrades instead of blocking.
+        try {
+          resetEnsureIdentity();
+          // The audit callback fires *during* provisioning, so it must not close
+          // over the provisioning result; the actor is read back from the row.
+          const created = await ensureLocalIdentity(workerDb, {
+            service,
+            audit: async (action, target, metadata) => {
+              const hasher: AuditHasher = async (prev, seq, payload) => {
+                const { createCoreClient, coreWasmUrl, loadCoreWasm } = await import('@microapp/runtime-web');
+                const coreModule = await loadCoreWasm(coreWasmUrl());
+                return createCoreClient(coreModule).auditHash(prev, seq, payload);
+              };
+              const actor = (await loadIdentity(workerDb))?.id ?? 'system';
+              await appendAudit(
+                workerDb,
+                { actor, action, target: target ?? null, metadata: metadata ?? {} },
+                hasher,
+              );
+            },
+          });
+          if (!cancelled) {
+            setIdentity(created.identity);
+            setDegradedIdentity(created.degraded || isDegraded());
+            setIdentityError(null);
+          }
+        } catch {
+          if (!cancelled) {
+            setIdentityError('E-SHELL-002');
+            setDegradedIdentity(true);
+          }
         }
-        await refresh();
-      } catch (bootError) {
+
+        const active = await ensureDefaultWorkspace(workerDb, { locale: prefsRef.current.locale });
+        const stored = await loadPreferences(workerDb, prefsRef.current.locale);
+        const initial = stored ?? prefsRef.current;
+        if (!stored) await savePreferences(workerDb, initial);
+        prefsRef.current = initial;
+        setPrefsState(initial);
+        applyPreferences(initial);
+        mirrorPreferences(initial);
+
         if (cancelled) return;
-        setError(bootError instanceof Error ? bootError.message : 'host bootstrap failed');
-        setPhase('error');
+        setWorkspace(active);
+        setApps(await listApps(workerDb, active.id));
+        setWorkspaces(await listWorkspaces(workerDb));
+        setPhase('ready');
+        await refreshStorageEstimate();
+      } catch {
+        if (cancelled) return;
+        // Limited mode: Home still renders, create is disabled, export stays open.
+        setBootError('E-SHELL-001');
+        setStorage(null);
+        setPhase('ready');
       }
     })();
     return () => {
       cancelled = true;
       identityServiceRef.current?.destroy();
+      identityServiceRef.current = null;
       void dbRef.current?.close();
       dbRef.current = null;
       setDb(null);
     };
-  }, [refresh]);
+    // Boot runs once; locale changes are applied through `setPrefs`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const completeOnboarding = useCallback<HostContextValue['completeOnboarding']>(
-    async (created, mnemonic) => {
-      const db = dbRef.current;
-      const service = identityServiceRef.current;
-      if (!db || !service) throw new Error('E-HOST-002 host database unavailable');
-      const record = created.record;
-      await createIdentity(db, {
-        siteId: toBytes(record.siteId),
-        identityPubkey: toBytes(record.identityPubkey),
-        keyAgreementPubkey: toBytes(record.deviceEcdhPubkey),
-        hkdfSalt: toBytes(record.hkdfSalt),
-        deviceSignPubkey: toBytes(record.deviceSignPubkey),
-        deviceEcdhPubkey: toBytes(record.deviceEcdhPubkey),
-        nowMs: Date.now(),
-      });
-      await saveIdentitySecret(mnemonic);
-      const cert = await service.deviceCertificate({ phrase: mnemonic, passphrase: '', record });
-      await setDeviceCert(db, cert, Date.now() + 365 * 24 * 60 * 60 * 1000);
-      const ws = await ensureDefaultWorkspace(db, { locale });
-      await audit('identity.create', record.siteId, { siteIdBase32: record.siteIdBase32 });
-      setWorkspace(ws);
-      setIdentity(await loadIdentity(db));
-      setApps([]);
-      setDegradedIdentity(isDegraded());
-      setPhase('ready');
-    },
-    [audit, locale],
-  );
-
-  const restoreIdentity = useCallback<HostContextValue['restoreIdentity']>(
-    async (mnemonic) => {
-      const db = dbRef.current;
-      const service = identityServiceRef.current;
-      if (!db || !service) throw new Error('E-HOST-002 host database unavailable');
-      const existing = await loadIdentity(db);
-      if (!existing) {
-        throw new Error('E-AUTH-006 no identity on this device to restore into');
+  // --- connectivity, cache status, OS theme -------------------------------
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // `navigator.onLine` is the fast signal; the probe is the true one.
+    const update = (): void => {
+      setOnline(navigator.onLine);
+      void probeNetwork().then((reachable) => setOnline(reachable));
+    };
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    void (async () => {
+      try {
+        setCacheStatus((await caches.has(SHELL_CACHE)) ? 'cached' : 'uncached');
+      } catch {
+        setCacheStatus('uncached');
       }
-      const record = {
-        siteId: [...existing.siteId].map((b) => b.toString(16).padStart(2, '0')).join(''),
-        siteIdBase32: '',
-        hkdfSalt: [...existing.hkdfSalt].map((b) => b.toString(16).padStart(2, '0')).join(''),
-        identityPubkey: [...existing.identityPubkey].map((b) => b.toString(16).padStart(2, '0')).join(''),
-        deviceSignPubkey: [...existing.deviceSignPubkey].map((b) => b.toString(16).padStart(2, '0')).join(''),
-        deviceEcdhPubkey: [...existing.deviceEcdhPubkey].map((b) => b.toString(16).padStart(2, '0')).join(''),
-      };
-      await service.recover(mnemonic, record);
-      await saveIdentitySecret(mnemonic);
-      await audit('identity.restore', record.siteId);
-      await clearIdentitySecret().catch(() => undefined);
-      await saveIdentitySecret(mnemonic);
-      setDegradedIdentity(isDegraded());
-      await refresh();
-    },
-    [audit, refresh],
+    })();
+    const onControllerChange = (): void => {
+      void caches
+        .has(SHELL_CACHE)
+        .then((has) => setCacheStatus(has ? 'cached' : 'uncached'))
+        .catch(() => setCacheStatus('uncached'));
+    };
+    navigator.serviceWorker?.addEventListener('controllerchange', onControllerChange);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+      navigator.serviceWorker?.removeEventListener('controllerchange', onControllerChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    applyPreferences(prefs);
+    if (prefs.theme !== 'system') return;
+    return watchSystemTheme(() => applyPreferences(prefsRef.current));
+  }, [prefs]);
+
+  // --- consent ------------------------------------------------------------
+  const presentNextConsent = useCallback(() => {
+    const next = consentQueue.current.shift() ?? null;
+    activeConsent.current = next;
+    if (!next) {
+      setPendingPermission(null);
+      return;
+    }
+    const app = appsRef.current.find((candidate) => candidate.id === next.request.appInstallId);
+    setPendingPermission({
+      request: next.request,
+      appName: app?.displayName ?? app?.name ?? next.request.appId,
+    });
+  }, []);
+
+  const requestPermission = useCallback<HostContextValue['requestPermission']>(
+    (request) =>
+      new Promise<PermissionOutcome>((resolve) => {
+        consentQueue.current.push({ request, resolve });
+        if (!activeConsent.current) presentNextConsent();
+      }),
+    [presentNextConsent],
   );
+
+  const resolvePermission = useCallback<HostContextValue['resolvePermission']>(
+    async (outcome) => {
+      const answered = activeConsent.current;
+      if (!answered) return;
+      const { request, resolve } = answered;
+      presentNextConsent();
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) {
+        resolve(outcome);
+        return;
+      }
+      const now = Date.now();
+      try {
+        if (outcome === 'denied') {
+          await audit('permission.deny', request.appId, { permission: request.permissionId });
+        } else if (outcome === 'always') {
+          await grantPermission(db, {
+            workspaceId: active.id,
+            appInstallId: request.appInstallId,
+            permissionId: request.permissionId,
+            scope: 'persistent',
+            nowMs: now,
+          });
+          await audit('permission.grant', request.appId, {
+            permission: request.permissionId,
+            scope: 'persistent',
+          });
+        } else {
+          await grantPermission(db, {
+            workspaceId: active.id,
+            appInstallId: request.appInstallId,
+            permissionId: request.permissionId,
+            scope: 'once',
+            sessionId: request.appInstallId,
+            nowMs: now,
+          });
+          await audit('permission.grant', request.appId, { permission: request.permissionId, scope: 'once' });
+        }
+      } catch {
+        // A grant that cannot be written must not look like consent.
+        if (outcome !== 'denied') {
+          resolve('denied');
+          return;
+        }
+      }
+      resolve(outcome);
+    },
+    [audit, presentNextConsent, workspace],
+  );
+
+  // --- packages -----------------------------------------------------------
+  const coreClient = useCallback(async () => {
+    const { createCoreClient, coreWasmUrl, loadCoreWasm } = await import('@microapp/runtime-web');
+    return createCoreClient(await loadCoreWasm(coreWasmUrl()));
+  }, []);
 
   const inspectPackage = useCallback<HostContextValue['inspectPackage']>(
     async (file, source, keys) => {
-      const { createCoreClient, coreWasmUrl, loadCoreWasm } = await import('@microapp/runtime-web');
-      const coreModule = await loadCoreWasm(coreWasmUrl());
-      const core = createCoreClient(coreModule);
+      const core = await coreClient();
       const bytes = new Uint8Array(await file.arrayBuffer());
-      return verifyPackage(core, bytes, source, {
+      const pkg = await verifyPackage(core, bytes, source, {
         authorPubkeyHex: keys?.authorPubkeyHex,
         registryPubkeyHex: keys?.registryPubkeyHex,
       });
+      return { pkg, bytes };
     },
-    [],
+    [coreClient],
   );
 
   const installPackage = useCallback<HostContextValue['installPackage']>(
-    async (file, source, approvedPermissions, keys) => {
+    async (file, source, approvedPermissions, options) => {
       const db = dbRef.current;
-      if (!db || !workspace) throw new Error('E-HOST-002 host database unavailable');
-      const { createCoreClient, coreWasmUrl, loadCoreWasm } = await import('@microapp/runtime-web');
-      const coreModule = await loadCoreWasm(coreWasmUrl());
-      const core = createCoreClient(coreModule);
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const pkg: VerifiedPackage = await verifyPackage(core, bytes, source, {
-        authorPubkeyHex: keys?.authorPubkeyHex,
-        registryPubkeyHex: keys?.registryPubkeyHex,
-      });
+      const active = workspace;
+      if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
+      const { pkg, bytes } = await inspectPackage(file, source, options);
       for (const permission of pkg.manifest.permissions.required) {
-        if (!approvedPermissions.includes(permission)) {
-          throw new Error(`E-SBX-005 required permission denied: ${permission}`);
+        if (permission !== 'storage.app' && !approvedPermissions.includes(permission)) {
+          throw new Error(`E-RUN-003 required permission denied: ${permission}`);
         }
       }
-      const root = await navigator.storage.getDirectory();
-      const writer = {
-        async write(path: string, data: Uint8Array): Promise<void> {
-          const segments = path.split('/').filter(Boolean);
-          let directory = root;
-          for (const segment of segments.slice(0, -1)) {
-            directory = await directory.getDirectoryHandle(segment, { create: true });
-          }
-          const name = segments.at(-1);
-          if (!name) throw new Error('E-DATA-001 empty package path');
-          const handle = await directory.getFileHandle(name, { create: true });
-          const stream = await handle.createWritable();
-          await stream.write(data as unknown as BufferSource);
-          await stream.close();
-        },
-      };
-      const written = await materialize(pkg, writer);
-      const installed = await installApp(db, {
-        workspaceId: workspace.id,
-        appId: pkg.manifest.id,
-        version: pkg.manifest.version,
-        manifestJson: JSON.stringify(pkg.manifest),
-        contentHash: toBytes(pkg.digestHex),
-        signature: pkg.authorSignature ?? new Uint8Array(64),
-        authorKeyFingerprint: keys?.authorPubkeyHex ?? 'unsigned-git',
-        installSource: source,
-        bundlePath: `apps/${pkg.manifest.id}/${pkg.manifest.version}`,
-        dbRelativePath: `workspaces/${workspace.slug}/apps/${pkg.manifest.id}.db`,
-        schemaVersion: 1,
+      const outcome = await installVerified(db, active, pkg, bytes, source, {
+        allowKeyChange: options?.allowKeyChange,
+        allowDowngrade: options?.allowDowngrade,
       });
-      await indexRecord(db, {
-        workspaceId: workspace.id,
-        kind: 'app',
-        refId: installed.id,
-        appInstallId: installed.id,
-        title: pkg.manifest.id,
-        body: `${pkg.manifest.version} ${verifiedBytes(written.bytes)}`,
-      });
-      await rebuildSearchIndex(db, workspace.id);
+      await rebuildSearchIndex(db, active.id);
       await audit('app.install', pkg.manifest.id, { version: pkg.manifest.version, source });
-      setApps(await listApps(db, workspace.id));
-      return installed;
+      setApps(await listApps(db, active.id));
+      await refreshStorageEstimate();
+      return outcome.app;
+    },
+    [audit, inspectPackage, refreshStorageEstimate, workspace],
+  );
+
+  const uninstallApp = useCallback<HostContextValue['uninstallApp']>(
+    async (installId) => {
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
+      await uninstallAppService(db, active, installId);
+      await audit('app.uninstall', installId);
+      setApps(await listApps(db, active.id));
+      await refreshStorageEstimate();
+    },
+    [audit, refreshStorageEstimate, workspace],
+  );
+
+  const duplicateApp = useCallback<HostContextValue['duplicateApp']>(
+    async (installId) => {
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
+      const created = await duplicateAppService(db, active, installId);
+      await audit('app.duplicate', created.appId);
+      setApps(await listApps(db, active.id));
+      await refreshStorageEstimate();
+      return created;
+    },
+    [audit, refreshStorageEstimate, workspace],
+  );
+
+  const renameApp = useCallback<HostContextValue['renameApp']>(
+    async (installId, name) => {
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
+      const updated = await renameAppService(db, active, installId, name);
+      await audit('app.rename', updated.appId);
+      setApps(await listApps(db, active.id));
+      return updated;
     },
     [audit, workspace],
+  );
+
+  const setPinned = useCallback<HostContextValue['setPinned']>(
+    async (installId, pinned) => {
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
+      await setPinnedRow(db, active.id, installId, pinned);
+      setApps(await listApps(db, active.id));
+    },
+    [workspace],
+  );
+
+  const rollbackApp = useCallback<HostContextValue['rollbackApp']>(
+    async (installId, version) => {
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
+      const app = await rollbackAppService(db, active, installId, version);
+      await audit('app.rollback', app.appId, { version });
+      setApps(await listApps(db, active.id));
+      return app;
+    },
+    [audit, workspace],
+  );
+
+  const exportPackageBytes = useCallback<HostContextValue['exportPackageBytes']>(
+    async (installId) => {
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) return null;
+      return exportPackage(db, active, installId);
+    },
+    [workspace],
   );
 
   const launchApp = useCallback<HostContextValue['launchApp']>(
     async (appId) => {
       const db = dbRef.current;
-      if (!db || !workspace) return null;
-      const app = await getApp(db, workspace.id, appId);
+      const active = workspace;
+      if (!db || !active) return null;
+      const app = await getApp(db, active.id, appId);
       if (!app) return null;
-      await setAppState(db, workspace.id, app.id, 'running');
+      await recordLaunch(db, active.id, app.id);
       await audit('sandbox.launch', app.appId, { version: app.version });
-      setApps(await listApps(db, workspace.id));
+      setApps(await listApps(db, active.id));
       return app;
     },
     [audit, workspace],
@@ -304,66 +606,196 @@ export function HostProvider({ children }: { children: ReactNode }): ReactElemen
   const stopApp = useCallback<HostContextValue['stopApp']>(
     async (appId) => {
       const db = dbRef.current;
-      if (!db || !workspace) return;
-      const app = await getApp(db, workspace.id, appId);
+      const active = workspace;
+      if (!db || !active) return;
+      const app = await getApp(db, active.id, appId);
       if (!app) return;
-      await setAppState(db, workspace.id, app.id, 'installed');
+      await setAppState(db, active.id, app.id, 'installed');
       await audit('sandbox.kill', app.appId);
-      setApps(await listApps(db, workspace.id));
+      setApps(await listApps(db, active.id));
     },
     [audit, workspace],
+  );
+
+  // --- app databases ------------------------------------------------------
+  const appKeyFor = useCallback(
+    async (installId: string): Promise<AppDbKey> => {
+      const db = dbRef.current;
+      const active = workspace;
+      if (!db || !active) throw new Error('E-SHELL-001 host database unavailable');
+      const app = await getAppById(db, active.id, installId);
+      if (!app) throw new Error('E-DATA-001 app not found in workspace');
+      return { workspaceSlug: active.slug, appInstallId: app.id, appId: app.appId };
+    },
+    [workspace],
+  );
+
+  const openAppDb = useCallback<HostContextValue['openAppDb']>(
+    async (installId) => {
+      const db = dbRef.current;
+      if (!db) throw new Error('E-SHELL-001 host database unavailable');
+      const database = new AppDatabase(db, await appKeyFor(installId));
+      await database.open();
+      return database;
+    },
+    [appKeyFor],
+  );
+
+  const exportAppData = useCallback<HostContextValue['exportAppData']>(
+    async (installId, format) => {
+      const database = await openAppDb(installId);
+      const records = await database.allRows();
+      const text = format === 'csv' ? await exportAppDataCsv(records) : await exportAppDataJson(records);
+      await audit('app.data.export', installId, { rows: records.length });
+      return text;
+    },
+    [audit, openAppDb],
+  );
+
+  const importAppData = useCallback<HostContextValue['importAppData']>(
+    async (installId, payload) => {
+      const parsed = await validateImport(payload);
+      const database = await openAppDb(installId);
+      const written = await database.replaceRows(parsed.records);
+      await audit('app.data.import', installId, { rows: written });
+      return written;
+    },
+    [audit, openAppDb],
+  );
+
+  // --- workspaces ---------------------------------------------------------
+  const switchWorkspace = useCallback<HostContextValue['switchWorkspace']>(
+    async (workspaceId) => {
+      const db = dbRef.current;
+      if (!db) return;
+      await setActiveWorkspace(db, workspaceId);
+      const active = (await listWorkspaces(db)).find((candidate) => candidate.id === workspaceId);
+      if (!active) throw new Error('E-DATA-001 workspace not found');
+      await loadWorkspaceData(db, active);
+    },
+    [loadWorkspaceData],
+  );
+
+  const createWorkspace = useCallback<HostContextValue['createWorkspace']>(
+    async (name) => {
+      const db = dbRef.current;
+      if (!db) throw new Error('E-SHELL-001 host database unavailable');
+      const created = await createWorkspaceRow(db, { name, locale });
+      setWorkspaces(await listWorkspaces(db));
+      await audit('workspace.create', created.id);
+      return created;
+    },
+    [audit, locale],
+  );
+
+  const restoreIdentity = useCallback<HostContextValue['restoreIdentity']>(
+    async (mnemonic) => {
+      await saveIdentitySecret(mnemonic);
+      setDegradedIdentity(isDegraded());
+      setIdentityError(null);
+      resetEnsureIdentity();
+      await refresh();
+    },
+    [refresh],
   );
 
   const value = useMemo<HostContextValue>(
     () => ({
       phase,
-      error,
-      storage,
+      bootError,
+      identityError,
+      ephemeral: identity === null || degradedIdentity,
       degradedIdentity,
+      storage,
       db,
       identityService,
       identity,
       workspace,
+      workspaces,
       apps,
+      prefs,
+      setPrefs,
+      prefsError,
+      retryPrefsSave,
       locale,
       t,
+      online,
+      cacheStatus,
+      storageEstimate,
+      storagePersisted,
+      requestPersist,
+      refreshStorageEstimate,
+      pendingPermission,
+      resolvePermission,
+      requestPermission,
       refresh,
-      completeOnboarding,
-      restoreIdentity,
       inspectPackage,
       installPackage,
+      uninstallApp,
+      duplicateApp,
+      renameApp,
+      setPinned,
+      rollbackApp,
       launchApp,
       stopApp,
+      exportPackageBytes,
       audit,
+      openAppDb,
+      exportAppData,
+      importAppData,
+      switchWorkspace,
+      createWorkspace,
+      restoreIdentity,
     }),
     [
       phase,
-      error,
-      storage,
+      bootError,
+      identityError,
+      identity,
       degradedIdentity,
+      storage,
       db,
       identityService,
-      identity,
       workspace,
+      workspaces,
       apps,
+      prefs,
+      setPrefs,
+      prefsError,
+      retryPrefsSave,
       locale,
       t,
+      online,
+      cacheStatus,
+      storageEstimate,
+      storagePersisted,
+      requestPersist,
+      refreshStorageEstimate,
+      pendingPermission,
+      resolvePermission,
+      requestPermission,
       refresh,
-      completeOnboarding,
-      restoreIdentity,
       inspectPackage,
       installPackage,
+      uninstallApp,
+      duplicateApp,
+      renameApp,
+      setPinned,
+      rollbackApp,
       launchApp,
       stopApp,
+      exportPackageBytes,
       audit,
+      openAppDb,
+      exportAppData,
+      importAppData,
+      switchWorkspace,
+      createWorkspace,
+      restoreIdentity,
     ],
   );
 
   return <HostContext.Provider value={value}>{children}</HostContext.Provider>;
-}
-
-function verifiedBytes(bytes: number): string {
-  return `${bytes} bytes`;
 }
 
 export function useHost(): HostContextValue {
@@ -371,3 +803,10 @@ export function useHost(): HostContextValue {
   if (!context) throw new Error('useHost must be used inside HostProvider');
   return context;
 }
+
+export function useHostOptional(): HostContextValue | null {
+  return useContext(HostContext);
+}
+
+export type { Locale };
+export { SUPPORTED_LOCALES };

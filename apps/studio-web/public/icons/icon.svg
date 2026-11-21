@@ -1,6 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0f172a"/>
-  <rect x="96" y="120" width="320" height="80" rx="20" fill="#38bdf8"/>
-  <rect x="96" y="216" width="200" height="176" rx="20" fill="#a78bfa"/>
-  <rect x="312" y="216" width="104" height="176" rx="20" fill="#34d399"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MicroApp Studio">
+  <defs>
+    <linearGradient id="clay" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BFE3D0"/>
+      <stop offset="1" stop-color="#D9CCF2"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#504064" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#F3EEE7"/>
+  <g filter="url(#soft)">
+    <rect x="96" y="96" width="320" height="320" rx="96" fill="url(#clay)"/>
+    <path d="M176 320c0-18 14-32 32-32h96c18 0 32 14 32 32s-14 32-32 32h-96c-18 0-32-14-32-32Z" fill="#5B4B8A" opacity="0.92"/>
+    <circle cx="208" cy="232" r="24" fill="#5B4B8A" opacity="0.92"/>
+    <circle cx="304" cy="232" r="24" fill="#D96C4A" opacity="0.92"/>
+  </g>
 </svg>

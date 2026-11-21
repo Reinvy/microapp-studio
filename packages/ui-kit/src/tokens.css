@@ -1,175 +1,221 @@
 /*
- * MADS design tokens.
- * Transcribed from docs/02-design/design-system.md (DESIGN-SYSTEM §4-§7).
+ * MADS clay tokens.
+ * Transcribed verbatim from DESIGN.md §2 (DESIGN-CLAY), plus the component
+ * tokens from docs/02-design/design-system.md.
  *
- * Layer 1 (primitive) and layer 2 (semantic) tokens live here; component
- * tokens only exist where a semantic token cannot express a size. Component
- * styles must reference semantic/component tokens, never raw values.
- *
- * `light-dark()` keeps the `studio` theme in sync with the OS colour scheme
- * (design-system §9). `[data-mads-theme]` selects a complete alternative set.
+ * Binding rules (DESIGN-CLAY §4/§12):
+ * - Components MUST NOT write hex, rgb(), literal radii, or literal shadows.
+ *   Only `var(--mads-*)` and `color-mix(...)` are allowed outside this file.
+ * - `[data-theme]` selects a complete alternative set; there is no
+ *   `prefers-color-scheme` media query here (`system` is resolved in JS).
  */
 @import "./components.css";
 
 :root {
-  color-scheme: light dark;
-
-  /* Typography (§5) */
-  --mads-font-family-ui: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mads-font-family-mono: "JetBrains Mono", ui-monospace, monospace;
-
-  --mads-font-size-12: 12px;
-  --mads-font-size-14: 14px;
-  --mads-font-size-16: 16px;
-  --mads-font-size-20: 20px;
-  --mads-font-size-24: 24px;
-  --mads-font-size-28: 28px;
-  --mads-font-size-32: 32px;
-
-  --mads-line-12: 16px;
-  --mads-line-14: 20px;
-  --mads-line-16: 24px;
-  --mads-line-20: 28px;
-  --mads-line-24: 32px;
-  --mads-line-28: 36px;
-  --mads-line-32: 40px;
-
-  --mads-weight-400: 400;
-  --mads-weight-500: 500;
-  --mads-weight-600: 600;
-  --mads-weight-700: 700;
-
-  /* Spacing (§6) */
-  --mads-space-4: 4px;
-  --mads-space-8: 8px;
-  --mads-space-12: 12px;
-  --mads-space-16: 16px;
-  --mads-space-20: 20px;
-  --mads-space-24: 24px;
-  --mads-space-32: 32px;
-  --mads-space-40: 40px;
-  --mads-space-48: 48px;
-  --mads-space-64: 64px;
-
-  /* Radius (§6) */
-  --mads-radius-4: 4px;
-  --mads-radius-8: 8px;
-  --mads-radius-12: 12px;
-  --mads-radius-16: 16px;
-  --mads-radius-24: 24px;
+  --mads-color-bg: #F3EEE7;
+  --mads-color-surface: #FFFBF5;
+  --mads-color-surface-raised: #FFFFFF;
+  --mads-color-fg: #2A2233;
+  --mads-color-muted: #6B5F73;
+  --mads-color-border: #E3D9CE;
+  --mads-color-border-strong: #8C7E86;
+  --mads-color-primary: #5B4B8A;
+  --mads-color-on-primary: #FFFFFF;
+  --mads-color-accent: #D96C4A;
+  --mads-color-success: #2F7D5B;
+  --mads-color-warning: #9A5B00;
+  --mads-color-error: #B23A48;
+  --mads-color-info: #2C6E8F;
+  --mads-color-focus: #5B4B8A;
+  --mads-clay-mint: #BFE3D0;
+  --mads-clay-lilac: #D9CCF2;
+  --mads-clay-peach: #F7C8B8;
+  --mads-clay-butter: #F7E3A1;
+  --mads-clay-sky: #C5DFF7;
+  --mads-clay-shadow-1: 0 1px 0 rgba(255,255,255,.85) inset, 0 -2px 4px rgba(80,60,100,.10) inset, 0 4px 10px rgba(80,60,100,.12);
+  --mads-clay-shadow-2: 0 2px 0 rgba(255,255,255,.90) inset, 0 -4px 8px rgba(80,60,100,.12) inset, 0 10px 24px rgba(80,60,100,.18);
+  --mads-clay-shadow-3: 0 3px 0 rgba(255,255,255,.92) inset, 0 -6px 12px rgba(80,60,100,.14) inset, 0 20px 48px rgba(80,60,100,.24);
+  --mads-clay-shadow-pressed: 0 2px 0 rgba(255,255,255,.55) inset, 0 4px 10px rgba(80,60,100,.20) inset;
+  --mads-radius-clay-sm: 14px;
+  --mads-radius-clay-md: 20px;
+  --mads-radius-clay-lg: 28px;
+  --mads-radius-clay-xl: 36px;
   --mads-radius-full: 9999px;
+  --mads-font-ui: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mads-font-display: "Fraunces", Georgia, serif;
+  --mads-font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --mads-text-12: 12px;
+  --mads-text-14: 14px;
+  --mads-text-16: 16px;
+  --mads-text-18: 18px;
+  --mads-text-22: 22px;
+  --mads-text-28: 28px;
+  --mads-text-36: 36px;
+  --mads-text-48: 48px;
+  --mads-leading-16: 16px;
+  --mads-leading-20: 20px;
+  --mads-leading-24: 24px;
+  --mads-leading-28: 28px;
+  --mads-leading-32: 32px;
+  --mads-leading-36: 36px;
+  --mads-leading-44: 44px;
+  --mads-leading-56: 56px;
+  --mads-weight-regular: 400;
+  --mads-weight-medium: 500;
+  --mads-weight-semibold: 600;
+  --mads-weight-bold: 700;
+  --mads-weight-extrabold: 800;
+  --mads-space-1: 4px;
+  --mads-space-2: 8px;
+  --mads-space-3: 12px;
+  --mads-space-4: 16px;
+  --mads-space-5: 20px;
+  --mads-space-6: 24px;
+  --mads-space-8: 32px;
+  --mads-space-10: 40px;
+  --mads-space-12: 48px;
+  --mads-space-16: 64px;
+  --mads-duration-micro: 120ms;
+  --mads-duration-control: 180ms;
+  --mads-duration-panel: 240ms;
+  --mads-duration-page: 320ms;
+  --mads-duration-press: 90ms;
+  --mads-ease-clay: cubic-bezier(.34,1.56,.64,1);
+  --mads-ease-standard: cubic-bezier(.2,0,0,1);
+  --mads-breakpoint-sm: 640px;
+  --mads-breakpoint-md: 768px;
+  --mads-breakpoint-lg: 1024px;
+  --mads-breakpoint-xl: 1280px;
 
-  /* Shadow (§6) */
-  --mads-shadow-0: none;
-  --mads-shadow-1: 0 1px 2px rgba(28, 25, 23, 0.06);
-  --mads-shadow-2: 0 4px 12px rgba(28, 25, 23, 0.1);
-  --mads-shadow-3: 0 12px 32px rgba(28, 25, 23, 0.16);
+  /* Status surfaces are computed, never hardcoded (DESIGN-CLAY §3.3). */
+  --mads-color-success-surface: color-mix(in srgb, var(--mads-color-success) 12%, var(--mads-color-surface));
+  --mads-color-warning-surface: color-mix(in srgb, var(--mads-color-warning) 12%, var(--mads-color-surface));
+  --mads-color-error-surface: color-mix(in srgb, var(--mads-color-error) 12%, var(--mads-color-surface));
+  --mads-color-info-surface: color-mix(in srgb, var(--mads-color-info) 12%, var(--mads-color-surface));
+  --mads-color-neutral-surface: color-mix(in srgb, var(--mads-color-border) 22%, var(--mads-color-surface));
+  /* Border definitions are always a mix, never the raw border colour. */
+  --mads-color-border-subtle: color-mix(in srgb, var(--mads-color-border) 70%, transparent);
 
-  /* Motion (§6) */
-  --mads-motion-120: 120ms;
-  --mads-motion-180: 180ms;
-  --mads-motion-240: 240ms;
-  --mads-motion-320: 320ms;
-  --mads-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-
-  /* Layout constants (§7) */
-  --mads-sidebar-width: 280px;
-  --mads-rail-width: 72px;
-  --mads-content-max: 1440px;
-  --mads-control-height: 32px;
+  /* Component tokens (§6 layout, §9 components). */
+  --mads-sidebar-width: 264px;
+  --mads-rail-width: 80px;
+  --mads-dock-height: 64px;
+  --mads-content-max: 1200px;
   --mads-touch-target: 44px;
   --mads-touch-target-min: 24px;
-  --mads-dialog-sm: 480px;
-  --mads-dialog-md: 640px;
-  --mads-dialog-lg: 800px;
+  --mads-control-height-sm: 32px;
+  --mads-control-height-md: 40px;
+  --mads-control-height-lg: 48px;
+  --mads-dialog-sm: 420px;
+  --mads-dialog-md: 560px;
+  --mads-dialog-lg: 760px;
+  --mads-row-height-compact: 36px;
+  --mads-row-height-comfortable: 48px;
+  --mads-focus-ring-width: 3px;
+  --mads-focus-ring-offset: 2px;
 
-  /* Component tokens (catalog §4) */
-  --mads-button-height-sm: 32px;
-  --mads-button-height-md: 40px;
-  --mads-button-height-lg: 48px;
-  --mads-field-height: 40px;
-  --mads-row-height-compact: 32px;
-  --mads-row-height-comfortable: 44px;
+  /* User preference: multiplied into every type token below (DESIGN-CLAY §5). */
+  --mads-text-scale: 1;
 
-  /* Semantic colours — studio theme, light / dark (§4.1) */
-  --mads-color-bg: light-dark(#f8f7f4, #0c0a09);
-  --mads-color-surface: light-dark(#ffffff, #1c1917);
-  --mads-color-surface-raised: light-dark(#ffffff, #292524);
-  --mads-color-fg: light-dark(#1c1917, #fafaf9);
-  --mads-color-muted: light-dark(#78716c, #a8a29e);
-  --mads-color-border: light-dark(#e7e5e4, #44403c);
-  --mads-color-border-strong: light-dark(#78716c, #a8a29e);
-  --mads-color-primary: light-dark(#0f766e, #2dd4bf);
-  --mads-color-on-primary: light-dark(#ffffff, #0c0a09);
-  --mads-color-accent: light-dark(#d97706, #f59e0b);
-  --mads-color-success: light-dark(#15803d, #4ade80);
-  --mads-color-warning: light-dark(#b45309, #fbbf24);
-  --mads-color-error: light-dark(#b91c1c, #f87171);
-  --mads-color-info: light-dark(#0369a1, #38bdf8);
-  --mads-color-focus: light-dark(#0f766e, #2dd4bf);
-
-  /* Status surfaces: 12% status colour mixed over the surface (§4.1) */
-  --mads-color-success-surface: light-dark(#e3f0e8, #223124);
-  --mads-color-warning-surface: light-dark(#f6eae1, #372d19);
-  --mads-color-error-surface: light-dark(#f7e4e4, #362422);
-  --mads-color-info-surface: light-dark(#e1edf4, #1f2d32);
-  --mads-color-neutral-surface: light-dark(#efeeed, #2d2927);
-}
-
-[data-mads-theme="light"] {
   color-scheme: light;
 }
 
-[data-mads-theme="dark"] {
+/*
+ * Text scale layer. The literal values above stay exactly as documented; this
+ * layer re-expresses them through the user's scale preference so `/settings/general`
+ * can resize type without a reload. 1 / 1.125 / 1.25 are the only allowed values.
+ */
+:root {
+  --mads-text-12: calc(12px * var(--mads-text-scale));
+  --mads-text-14: calc(14px * var(--mads-text-scale));
+  --mads-text-16: calc(16px * var(--mads-text-scale));
+  --mads-text-18: calc(18px * var(--mads-text-scale));
+  --mads-text-22: calc(22px * var(--mads-text-scale));
+  --mads-text-28: calc(28px * var(--mads-text-scale));
+  --mads-text-36: calc(36px * var(--mads-text-scale));
+  --mads-text-48: calc(48px * var(--mads-text-scale));
+  --mads-leading-16: calc(16px * var(--mads-text-scale));
+  --mads-leading-20: calc(20px * var(--mads-text-scale));
+  --mads-leading-24: calc(24px * var(--mads-text-scale));
+  --mads-leading-28: calc(28px * var(--mads-text-scale));
+  --mads-leading-32: calc(32px * var(--mads-text-scale));
+  --mads-leading-36: calc(36px * var(--mads-text-scale));
+  --mads-leading-44: calc(44px * var(--mads-text-scale));
+  --mads-leading-56: calc(56px * var(--mads-text-scale));
+}
+
+[data-theme="dark"] {
+  --mads-color-bg: #1B1724;
+  --mads-color-surface: #262131;
+  --mads-color-surface-raised: #312A3F;
+  --mads-color-fg: #F7F2EA;
+  --mads-color-muted: #B9AEC6;
+  --mads-color-border: #3E354B;
+  --mads-color-border-strong: #8F82A0;
+  --mads-color-primary: #C9B8FF;
+  --mads-color-on-primary: #241B3A;
+  --mads-color-accent: #FF9B7A;
+  --mads-color-success: #7BD8A8;
+  --mads-color-warning: #F2C66D;
+  --mads-color-error: #FF8E9A;
+  --mads-color-info: #8CCFF0;
+  --mads-color-focus: #C9B8FF;
+  --mads-clay-shadow-1: 0 1px 0 rgba(255,255,255,.08) inset, 0 -2px 4px rgba(0,0,0,.35) inset, 0 4px 10px rgba(0,0,0,.40);
+  --mads-clay-shadow-2: 0 2px 0 rgba(255,255,255,.10) inset, 0 -4px 8px rgba(0,0,0,.40) inset, 0 10px 24px rgba(0,0,0,.50);
+  --mads-clay-shadow-3: 0 3px 0 rgba(255,255,255,.12) inset, 0 -6px 12px rgba(0,0,0,.45) inset, 0 20px 48px rgba(0,0,0,.60);
+  --mads-clay-shadow-pressed: 0 2px 0 rgba(255,255,255,.06) inset, 0 4px 10px rgba(0,0,0,.50) inset;
+
   color-scheme: dark;
 }
 
-[data-mads-theme="amoled"] {
-  color-scheme: dark;
-
-  --mads-color-bg: #000000;
-  --mads-color-surface: #0a0a0a;
-  --mads-color-surface-raised: #141414;
-  --mads-color-fg: #fafaf9;
-  --mads-color-muted: #a8a29e;
-  --mads-color-border: #292524;
-  --mads-color-border-strong: #a8a29e;
-  --mads-color-primary: #2dd4bf;
-  --mads-color-on-primary: #0c0a09;
-  --mads-color-accent: #f59e0b;
-  --mads-color-success: #4ade80;
-  --mads-color-warning: #fbbf24;
-  --mads-color-error: #f87171;
-  --mads-color-info: #38bdf8;
-  --mads-color-focus: #2dd4bf;
-  --mads-color-success-surface: #122318;
-  --mads-color-warning-surface: #27200d;
-  --mads-color-error-surface: #271616;
-  --mads-color-info-surface: #101f27;
-  --mads-color-neutral-surface: #1d1c1c;
-}
-
-[data-mads-theme="high-contrast"] {
-  color-scheme: light;
-
-  --mads-color-bg: #ffffff;
-  --mads-color-surface: #ffffff;
-  --mads-color-surface-raised: #ffffff;
+[data-theme="high-contrast"] {
+  --mads-color-bg: #FFFFFF;
+  --mads-color-surface: #FFFFFF;
+  --mads-color-surface-raised: #FFFFFF;
   --mads-color-fg: #000000;
   --mads-color-muted: #000000;
   --mads-color-border: #000000;
   --mads-color-border-strong: #000000;
-  --mads-color-primary: #0000ee;
-  --mads-color-on-primary: #ffffff;
+  --mads-color-primary: #1A1AFF;
+  --mads-color-on-primary: #FFFFFF;
   --mads-color-accent: #000000;
   --mads-color-success: #000000;
   --mads-color-warning: #000000;
-  --mads-color-error: #000000;
+  --mads-color-error: #B00020;
   --mads-color-info: #000000;
-  --mads-color-focus: #0000ee;
-  --mads-color-success-surface: #e0e0e0;
-  --mads-color-warning-surface: #e0e0e0;
-  --mads-color-error-surface: #e0e0e0;
-  --mads-color-info-surface: #e0e0e0;
-  --mads-color-neutral-surface: #e0e0e0;
+  --mads-color-focus: #1A1AFF;
+  --mads-clay-shadow-1: 0 0 0 1px #000000;
+  --mads-clay-shadow-2: 0 0 0 2px #000000;
+  --mads-clay-shadow-3: 0 0 0 3px #000000;
+  --mads-clay-shadow-pressed: 0 0 0 2px #000000 inset;
+
+  /* High contrast keeps flat #E0E0E0 status surfaces with black text (§3.3). */
+  --mads-color-success-surface: #E0E0E0;
+  --mads-color-warning-surface: #E0E0E0;
+  --mads-color-error-surface: #E0E0E0;
+  --mads-color-info-surface: #E0E0E0;
+  --mads-color-neutral-surface: #E0E0E0;
+  --mads-color-border-subtle: #000000;
+
+  color-scheme: light;
+}
+
+/* Reduced motion removes every transform and collapses durations (§7, §11). */
+:root[data-reduced-motion="true"],
+:root[data-reduced-motion="true"] * {
+  --mads-duration-micro: 0ms;
+  --mads-duration-control: 0ms;
+  --mads-duration-panel: 0ms;
+  --mads-duration-page: 0ms;
+  --mads-duration-press: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mads-duration-micro: 0ms;
+    --mads-duration-control: 0ms;
+    --mads-duration-panel: 0ms;
+    --mads-duration-page: 0ms;
+    --mads-duration-press: 0ms;
+  }
 }

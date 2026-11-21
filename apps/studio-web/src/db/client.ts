@@ -7,7 +7,14 @@
  */
 
 import type { HostDb, HostDbTransaction, SqlValue } from './driver';
-import type { HostDbRequest, HostDbResponse, HostDbSuccess } from './worker/protocol';
+import type { HostDbOp, HostDbRequest, HostDbResponse, HostDbSuccess } from './worker/protocol';
+
+/** Identifies one per-app database owned by the worker. */
+export interface AppDbKey {
+  workspaceSlug: string;
+  appInstallId: string;
+  appId: string;
+}
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -95,11 +102,65 @@ export class WorkerHostDb implements HostDb {
   }
 
   /** Deterministic app database path for `app_databases.relative_path`. */
-  async appDatabasePath(workspaceSlug: string, appInstallId: string): Promise<string> {
-    const response = this.unwrap(
-      await this.call({ op: 'appDbPath', workspaceSlug, appInstallId }),
-    );
-    if (!response.path) throw new Error('E-HOST-007 host database returned no app path');
+  async appDatabasePath(workspaceSlug: string, appId: string): Promise<string> {
+    const response = this.unwrap(await this.call({ op: 'appDbPath', workspaceSlug, appId }));
+    if (!response.path) throw new Error('E-DATA-001 host database returned no app path');
     return response.path;
+  }
+
+  /** Open (and lazily create) an app database inside the worker. */
+  async openApp(key: AppDbKey): Promise<void> {
+    this.unwrap(await this.call({ op: 'appOpen', ...key }));
+  }
+
+  async appSelect<T = Record<string, SqlValue>>(
+    key: AppDbKey,
+    sql: string,
+    params?: readonly SqlValue[],
+  ): Promise<T[]> {
+    const response = this.unwrap(
+      await this.call({ op: 'appSelect', ...key, sql, params: [...(params ?? [])] }),
+    );
+    return (response.rows ?? []) as T[];
+  }
+
+  async appExec(key: AppDbKey, sql: string, params?: readonly SqlValue[]): Promise<number> {
+    const response = this.unwrap(await this.call({ op: 'appExec', ...key, sql, params: [...(params ?? [])] }));
+    return response.changes ?? 0;
+  }
+
+  /**
+   * Run `fn` inside the app database's own transaction. App transactions share
+   * the host serialize lock so two interleaved app writes cannot nest BEGINs.
+   */
+  async appTransaction<T>(key: AppDbKey, fn: () => Promise<T>): Promise<T> {
+    const run = async (): Promise<T> => {
+      this.unwrap(await this.call({ op: 'appBegin', ...key }));
+      try {
+        const result = await fn();
+        this.unwrap(await this.call({ op: 'appCommit', ...key }));
+        return result;
+      } catch (error) {
+        await this.call({ op: 'appRollback', ...key }).catch(() => undefined);
+        throw error;
+      }
+    };
+    const chained = this.txLock.then(run, run);
+    this.txLock = chained.catch(() => undefined);
+    return chained;
+  }
+
+  async closeApp(key: AppDbKey): Promise<void> {
+    await this.call({ op: 'appClose', ...key }).catch(() => undefined);
+  }
+
+  async listAppKeys(): Promise<string[]> {
+    const response = this.unwrap(await this.call({ op: 'appList' }));
+    return response.appKeys ?? [];
+  }
+
+  /** Escape hatch used by the worker protocol tests. */
+  protected async raw(op: HostDbOp): Promise<HostDbSuccess> {
+    return this.unwrap(await this.call({ op }));
   }
 }

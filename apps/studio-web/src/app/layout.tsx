@@ -1,13 +1,35 @@
 import type { Metadata, Viewport } from 'next';
-import './globals.css';
-import '@microapp/ui-kit/tokens.css';
 import type { ReactElement, ReactNode } from 'react';
+
+import '@fontsource/plus-jakarta-sans/400.css';
+import '@fontsource/plus-jakarta-sans/500.css';
+import '@fontsource/plus-jakarta-sans/600.css';
+import '@fontsource/plus-jakarta-sans/700.css';
+import '@fontsource/plus-jakarta-sans/800.css';
+import '@fontsource/fraunces/600.css';
+import '@fontsource/fraunces/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/600.css';
+
+import '@microapp/ui-kit/tokens.css';
+import './globals.css';
+import './legacy-host.css';
+
 import { HostProvider } from '@/features/host/HostProvider';
+import { HostFrame } from '@/features/shell/HostFrame';
 import { PwaRegistration } from '@/features/host/PwaRegistration';
+
+/**
+ * The per-request CSP nonce only reaches the rendered script tags when the
+ * document is rendered per request; a statically prerendered page has no nonce
+ * to stamp. Every route is dynamic for that reason, which is also correct for a
+ * client-only host that opens OPFS on boot.
+ */
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'MicroApp Studio',
-  description: 'Offline-first host for signed micro-apps',
+  description: 'Host offline-first untuk micro-app bertanda tangan',
   applicationName: 'MicroApp Studio',
   manifest: '/manifest.webmanifest',
   icons: {
@@ -17,20 +39,26 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0f172a',
+  themeColor: '#F3EEE7',
   width: 'device-width',
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }): ReactElement {
   return (
-    <html lang="id-ID">
+    <html lang="id-ID" dir="ltr" suppressHydrationWarning>
+      <head>
+        {/*
+          Pragmatic pre-paint preference application: applies theme, locale,
+          direction, text scale, and reduced motion before the first paint so
+          the page never flashes the wrong palette. Same-origin and tiny.
+        */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts -- must run before first paint */}
+        <script src="/theme-init.js" />
+      </head>
       <body>
         <HostProvider>
-          <a className="skip-link" href="#mads-main">
-            Lewati ke konten
-          </a>
-          {children}
+          <HostFrame>{children}</HostFrame>
           <PwaRegistration />
         </HostProvider>
       </body>

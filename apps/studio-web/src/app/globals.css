@@ -1,196 +1,303 @@
 @import 'tailwindcss';
 
-/* Base layer only: design tokens and component styles come from @microapp/ui-kit. */
-:root {
-  color-scheme: light dark;
+/*
+ * Host base layer. Design tokens and component styles come from
+ * @microapp/ui-kit; this file only maps Tailwind's theme namespace onto those
+ * tokens and provides the base reset plus the clay background/atmosphere
+ * layers from DESIGN.md §8.
+ *
+ * Binding: no page component classes live here. Surfaces compose ui-kit
+ * components; the few layout utilities below are the only shared helpers.
+ */
+
+@theme {
+  --color-bg: var(--mads-color-bg);
+  --color-surface: var(--mads-color-surface);
+  --color-surface-raised: var(--mads-color-surface-raised);
+  --color-fg: var(--mads-color-fg);
+  --color-muted: var(--mads-color-muted);
+  --color-border: var(--mads-color-border);
+  --color-border-strong: var(--mads-color-border-strong);
+  --color-primary: var(--mads-color-primary);
+  --color-on-primary: var(--mads-color-on-primary);
+  --color-accent: var(--mads-color-accent);
+  --color-success: var(--mads-color-success);
+  --color-warning: var(--mads-color-warning);
+  --color-error: var(--mads-color-error);
+  --color-info: var(--mads-color-info);
+  --color-focus: var(--mads-color-focus);
+
+  --font-ui: var(--mads-font-ui);
+  --font-display: var(--mads-font-display);
+  --font-mono: var(--mads-font-mono);
+
+  --radius-sm: var(--mads-radius-clay-sm);
+  --radius-md: var(--mads-radius-clay-md);
+  --radius-lg: var(--mads-radius-clay-lg);
+  --radius-xl: var(--mads-radius-clay-xl);
+
+  --spacing-1: var(--mads-space-1);
+  --spacing-2: var(--mads-space-2);
+  --spacing-3: var(--mads-space-3);
+  --spacing-4: var(--mads-space-4);
+  --spacing-5: var(--mads-space-5);
+  --spacing-6: var(--mads-space-6);
+  --spacing-8: var(--mads-space-8);
+  --spacing-10: var(--mads-space-10);
+  --spacing-12: var(--mads-space-12);
+  --spacing-16: var(--mads-space-16);
+}
+
+/* ---------- base reset ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html {
-  font-family: var(--mads-font-sans, system-ui, -apple-system, 'Segoe UI', sans-serif);
-  background: var(--mads-color-bg, #f8fafc);
-  color: var(--mads-color-fg, #0f172a);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--mads-color-bg);
+  color: var(--mads-color-fg);
+  font-family: var(--mads-font-ui);
+  font-size: var(--mads-text-16);
+  line-height: var(--mads-leading-24);
+  font-weight: var(--mads-weight-regular);
 }
 
 body {
+  position: relative;
   margin: 0;
-  min-height: 100vh;
+  min-block-size: 100dvh;
+  background: transparent;
+  isolation: isolate;
 }
 
-.skip-link {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  padding: 0.5rem 1rem;
-  background: var(--mads-color-surface, #fff);
-  color: var(--mads-color-fg, #0f172a);
-  z-index: 100;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-family: var(--mads-font-display);
+  font-weight: var(--mads-weight-semibold);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
-.skip-link:focus {
-  left: 0.5rem;
-  top: 0.5rem;
+p,
+ul,
+ol,
+figure,
+blockquote {
+  margin: 0;
 }
 
-.screen {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 1.5rem;
+ul[class],
+ol[class] {
+  list-style: none;
+  padding: 0;
 }
 
-.screen-header {
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-inline-size: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--mads-color-primary);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--mads-font-mono);
+}
+
+:where(hr) {
+  border: 0;
+  border-block-start: 1px solid var(--mads-color-border-subtle);
+}
+
+::selection {
+  background: var(--mads-clay-lilac);
+  color: var(--mads-color-fg);
+}
+
+/* ---------- background atmosphere (DESIGN.md §8) ---------- */
+
+/*
+ * Three fixed radial clay blobs. They sit behind everything (z-index -1) and
+ * never receive pointer events, so they cannot cover text interaction.
+ * `data-theme="dark"` lowers the opacity through the token swap below.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 12% 8%, var(--mads-clay-mint) 0%, transparent 42%),
+    radial-gradient(circle at 88% 14%, var(--mads-clay-lilac) 0%, transparent 46%),
+    radial-gradient(circle at 50% 96%, var(--mads-clay-peach) 0%, transparent 48%);
+  background-repeat: no-repeat;
+  filter: blur(96px);
+  opacity: 0.26;
+}
+
+[data-theme='dark'] body::before {
+  opacity: 0.14;
+}
+
+[data-theme='high-contrast'] body::before {
+  display: none;
+}
+
+/* Inline SVG noise texture: 0.03 opacity, soft-light (§8). */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Reduced motion: no blob animation, no transforms anywhere (§7, §11). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  body::before {
+    animation: none;
+  }
+}
+
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
+  animation-duration: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---------- shared layout utilities ---------- */
+
+.mads-container {
+  inline-size: 100%;
+  max-inline-size: var(--mads-content-max);
+  margin-inline: auto;
+  padding-inline: var(--mads-space-4);
+}
+
+@media (min-width: 768px) {
+  .mads-container {
+    padding-inline: var(--mads-space-6);
+  }
+}
+
+.mads-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mads-space-6);
+  padding-block: var(--mads-space-5) var(--mads-space-10);
+}
+
+.mads-page__header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  gap: var(--mads-space-3);
 }
 
-.badge-row {
+.mads-page__title {
+  font-size: var(--mads-text-28);
+  line-height: var(--mads-leading-36);
+}
+
+.mads-page__lead {
+  max-inline-size: 68ch;
+  color: var(--mads-color-muted);
+  font-size: var(--mads-text-16);
+  line-height: var(--mads-leading-24);
+}
+
+.mads-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.stack-md {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* Component classes used by host screens; values come from MADS tokens with
-   neutral fallbacks so the UI renders before the token stylesheet loads. */
-.button {
-  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  border-radius: var(--mads-radius-8, 8px);
-  border: 1px solid var(--mads-color-border, #cbd5e1);
-  background: var(--mads-color-surface, #ffffff);
-  color: var(--mads-color-fg, #0f172a);
-  padding: 0.45rem 0.9rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
+  gap: var(--mads-space-2);
 }
 
-.button:hover {
-  background: var(--mads-color-surface-hover, #f1f5f9);
+.mads-row--end {
+  justify-content: flex-end;
 }
 
-.button:focus-visible {
-  outline: 2px solid var(--mads-color-accent, #2563eb);
-  outline-offset: 2px;
+.mads-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mads-space-3);
 }
 
-.button[disabled] {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.button-primary {
-  background: var(--mads-color-accent, #2563eb);
-  border-color: var(--mads-color-accent, #2563eb);
-  color: #ffffff;
-}
-
-.file-button {
-  position: relative;
-  overflow: hidden;
-}
-
-.file-button input {
+.mads-visually-hidden {
   position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.85rem;
-}
-
-.field input,
-.field textarea,
-.field select {
-  border-radius: var(--mads-radius-8, 8px);
-  border: 1px solid var(--mads-color-border, #cbd5e1);
-  background: var(--mads-color-surface, #ffffff);
-  color: var(--mads-color-fg, #0f172a);
-  padding: 0.45rem 0.65rem;
-  font: inherit;
-}
-
-.card {
-  border: 1px solid var(--mads-color-border, #cbd5e1);
-  border-radius: var(--mads-radius-12, 12px);
-  background: var(--mads-color-surface, #ffffff);
-  padding: 1rem;
-}
-
-.app-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  list-style: none;
+  inline-size: 1px;
+  block-size: 1px;
   padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  border: 1px solid var(--mads-color-border, #cbd5e1);
-  padding: 0.1rem 0.55rem;
-  font-size: 0.75rem;
+.mads-skip-link {
+  position: absolute;
+  inset-inline-start: var(--mads-space-2);
+  inset-block-start: calc(-1 * var(--mads-space-16));
+  z-index: 2000;
+  padding: var(--mads-space-2) var(--mads-space-4);
+  border-radius: var(--mads-radius-clay-sm);
+  background: var(--mads-color-surface-raised);
+  color: var(--mads-color-fg);
+  box-shadow: var(--mads-clay-shadow-2);
+  font-size: var(--mads-text-14);
 }
 
-.alert {
-  border-radius: var(--mads-radius-8, 8px);
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--mads-color-border, #cbd5e1);
-  background: var(--mads-color-surface, #ffffff);
-}
-
-.alert-error {
-  border-color: var(--mads-color-error, #dc2626);
-  color: var(--mads-color-error, #dc2626);
-}
-
-.alert-warning {
-  border-color: var(--mads-color-warning, #d97706);
-}
-
-.empty-state {
-  border: 1px dashed var(--mads-color-border, #cbd5e1);
-  border-radius: var(--mads-radius-12, 12px);
-  padding: 1.5rem;
-  text-align: center;
-}
-
-.mnemonic-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.4rem;
-  list-style: none;
-  padding: 0;
-  font-family: var(--mads-font-mono, ui-monospace, monospace);
-}
-
-.modal {
-  position: fixed;
-  inset: 0;
-  margin: auto;
-  max-width: 480px;
-  max-height: 80vh;
-  overflow: auto;
-  background: var(--mads-color-surface, #ffffff);
-  border: 1px solid var(--mads-color-border, #cbd5e1);
-  border-radius: var(--mads-radius-12, 12px);
-  padding: 1.25rem;
-  box-shadow: 0 20px 45px rgb(15 23 42 / 0.25);
+.mads-skip-link:focus-visible {
+  inset-block-start: var(--mads-space-2);
+  outline: var(--mads-focus-ring-width) solid var(--mads-color-focus);
+  outline-offset: var(--mads-focus-ring-offset);
 }

@@ -1,0 +1,197 @@
+/*
+ * TEMPORARY: legacy host page classes.
+ *
+ * These are the pre-v3 page-level classes still used by routes that have not
+ * been migrated to ui-kit components yet. Values are remapped to clay tokens so
+ * the old screens do not flash the old palette while the rewrite lands.
+ *
+ * This file is deleted together with the last legacy page (Phase 4). New code
+ * must compose @microapp/ui-kit components instead of adding classes here.
+ */
+
+.screen {
+  max-inline-size: var(--mads-content-max);
+  margin-inline: auto;
+  padding: var(--mads-space-5) var(--mads-space-4) var(--mads-space-10);
+}
+
+.screen-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mads-space-3);
+  margin-block-end: var(--mads-space-5);
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mads-space-2);
+}
+
+.stack-md {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mads-space-4);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mads-space-1);
+  min-block-size: var(--mads-touch-target);
+  border-radius: var(--mads-radius-clay-md);
+  border: 1px solid var(--mads-color-border-strong);
+  background: var(--mads-color-surface-raised);
+  color: var(--mads-color-fg);
+  padding: var(--mads-space-2) var(--mads-space-4);
+  font-size: var(--mads-text-14);
+  font-weight: var(--mads-weight-semibold);
+  text-decoration: none;
+  box-shadow: var(--mads-clay-shadow-1);
+  transition: transform var(--mads-duration-control) var(--mads-ease-clay);
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--mads-clay-shadow-2);
+}
+
+.button:active {
+  transform: scale(0.97) translateY(1px);
+  box-shadow: var(--mads-clay-shadow-pressed);
+}
+
+.button:focus-visible {
+  outline: var(--mads-focus-ring-width) solid var(--mads-color-focus);
+  outline-offset: var(--mads-focus-ring-offset);
+}
+
+.button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button-primary {
+  background: var(--mads-color-primary);
+  border-color: var(--mads-color-primary);
+  color: var(--mads-color-on-primary);
+}
+
+.file-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mads-space-1);
+  font-size: var(--mads-text-14);
+  line-height: var(--mads-leading-20);
+}
+
+.field input,
+.field textarea,
+.field select {
+  min-block-size: var(--mads-control-height-md);
+  border-radius: var(--mads-radius-clay-sm);
+  border: 1px solid var(--mads-color-border-strong);
+  background: var(--mads-color-surface-raised);
+  color: var(--mads-color-fg);
+  padding: var(--mads-space-2) var(--mads-space-3);
+  font: inherit;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible {
+  outline: var(--mads-focus-ring-width) solid var(--mads-color-focus);
+  outline-offset: var(--mads-focus-ring-offset);
+}
+
+.card {
+  border: 1px solid var(--mads-color-border-subtle);
+  border-radius: var(--mads-radius-clay-lg);
+  background: var(--mads-color-surface);
+  padding: var(--mads-space-4);
+  box-shadow: var(--mads-clay-shadow-1);
+}
+
+.app-grid {
+  display: grid;
+  gap: var(--mads-space-3);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  list-style: none;
+  padding: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mads-space-1);
+  border-radius: var(--mads-radius-full);
+  border: 1px solid var(--mads-color-border-strong);
+  background: var(--mads-color-neutral-surface);
+  padding: 0 var(--mads-space-2);
+  font-size: var(--mads-text-12);
+  line-height: var(--mads-leading-20);
+}
+
+.alert {
+  border-radius: var(--mads-radius-clay-sm);
+  padding: var(--mads-space-3) var(--mads-space-4);
+  border: 1px solid var(--mads-color-border-strong);
+  background: var(--mads-color-surface);
+}
+
+.alert-error {
+  border-color: var(--mads-color-error);
+  background: var(--mads-color-error-surface);
+  color: var(--mads-color-fg);
+}
+
+.alert-warning {
+  border-color: var(--mads-color-warning);
+  background: var(--mads-color-warning-surface);
+  color: var(--mads-color-fg);
+}
+
+.empty-state {
+  border: 1px dashed var(--mads-color-border-strong);
+  border-radius: var(--mads-radius-clay-lg);
+  padding: var(--mads-space-6);
+  text-align: center;
+}
+
+.mnemonic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--mads-space-1);
+  list-style: none;
+  padding: 0;
+  font-family: var(--mads-font-mono);
+  font-size: var(--mads-text-14);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-inline-size: var(--mads-dialog-md);
+  max-block-size: 80vh;
+  overflow: auto;
+  background: var(--mads-color-surface-raised);
+  border: 1px solid var(--mads-color-border-subtle);
+  border-radius: var(--mads-radius-clay-xl);
+  padding: var(--mads-space-6);
+  box-shadow: var(--mads-clay-shadow-3);
+}

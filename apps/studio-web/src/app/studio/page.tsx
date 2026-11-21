@@ -6,16 +6,16 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import Link from 'next/link';
 import { useHost } from '@/features/host/HostProvider';
-import { createStudioDraft, listStudioDrafts, type StudioDraft } from '@/db/repositories/search';
+import { createStudioProject, listRecentProjects, type StudioProject } from '@/db/repositories/studio';
 
 export default function StudioPage(): ReactElement {
   const host = useHost();
-  const [drafts, setDrafts] = useState<StudioDraft[]>([]);
+  const [drafts, setDrafts] = useState<StudioProject[]>([]);
   const [name, setName] = useState('');
 
   const refresh = useCallback(async (): Promise<void> => {
     if (!host.db || !host.workspace) return;
-    setDrafts(await listStudioDrafts(host.db, host.workspace.id));
+    setDrafts(await listRecentProjects(host.db, host.workspace.id, 50));
   }, [host.db, host.workspace]);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function StudioPage(): ReactElement {
 
   const create = async (): Promise<void> => {
     if (!host.db || !host.workspace || name.trim().length === 0) return;
-    await createStudioDraft(host.db, { workspaceId: host.workspace.id, name: name.trim() });
+    await createStudioProject(host.db, { workspaceId: host.workspace.id, name: name.trim() });
     await host.audit('studio.project.create', name.trim());
     setName('');
     await refresh();

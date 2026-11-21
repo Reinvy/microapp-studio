@@ -1,441 +1,548 @@
 'use client';
 
 /**
- * Home screen: installed apps, omni-search over the FTS index, and the local
- * `.mapp` install flow (verify → consent → materialize → install → audit).
+ * Home / Library (SCR-02).
+ *
+ * The shell's work surface: continue card, grouped search, recent drafts, the
+ * installed-app library with persisted view/sort/filter, import entry, and the
+ * first-run welcome overlay. The overlay never blocks Home, and no mnemonic is
+ * ever shown here — recovery lives in `RecoverySheet`.
  */
 
-import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ReactElement } from 'react';
+import { Badge, Button, Card, ConfirmDialog, EmptyState, Modal, SearchField } from '@microapp/ui-kit';
 import { useHost } from '@/features/host/HostProvider';
-import { search, type SearchHit } from '@/db/repositories/search';
+import { search, type SearchHit, type SearchKind } from '@/db/repositories/search';
+import { listRecentProjects, type StudioProject } from '@/db/repositories/studio';
+import { getAppById, recordLaunch, type InstalledApp } from '@/db/repositories/apps';
+import { loadWorkspaceState } from '@/db/repositories/workspaces';
+import { appMenuItems, clampMenuPosition, type AppMenuAction, type ContextMenuState } from './contextMenu';
 import {
-  createWorkspace,
-  listWorkspaces,
-  loadWorkspaceState,
-  renameWorkspace,
-  saveWorkspaceState,
-  setActiveWorkspace,
-  type Workspace,
-} from '@/db/repositories/workspaces';
-import { parseDeepLink } from '@/features/deeplink/parse';
-import {
-  createBrowserNotifier,
-  rescheduleNotifications,
-} from '@/features/notifications/scheduler';
-import type { VerifiedPackage } from '@microapp/runtime-web';
+  DEFAULT_LIBRARY_STATE,
+  loadLibraryState,
+  pushRecentSearch,
+  saveLibraryState,
+  type LibraryState,
+} from './libraryState';
+import { WelcomeOverlay } from './WelcomeOverlay';
 
-interface PendingInstall {
-  file: File;
-  authorPubkeyHex: string;
-  preview: VerifiedPackage;
-}
+const GROUP_ORDER: SearchKind[] = ['app', 'project', 'record', 'action'];
 
 export function HomeScreen(): ReactElement {
   const host = useHost();
   const router = useRouter();
-  const t = host.t;
-  const paletteRef = useRef<HTMLDialogElement | null>(null);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [deepLinkNotice, setDeepLinkNotice] = useState<string | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [newWorkspace, setNewWorkspace] = useState('');
-  const [renameValue, setRenameValue] = useState('');
+  const [library, setLibrary] = useState<LibraryState>(DEFAULT_LIBRARY_STATE);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
-  const [installError, setInstallError] = useState<string | null>(null);
-  const [pending, setPending] = useState<PendingInstall | null>(null);
-  const [authorKey, setAuthorKey] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [installedNotice, setInstalledNotice] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<StudioProject[]>([]);
+  const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const [confirmUninstall, setConfirmUninstall] = useState<InstalledApp | null>(null);
+  const [renameTarget, setRenameTarget] = useState<InstalledApp | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [continueApp, setContinueApp] = useState<InstalledApp | null>(null);
+  const [announcement, setAnnouncement] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const filteredApps = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return host.apps;
-    return host.apps.filter(
-      (app) => app.appId.toLowerCase().includes(term) || app.version.includes(term),
-    );
-  }, [host.apps, query]);
+  const booting = host.phase === 'booting';
 
-  const reloadWorkspaces = useCallback(async (): Promise<void> => {
-    if (!host.db) return;
-    setWorkspaces(await listWorkspaces(host.db));
-  }, [host.db]);
-
+  // Library state and the continue card load once per workspace.
   useEffect(() => {
-    void Promise.resolve().then(reloadWorkspaces);
-  }, [reloadWorkspaces, host.workspace]);
-
-  const addWorkspace = async (): Promise<void> => {
-    if (!host.db || newWorkspace.trim().length === 0) return;
-    const created = await createWorkspace(host.db, { name: newWorkspace.trim(), locale: host.locale });
-    await host.audit('workspace.create', created.name);
-    setNewWorkspace('');
-    await reloadWorkspaces();
-  };
-
-  const switchWorkspace = async (id: string): Promise<void> => {
-    if (!host.db || id === host.workspace?.id) return;
-    await setActiveWorkspace(host.db, id);
-    await host.audit('workspace.switch', id);
-    await host.refresh();
-  };
-
-  const renameActive = async (): Promise<void> => {
-    if (!host.db || !host.workspace || renameValue.trim().length === 0) return;
-    await renameWorkspace(host.db, host.workspace.id, renameValue.trim());
-    await host.audit('workspace.rename', host.workspace.id);
-    setRenameValue('');
-    await host.refresh();
-  };
-
-  // Restore launcher state (last app, Home scroll) on cold start.
-  useEffect(() => {
+    if (!host.db || !host.workspace) return;
     const db = host.db;
-    const workspace = host.workspace;
-    if (!db || !workspace) return;
-    void Promise.resolve().then(async () => {
-      const state = await loadWorkspaceState(db, workspace.id);
-      if (typeof window !== 'undefined') {
-        if (state.homeScroll > 0) window.scrollTo({ top: state.homeScroll });
-        const target = new URLSearchParams(window.location.search).get('target');
-        if (target) {
-          const parsed = parseDeepLink(target);
-          if (parsed) {
-            const installed = host.apps.find((app) => app.appId === parsed.appId);
-            if (installed) {
-              router.push(`/app/${encodeURIComponent(installed.appId)}`);
-              return;
-            }
-            setDeepLinkNotice(`Deep link untuk ${parsed.appId} belum terpasang.`);
-          }
-        }
-      }
-      const saveScroll = (): void => {
-        void saveWorkspaceState(db, workspace.id, {
-          lastAppId: state.lastAppId,
-          homeScroll: window.scrollY,
-          filters: state.filters,
-        });
-      };
-      window.addEventListener('pagehide', saveScroll);
-    });
-  }, [host.apps, host.db, host.workspace, router]);
-
-  // Re-register persisted notification schedules on launch (FR-HOST-018).
-  useEffect(() => {
-    const db = host.db;
-    const workspace = host.workspace;
-    if (!db || !workspace) return;
+    const workspaceId = host.workspace.id;
     let cancelled = false;
-    const notifier = createBrowserNotifier();
-    const handles = new Map<string, unknown>();
-    void Promise.resolve().then(async () => {
+    void (async () => {
+      const [state, recent, workspaceState] = await Promise.all([
+        loadLibraryState(db, workspaceId),
+        listRecentProjects(db, workspaceId, 5),
+        loadWorkspaceState(db, workspaceId),
+      ]);
       if (cancelled) return;
-      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      const result = await rescheduleNotifications(db, workspace.id, notifier);
-      for (const [id, handle] of result.handles) handles.set(id, handle);
-    });
+      setLibrary(state);
+      setDrafts(recent);
+      if (workspaceState.lastAppId) {
+        const app = await getAppById(db, workspaceId, workspaceState.lastAppId);
+        if (!cancelled) setContinueApp(app);
+      } else {
+        setContinueApp(null);
+      }
+    })();
     return () => {
       cancelled = true;
-      for (const handle of handles.values()) notifier.cancel(handle);
     };
   }, [host.db, host.workspace]);
 
-  // Command palette (Cmd/Ctrl+K) with keyboard navigation.
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((open) => !open);
-      }
-      if (event.key === 'Escape') setPaletteOpen(false);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  useEffect(() => {
-    if (!paletteOpen) return;
-    paletteRef.current?.focus();
-  }, [paletteOpen]);
-
-  useEffect(() => {
+    if (!host.db || !host.workspace) return;
     const db = host.db;
-    const workspace = host.workspace;
+    const workspaceId = host.workspace.id;
+    const term = query.trim();
     let cancelled = false;
-    void Promise.resolve().then(async () => {
-      if (cancelled) return;
-      if (!db || !workspace || query.trim().length === 0) {
-        setHits([]);
-        return;
-      }
-      try {
-        const results = await search(db, workspace.id, query.trim(), 20);
-        if (!cancelled) setHits(results.filter((hit) => hit.kind !== 'app'));
-      } catch {
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (term.length === 0) {
+          if (!cancelled) setHits([]);
+          return;
+        }
+        const found = await search(db, workspaceId, term, 30);
+        if (!cancelled) {
+          setHits(found);
+          setAnnouncement(found.length === 0 ? host.t('home.noResults') : String(found.length));
+        }
+      })().catch(() => {
         if (!cancelled) setHits([]);
-      }
-    });
+      });
+    }, 150);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [host.db, host.workspace, query]);
+  }, [host, query]);
 
-  const onFileChosen = useCallback(
-    async (file: File): Promise<void> => {
-      setBusy(true);
-      setInstallError(null);
-      try {
-        const preview = await host.inspectPackage(file, 'local', {
-          authorPubkeyHex: authorKey.trim(),
-        });
-        setPending({ file, authorPubkeyHex: authorKey.trim(), preview });
-      } catch (error) {
-        setInstallError(error instanceof Error ? error.message : t('install.verifyFailed'));
-      } finally {
-        setBusy(false);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (event: MouseEvent): void => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenu(null);
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setMenu(null);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
+
+  const persistLibrary = useCallback(
+    (next: LibraryState) => {
+      setLibrary(next);
+      if (!host.db || !host.workspace) return;
+      void saveLibraryState(host.db, host.workspace.id, next);
+    },
+    [host.db, host.workspace],
+  );
+
+  const apps = useMemo(() => {
+    const list = [...host.apps];
+    if (library.sort === 'name') {
+      list.sort((a, b) => (a.displayName ?? a.name).localeCompare(b.displayName ?? b.name, host.locale));
+    } else if (library.sort === 'type') {
+      list.sort((a, b) => a.appId.localeCompare(b.appId, host.locale));
+    } else if (library.sort === 'favorite') {
+      list.sort((a, b) => Number(b.pinned) - Number(a.pinned));
+    } else {
+      list.sort((a, b) => (b.lastLaunchedAtMs ?? 0) - (a.lastLaunchedAtMs ?? 0));
+    }
+    return list;
+  }, [host.apps, host.locale, library.sort]);
+
+  const openApp = useCallback(
+    async (app: InstalledApp) => {
+      await host.requestPersist();
+      if (host.db && host.workspace) void recordLaunch(host.db, host.workspace.id, app.id);
+      router.push(`/app/${encodeURIComponent(app.appId)}`);
+    },
+    [host, router],
+  );
+
+  const startCreate = useCallback(
+    (mode: 'template' | 'ai' | 'blank') => {
+      host.setPrefs({ lastCreateMode: mode });
+      router.push(`/create?mode=${mode}`);
+    },
+    [host, router],
+  );
+
+  const onMenuAction = useCallback(
+    async (action: AppMenuAction | 'unpin', app: InstalledApp) => {
+      setMenu(null);
+      switch (action) {
+        case 'open':
+          await openApp(app);
+          return;
+        case 'rename':
+          setRenameTarget(app);
+          setRenameValue(app.displayName ?? app.name);
+          return;
+        case 'duplicate':
+          await host.duplicateApp(app.id);
+          return;
+        case 'export': {
+          const bytes = await host.exportPackageBytes(app.id);
+          if (!bytes) return;
+          downloadBlob(new Blob([bytes as unknown as BlobPart], { type: 'application/zip' }), `${app.appId}.mapp`);
+          return;
+        }
+        case 'pin':
+          await host.setPinned(app.id, true);
+          return;
+        case 'unpin':
+          await host.setPinned(app.id, false);
+          return;
+        case 'uninstall':
+          setConfirmUninstall(app);
       }
     },
-    [authorKey, host, t],
+    [host, openApp],
   );
 
-  const approveInstall = useCallback(async (): Promise<void> => {
-    if (!pending) return;
-    setBusy(true);
-    setInstallError(null);
-    try {
-      const permissions = [
-        ...pending.preview.manifest.permissions.required,
-        ...pending.preview.manifest.permissions.optional,
-      ];
-      const installed = await host.installPackage(pending.file, 'local', permissions, {
-        authorPubkeyHex: pending.authorPubkeyHex,
-      });
-      setInstalledNotice(`${t('install.success')}: ${installed.appId} ${installed.version}`);
-      setPending(null);
-    } catch (error) {
-      setInstallError(error instanceof Error ? error.message : t('install.verifyFailed'));
-    } finally {
-      setBusy(false);
-    }
-  }, [host, pending, t]);
+  const grouped = useMemo(() => {
+    return GROUP_ORDER.map((kind) => ({
+      kind,
+      hits: hits.filter((hit) => hit.kind === kind),
+    })).filter((group) => group.hits.length > 0);
+  }, [hits]);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  if (booting) {
+    return (
+      <div aria-busy="true">
+        <p className="mads-visually-hidden" role="status">
+          {host.t('a11y.loading')}
+        </p>
+        <div className="mads-grid">
+          <div className="mads-skeleton" style={{ blockSize: '9rem' }} />
+          <div className="mads-skeleton" style={{ blockSize: '9rem' }} />
+          <div className="mads-skeleton" style={{ blockSize: '9rem' }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main id="mads-main" className="screen">
-      <div className="screen-header">
-        <div>
-          <h1>{t('home.title')}</h1>
-          <p>{host.workspace?.name}</p>
+    <div onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => {
+      event.preventDefault();
+      setDragging(false);
+      if (event.dataTransfer.files.length > 0) router.push('/packages?import=1');
+    }}>
+      <p className="mads-visually-hidden" role="status" aria-live="polite">
+        {announcement}
+      </p>
+
+      {host.bootError ? (
+        <Card>
+          <h2>E-SHELL-001</h2>
+          <p>{host.t('shell.limitedMode')}</p>
+          <div className="mads-row">
+            <Button onClick={() => void host.refresh()}>{host.t('common.retry')}</Button>
+          </div>
+        </Card>
+      ) : null}
+
+      {host.identityError ? (
+        <Card>
+          <h2>{host.identityError}</h2>
+          <p>{host.t('shell.identityError')}</p>
+          <div className="mads-row">
+            <Button onClick={() => void host.refresh()}>{host.t('common.retry')}</Button>
+            <Button variant="secondary" onClick={() => router.push('/settings/general')}>
+              {host.t('nav.settings')}
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      <div className="mads-page__header">
+        <h1 className="mads-page__title">{host.t('home.title')}</h1>
+        <div className="mads-row">
+          {!host.online ? <Badge tone="warning">{host.t('shell.offline')}</Badge> : null}
+          <Badge tone="info">{host.t(`shell.storagePersisted.${host.storagePersisted}`)}</Badge>
         </div>
-        <div className="badge-row" aria-label="Workspace">
-          <label className="field">
-            <span>Workspace aktif</span>
-            <select
-              value={host.workspace?.id ?? ''}
-              onChange={(event) => void switchWorkspace(event.target.value)}
-            >
-              {workspaces.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Workspace baru</span>
-            <input type="text" value={newWorkspace} onChange={(event) => setNewWorkspace(event.target.value)} />
-          </label>
-          <button type="button" className="button" onClick={() => void addWorkspace()} disabled={!newWorkspace.trim()}>
-            Tambah
-          </button>
-          <label className="field">
-            <span>Ganti nama</span>
-            <input type="text" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
-          </label>
-          <button type="button" className="button" onClick={() => void renameActive()} disabled={!renameValue.trim()}>
-            Simpan nama
-          </button>
-        </div>
-        <nav className="badge-row" aria-label="Navigasi utama">
-          <Link className="button" href="/registry">
-            {t('nav.registry')}
-          </Link>
-          <Link className="button" href="/studio">
-            {t('nav.studio')}
-          </Link>
-          <Link className="button" href="/settings">
-            {t('nav.settings')}
-          </Link>
-          <Link className="button" href="/settings/vault">
-            {t('nav.vault')}
-          </Link>
-        </nav>
       </div>
 
-      {host.storage === 'memory' ? (
-        <p role="status" className="alert alert-warning">
-          {t('errors.opfs')}
-        </p>
+      <SearchField
+        ref={searchRef}
+        label={host.t('home.searchPlaceholder')}
+        value={query}
+        placeholder={host.t('home.searchPlaceholder')}
+        onChange={(next) => setQuery(next)}
+        onSubmit={() => {
+          if (query.trim().length > 0) persistLibrary(pushRecentSearch(library, query));
+        }}
+      />
+
+      {query.trim().length === 0 ? (
+        <>
+          {continueApp ? (
+            <Card>
+              <div className="mads-row" style={{ justifyContent: 'space-between' }}>
+                <div>
+                  <strong>{host.t('home.continueApp')}</strong>
+                  <p>{continueApp.displayName ?? continueApp.name}</p>
+                </div>
+                <Button onClick={() => void openApp(continueApp)}>{host.t('common.continue')}</Button>
+              </div>
+            </Card>
+          ) : null}
+
+          {drafts.length > 0 ? (
+            <section aria-label={host.t('home.recentDrafts')}>
+              <h2>{host.t('home.recentDrafts')}</h2>
+              <ul className="mads-grid" role="list">
+                {drafts.map((draft) => (
+                  <li key={draft.id}>
+                    <Button variant="secondary" onClick={() => router.push(`/studio/${draft.id}`)}>
+                      {draft.name}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {library.recentSearches.length > 0 ? (
+            <section aria-label={host.t('home.recentSearches')}>
+              <h2>{host.t('home.recentSearches')}</h2>
+              <div className="mads-cluster">
+                {library.recentSearches.map((term) => (
+                  <Button key={term} size="sm" variant="ghost" onClick={() => setQuery(term)}>
+                    {term}
+                  </Button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </>
+      ) : (
+        <section aria-label={host.t('a11y.search')}>
+          {grouped.length === 0 ? (
+            <EmptyState
+              title={host.t('home.noResults')}
+              description={host.t('home.noResultsHint')}
+              action={
+                <Button onClick={() => startCreate('blank')}>{host.t('home.actionBlank')}</Button>
+              }
+            />
+          ) : (
+            grouped.map((group) => (
+              <div key={group.kind}>
+                <h2>{groupLabel(group.kind, host.t)}</h2>
+                <ul role="list">
+                  {group.hits.map((hit) => (
+                    <li key={`${hit.kind}-${hit.refId}`}>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          if (hit.kind === 'project') router.push(`/studio/${hit.refId}`);
+                          else if (hit.kind === 'app' || hit.kind === 'record') {
+                            router.push(`/app/${encodeURIComponent(hit.refId)}`);
+                          } else router.push('/create?mode=blank');
+                        }}
+                      >
+                        {hit.title}
+                        <small>{hit.snippet}</small>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
+        </section>
+      )}
+
+      <div className="mads-page__header">
+        <h2>{host.t('packages.tabInstalled')}</h2>
+        <div className="mads-row">
+          <Button size="sm" variant={library.view === 'grid' ? 'primary' : 'secondary'} onClick={() => persistLibrary({ ...library, view: 'grid' })}>
+            {host.t('home.viewGrid')}
+          </Button>
+          <Button size="sm" variant={library.view === 'list' ? 'primary' : 'secondary'} onClick={() => persistLibrary({ ...library, view: 'list' })}>
+            {host.t('home.viewList')}
+          </Button>
+          <label>
+            <span className="mads-visually-hidden">{host.t('home.filterAll')}</span>
+            <select
+              className="mads-field__control"
+              value={library.sort}
+              onChange={(event) => persistLibrary({ ...library, sort: event.target.value as LibraryState['sort'] })}
+            >
+              <option value="recent">{host.t('home.sortRecent')}</option>
+              <option value="name">{host.t('home.sortName')}</option>
+              <option value="type">{host.t('home.sortType')}</option>
+              <option value="favorite">{host.t('home.sortFavorite')}</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      {apps.length === 0 ? (
+        <EmptyState
+          title={host.t('home.emptyTitle')}
+          description={host.t('home.emptyBody')}
+          action={
+            <div className="mads-cluster">
+              <Button onClick={() => startCreate('template')} disabled={host.ephemeral}>
+                {host.t('home.actionTemplates')}
+              </Button>
+              <Button variant="secondary" onClick={() => startCreate('ai')} disabled={host.ephemeral}>
+                {host.t('home.actionMagic')}
+              </Button>
+              <Button variant="secondary" onClick={() => startCreate('blank')} disabled={host.ephemeral}>
+                {host.t('home.actionBlank')}
+              </Button>
+            </div>
+          }
+        />
+      ) : (
+        <ul className={library.view === 'grid' ? 'mads-grid' : 'mads-stack'} role="list">
+          {apps.map((app) => (
+            <li key={app.id}>
+              <Card>
+                <div className="mads-row" style={{ justifyContent: 'space-between' }}>
+                  <button
+                    type="button"
+                    className="mads-button mads-button--ghost"
+                    aria-label={`${app.displayName ?? app.name} ${app.version} ${app.state}`}
+                    onClick={() => void openApp(app)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      setMenu(clampMenuPosition({ appId: app.id, x: event.clientX, y: event.clientY }));
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.shiftKey && event.key === 'F10') {
+                        event.preventDefault();
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        setMenu(clampMenuPosition({ appId: app.id, x: rect.left, y: rect.bottom }));
+                      }
+                    }}
+                  >
+                    <strong>{app.displayName ?? app.name}</strong>
+                    <span>v{app.version}</span>
+                    {app.pinned ? <Badge tone="success">{host.t('home.pin')}</Badge> : null}
+                  </button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={host.t('home.contextMenuLabel')}
+                    aria-haspopup="menu"
+                    onClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setMenu(clampMenuPosition({ appId: app.id, x: rect.left, y: rect.bottom }));
+                    }}
+                  >
+                    ⋯
+                  </Button>
+                </div>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mads-row">
+        <Button variant="secondary" onClick={() => router.push('/packages?import=1')}>
+          {host.t('home.importApp')}
+        </Button>
+        {dragging ? <Badge tone="info">{host.t('home.dropToImport')}</Badge> : null}
+      </div>
+
+      {menu ? (
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label={host.t('home.contextMenuLabel')}
+          style={{ position: 'fixed', insetInlineStart: menu.x, insetBlockStart: menu.y, zIndex: 3000 }}
+          className="mads-card"
+        >
+          {(() => {
+            const app = apps.find((candidate) => candidate.id === menu.appId);
+            if (!app) return null;
+            return appMenuItems(app, host.t).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="menuitem"
+                className="mads-button mads-button--ghost"
+                onClick={() => void onMenuAction(item.id, app)}
+              >
+                {item.label}
+              </button>
+            ));
+          })()}
+        </div>
       ) : null}
 
-      {deepLinkNotice ? (
-        <p role="status" className="alert">
-          {deepLinkNotice}
-        </p>
-      ) : null}
-
-      {installedNotice ? (
-        <p role="status" className="alert">
-          {installedNotice}
-        </p>
-      ) : null}
-
-      <section aria-label={t('home.searchPlaceholder')} className="stack-md">
-        <label className="field">
-          <span>{t('common.search')}</span>
+      <Modal
+        open={renameTarget !== null}
+        title={host.t('home.renameTitle')}
+        onClose={() => setRenameTarget(null)}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRenameTarget(null)}>
+              {host.t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                const target = renameTarget;
+                setRenameTarget(null);
+                if (target) void host.renameApp(target.id, renameValue);
+              }}
+            >
+              {host.t('common.rename')}
+            </Button>
+          </>
+        }
+      >
+        <label className="mads-field">
+          <span className="mads-field__label">{host.t('home.renameLabel')}</span>
           <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('home.searchPlaceholder')}
-            aria-label={t('home.searchPlaceholder')}
+            className="mads-field__control"
+            value={renameValue}
+            onChange={(event) => setRenameValue(event.target.value)}
           />
         </label>
+      </Modal>
 
-        <div className="badge-row">
-          <label className="button file-button">
-            {t('home.install')}
-            <input
-              type="file"
-              accept=".mapp,application/zip"
-              aria-label={t('home.install')}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void onFileChosen(file);
-              }}
-            />
-          </label>
-          <label className="field">
-            <span>Author public key (hex)</span>
-            <input
-              type="text"
-              value={authorKey}
-              onChange={(event) => setAuthorKey(event.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-              aria-label="Author public key (hex)"
-            />
-          </label>
-        </div>
-      </section>
+      <ConfirmDialog
+        open={confirmUninstall !== null}
+        tone="danger"
+        title={host.t('home.uninstallTitle')}
+        description={`${host.t('home.uninstallBody')} ${host.t('home.uninstallExportFirst')}`}
+        confirmLabel={host.t('common.uninstall')}
+        cancelLabel={host.t('common.cancel')}
+        onClose={() => setConfirmUninstall(null)}
+        onConfirm={() => {
+          const target = confirmUninstall;
+          setConfirmUninstall(null);
+          if (target) void host.uninstallApp(target.id);
+        }}
+      />
 
-      {installError ? (
-        <p role="alert" className="alert alert-error">
-          {installError}
-        </p>
-      ) : null}
-
-      {busy ? <p role="status">{t('install.verifying')}</p> : null}
-
-      <section aria-labelledby="apps-heading" className="stack-md">
-        <h2 id="apps-heading">{t('nav.home')}</h2>
-        {filteredApps.length === 0 ? (
-          <div className="empty-state">
-            <h3>{t('home.emptyTitle')}</h3>
-            <p>{t('home.emptyBody')}</p>
-          </div>
-        ) : (
-          <ul className="app-grid">
-            {filteredApps.map((app) => (
-              <li key={app.id} className="card">
-                <h3>{app.appId}</h3>
-                <p>{app.version}</p>
-                <Link className="button" href={`/app/${encodeURIComponent(app.appId)}`}>
-                  {t('app.run')}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {hits.length > 0 ? (
-        <section aria-label={t('search.title')} className="stack-md">
-          <h2>{t('search.results', { count: hits.length })}</h2>
-          <ul>
-            {hits.map((hit) => (
-              <li key={`${hit.kind}-${hit.refId}`}>
-                <strong>{hit.title}</strong> <span>{hit.snippet}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {paletteOpen ? (
-        <dialog ref={paletteRef} open className="modal" aria-label="Command palette" tabIndex={-1}>
-          <h2>Command palette</h2>
-          <ul className="stack-md">
-            <li>
-              <Link className="button" href="/settings" onClick={() => setPaletteOpen(false)}>
-                {t('nav.settings')}
-              </Link>
-            </li>
-            <li>
-              <Link className="button" href="/settings/vault" onClick={() => setPaletteOpen(false)}>
-                {t('nav.vault')}
-              </Link>
-            </li>
-            <li>
-              <Link className="button" href="/registry" onClick={() => setPaletteOpen(false)}>
-                {t('nav.registry')}
-              </Link>
-            </li>
-            {host.apps.map((app) => (
-              <li key={app.id}>
-                <Link
-                  className="button"
-                  href={`/app/${encodeURIComponent(app.appId)}`}
-                  onClick={() => setPaletteOpen(false)}
-                >
-                  {t('app.run')}: {app.appId}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <button type="button" className="button" onClick={() => setPaletteOpen(false)}>
-            {t('common.close')}
-          </button>
-        </dialog>
-      ) : null}
-
-      {pending ? (
-        <div role="dialog" aria-modal="true" aria-labelledby="consent-title" className="modal">
-          <h2 id="consent-title">{t('install.consentTitle')}</h2>
-          <p>{t('install.consentBody')}</p>
-          <ul>
-            {pending.preview.manifest.permissions.required.map((permission) => (
-              <li key={`req-${permission}`}>
-                {permission} — {t('common.required')}
-              </li>
-            ))}
-            {pending.preview.manifest.permissions.optional.map((permission) => (
-              <li key={`opt-${permission}`}>{permission}</li>
-            ))}
-          </ul>
-          <div className="badge-row">
-            <button type="button" className="button button-primary" onClick={() => void approveInstall()} disabled={busy}>
-              {t('install.allow')}
-            </button>
-            <button type="button" className="button" onClick={() => setPending(null)} disabled={busy}>
-              {t('install.deny')}
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </main>
+      <WelcomeOverlay
+        onTemplate={() => startCreate('template')}
+        onMagic={() => startCreate('ai')}
+        onBlank={() => startCreate('blank')}
+        disabled={host.ephemeral}
+      />
+    </div>
   );
+}
+
+function groupLabel(kind: SearchKind, t: (key: string) => string): string {
+  switch (kind) {
+    case 'app':
+      return t('packages.tabInstalled');
+    case 'project':
+      return t('home.recentDrafts');
+    case 'record':
+      return t('a11y.search');
+    default:
+      return t('nav.create');
+  }
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }

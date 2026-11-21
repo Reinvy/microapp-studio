@@ -2,14 +2,17 @@
 
 import Dexie, { type Table } from 'dexie';
 import type { AppSchema } from '@/types/schema';
-import type { SiteContent } from './contentRepo';
-import type { RunRecord } from './runHistoryRepo';
 import { buildSearchName } from '@/lib/searchIndex';
 
+/**
+ * Read-only view of the Phase 0 Dexie database.
+ *
+ * The v3 host uses SQLite exclusively; this schema survives only so the one-off
+ * migration can read `apps` from an existing installation. Declared versions must
+ * stay at 6 — lowering them would make Dexie refuse to open a real user database.
+ */
 export class MicroAppDB extends Dexie {
   apps!: Table<AppSchema, string>;
-  content!: Table<SiteContent, string>;
-  runHistory!: Table<RunRecord, string>;
 
   constructor() {
     super('MicroAppStudio');

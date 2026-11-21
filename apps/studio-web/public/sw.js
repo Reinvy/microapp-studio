@@ -5,8 +5,15 @@
  * Version the cache name whenever the precache list changes; old caches are
  * dropped on activation.
  */
-const CACHE = 'microapp-shell-v2';
-const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/sandbox-bootstrap.js'];
+const CACHE = 'microapp-shell-v3';
+const SHELL = [
+  '/',
+  '/manifest.webmanifest',
+  '/theme-init.js',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/sandbox-bootstrap.js',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

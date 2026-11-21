@@ -84,3 +84,95 @@ export function opfsFilesToMap(files: OpfsFile[]): Record<string, string> {
 export function mapToOpfsFiles(map: Record<string, string>): OpfsFile[] {
   return Object.entries(map).map(([path, base64]) => ({ path, base64 }));
 }
+
+// ---------------------------------------------------------------------------
+// Generic tree helpers used by install, uninstall, duplicate, and restore
+// ---------------------------------------------------------------------------
+
+async function rootDirectory(): Promise<FileSystemDirectoryHandle> {
+  return navigator.storage.getDirectory();
+}
+
+/** Resolve a directory handle, creating intermediate segments when asked. */
+async function directoryFor(
+  segments: string[],
+  create: boolean,
+): Promise<FileSystemDirectoryHandle> {
+  let directory = await rootDirectory();
+  for (const segment of segments) {
+    directory = await directory.getDirectoryHandle(segment, { create });
+  }
+  return directory;
+}
+
+/** Write one file at a path relative to the OPFS root. */
+export async function writeOpfsFile(path: string, bytes: Uint8Array): Promise<void> {
+  const segments = path.split('/').filter(Boolean);
+  const name = segments.pop();
+  if (!name) throw new Error('E-DATA-001 empty OPFS path');
+  const directory = await directoryFor(segments, true);
+  const handle = await directory.getFileHandle(name, { create: true });
+  const stream = await handle.createWritable();
+  await stream.write(bytes as unknown as BufferSource);
+  await stream.close();
+}
+
+/** Read one file, or `null` when it does not exist. */
+export async function readOpfsFile(path: string): Promise<Uint8Array | null> {
+  const segments = path.split('/').filter(Boolean);
+  const name = segments.pop();
+  if (!name) return null;
+  try {
+    const directory = await directoryFor(segments, false);
+    const handle = await directory.getFileHandle(name);
+    const file = await handle.getFile();
+    return new Uint8Array(await file.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+export async function opfsFileExists(path: string): Promise<boolean> {
+  return (await readOpfsFile(path)) !== null;
+}
+
+/** Delete a file or a whole subtree; missing paths are ignored. */
+export async function deleteOpfsTree(path: string): Promise<void> {
+  const segments = path.split('/').filter(Boolean);
+  const name = segments.pop();
+  if (!name) return;
+  try {
+    const directory = await directoryFor(segments, false);
+    await directory.removeEntry(name, { recursive: true });
+  } catch {
+    // Already gone is success.
+  }
+}
+
+/** Read every file under a path relative to the OPFS root. */
+export async function readOpfsTree(path: string): Promise<OpfsFile[]> {
+  const segments = path.split('/').filter(Boolean);
+  const files: OpfsFile[] = [];
+  try {
+    const directory = await directoryFor(segments, false);
+    await walk(directory, segments.join('/'), files);
+  } catch {
+    return [];
+  }
+  return files;
+}
+
+/** Copy a subtree; returns the number of files copied. */
+export async function copyOpfsTree(from: string, to: string): Promise<number> {
+  const files = await readOpfsTree(from);
+  for (const file of files) {
+    const suffix = file.path.slice(from.replace(/\/$/, '').length).replace(/^\//, '');
+    await writeOpfsFile(`${to.replace(/\/$/, '')}/${suffix}`, fromBase64(file.base64));
+  }
+  return files.length;
+}
+
+/** Remove every file in a subtree and the directory itself. */
+export async function removeOpfsDir(path: string): Promise<void> {
+  await deleteOpfsTree(path);
+}

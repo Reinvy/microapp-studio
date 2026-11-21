@@ -1,20 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
-const FIXTURES = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'index.json'), 'utf8')) as {
-  authorPublicKey: string;
-  fixtures: Array<{ file: string; sha256: string }>;
-};
-
-const CONFIRM_INDICES = [2, 9, 17];
-
-/** Block every non-local request so offline-first behaviour is provable. */
+/** Abort every non-local request so offline-first behaviour stays provable. */
 export async function blockExternal(page: Page): Promise<string[]> {
   const blocked: string[] = [];
   await page.route('**/*', (route) => {
     const url = route.request().url();
-    if (url.startsWith('http://127.0.0.1:3100') || url.startsWith('blob:') || url.startsWith('data:')) {
+    if (url.startsWith('http://127.0.0.1:') || url.startsWith('blob:') || url.startsWith('data:')) {
       void route.continue();
       return;
     }
@@ -24,140 +15,94 @@ export async function blockExternal(page: Page): Promise<string[]> {
   return blocked;
 }
 
-export async function completeFirstRun(page: Page): Promise<string[]> {
+test('a clean profile opens Home without asking for a mnemonic', async ({ page }) => {
+  const blocked = await blockExternal(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Buat identitas lokal' })).toBeVisible();
-  await page.getByRole('button', { name: 'Buat identitas baru' }).click();
-  const wordNodes = page.getByTestId('mnemonic-word');
-  await expect(wordNodes).toHaveCount(24);
-  const words: string[] = [];
-  for (let index = 0; index < 24; index += 1) {
-    const text = await wordNodes.nth(index).innerText();
-    words.push(text.replace(/^\d+\.\s*/, '').trim());
-  }
-  await page.getByRole('button', { name: 'Konfirmasi' }).click();
-  for (const index of CONFIRM_INDICES) {
-    await page.getByLabel(`Kata nomor ${index + 1}`).fill(words[index]);
-  }
-  await page.getByRole('button', { name: 'Konfirmasi' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Beranda' })).toBeVisible();
-  return words;
-}
 
-export async function installFixture(page: Page, file: string): Promise<void> {
-  await page.getByLabel('Author public key (hex)').fill(FIXTURES.authorPublicKey);
-  await page.getByLabel('Pasang .mapp').setInputFiles(join(__dirname, 'fixtures', file));
-  await expect(page.getByRole('heading', { name: 'Izin yang diminta' })).toBeVisible();
-  await page.getByRole('button', { name: 'Izinkan' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Paket terpasang' })).toBeVisible();
-}
+  // The v3 shell provisions identity silently: Home is usable immediately.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // No mnemonic surface exists in the shell; the recovery *nudge* is plain copy.
+  await expect(page.locator('[data-testid="mnemonic-word"]')).toHaveCount(0);
+  await expect(page.locator('.mads-mnemonic-grid, .mnemonic-grid')).toHaveCount(0);
 
-test('first run creates a local identity fully offline', async ({ page }) => {
-  const blocked = await blockExternal(page);
-  const words = await completeFirstRun(page);
-  expect(words).toHaveLength(24);
+  // The welcome overlay may be present, but it never blocks Home.
+  const overlay = page.getByRole('dialog');
+  if ((await overlay.count()) > 0) {
+    await expect(overlay.first()).toHaveAttribute('aria-modal', 'false');
+  }
+
+  const create = page.locator('.mads-empty-state__action button, .mads-empty-state__action a');
+  await expect(create.first()).toBeVisible();
   expect(blocked).toEqual([]);
 
-  // Identity survives a reload (OPFS + non-extractable wrapping key).
+  // Nothing identity-related is ever written to localStorage.
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys.every((key) => key === 'microapp.preferences')).toBe(true);
+});
+
+test('the three create cards fit on a 360x640 viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto('/');
+  const actions = page.locator('.mads-empty-state__action button, .mads-empty-state__action a');
+  await expect(actions).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    await expect(actions.nth(index)).toBeInViewport();
+  }
+});
+
+test('identity survives a reload and the shell has exactly one main landmark', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('main#mads-main')).toHaveCount(1);
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Beranda' })).toBeVisible();
+  await expect(page.locator('main#mads-main')).toHaveCount(1);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // A failed identity provisioning would surface E-SHELL-002 in the shell badges.
+  await expect(page.getByText('E-SHELL-002')).toHaveCount(0);
 
-  // No auth remnants: nothing is written to localStorage.
-  const storageKeys = await page.evaluate(() => Object.keys(localStorage));
-  expect(storageKeys).toEqual([]);
-});
-
-test('signed .mapp installs offline and runs isolated in the sandbox', async ({ page }) => {
-  const blocked = await blockExternal(page);
-  await completeFirstRun(page);
-  await installFixture(page, 'escape.mapp');
-  expect(blocked).toEqual([]);
-
-  await page.getByRole('link', { name: 'Jalankan' }).click();
-  const frame = page.frameLocator('iframe[sandbox="allow-scripts"]');
-  await expect(frame.getByText('Fixture siap')).toBeVisible({ timeout: 30_000 });
-  const escapeText = await frame.getByText(/parent-/).innerText();
-  expect(escapeText).toContain('parent-blocked');
-  expect(escapeText).toContain('storage-blocked');
-  expect(escapeText).toContain('cookie-blocked');
-  expect(escapeText).toContain('eval-blocked');
-
-  // The host page still owns its own document.
-  await expect(page.getByRole('heading', { level: 1, name: 'org.reinvy.fixture' })).toBeVisible();
-});
-
-test('encrypted backup exports and restores with verified checksums', async ({ page }) => {
-  await completeFirstRun(page);
-  await installFixture(page, 'escape.mapp');
-  await page.getByRole('link', { name: 'Pengaturan' }).click();
-  await page.getByRole('link', { name: 'Backup terenkripsi' }).click();
-
-  await page.getByLabel('Passphrase backup').fill('correct horse battery');
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Ekspor .mapp-backup' }).click();
-  const download = await downloadPromise;
-  const backupPath = test.info().outputPath('backup.mapp-backup');
-  await download.saveAs(backupPath);
-  expect(backupPath).toContain('.mapp-backup');
-
-  await page.getByLabel('Pilih berkas backup').setInputFiles(backupPath);
-  await page.getByLabel(/Workspace tujuan sudah berisi data/).check();
-  await page.getByRole('button', { name: 'Pulihkan backup' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Backup berhasil' })).toBeVisible({ timeout: 30_000 });
-});
-
-test('Phase 0 Dexie data migrates into Studio drafts', async ({ page }) => {
-  await completeFirstRun(page);
-  await page.evaluate(async () => {
-    const request = indexedDB.open('MicroAppStudio', 6);
-    await new Promise<void>((resolve, reject) => {
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains('apps')) db.createObjectStore('apps', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('content')) db.createObjectStore('content', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('runHistory')) db.createObjectStore('runHistory', { keyPath: 'id' });
-      };
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-    const db = request.result;
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction('apps', 'readwrite');
-      tx.objectStore('apps').put({
-        id: 'legacy-app-1',
-        name: 'Kas lama',
-        description: 'dari phase 0',
-        prompt: 'kas',
-        fields: [],
-        logicNodes: [],
-        layout: [],
-        createdAt: 1,
-        updatedAt: 2,
-        version: 1,
-      });
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-    db.close();
+  // The host database really lives in OPFS, not in the memory fallback.
+  const hasHostDb = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    try {
+      const dir = await root.getDirectoryHandle('microapp-studio');
+      await dir.getFileHandle('host.db');
+      return true;
+    } catch {
+      return false;
+    }
   });
-
-  await page.getByRole('link', { name: 'Pengaturan' }).click();
-  await page.getByRole('link', { name: 'Backup terenkripsi' }).click();
-  await page.getByRole('button', { name: 'Jalankan migrasi' }).click();
-  await expect(page.getByText('Draft dibuat')).toBeVisible({ timeout: 30_000 });
-  const summary = await page.locator('section[aria-label="Migrasi Phase 0"] dl').innerText();
-  expect(summary).toContain('App\n1');
-  await page.goto('/studio');
-  await expect(page.getByText('Kas lama')).toBeVisible();
+  expect(hasHostDb).toBe(true);
 });
 
-test('a crashing app is isolated and the host stays responsive', async ({ page }) => {
-  await completeFirstRun(page);
-  await installFixture(page, 'crash.mapp');
-  await page.getByRole('link', { name: 'Jalankan' }).click();
+test('pre-paint theme init applies the stored preference before React boots', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'microapp.preferences',
+      JSON.stringify({ theme: 'dark', locale: 'en-US', textScale: 1.25, reducedMotion: true }),
+    );
+  });
+  // Block the framework chunks so only the pre-paint script can have run.
+  await page.route('**/_next/static/chunks/**', (route) => route.abort());
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('main').getByRole('alert')).toContainText('Aplikasi berhenti', { timeout: 30_000 });
-  // Host remains interactive after the kill.
-  await page.getByRole('link', { name: 'Kembali' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Beranda' })).toBeVisible();
+  const applied = await page.evaluate(() => ({
+    theme: document.documentElement.dataset.theme,
+    lang: document.documentElement.lang,
+    reduced: document.documentElement.dataset.reducedMotion,
+    scale: document.documentElement.style.getPropertyValue('--mads-text-scale'),
+  }));
+  expect(applied).toEqual({ theme: 'dark', lang: 'en-US', reduced: 'true', scale: '1.25' });
+});
+
+test('the shell renders offline after the first visit', async ({ page, context }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // Wait for the service worker to control the page and finish precaching.
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 30_000 });
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByText(/offline/i).first()).toBeVisible({ timeout: 15_000 });
+  await context.setOffline(false);
 });

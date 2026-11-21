@@ -9,35 +9,70 @@ import { closeGlyph, cx, getFocusable, useDialogFocus } from './utils';
 
 /* ---------- AppShell (MADS-LAY-01) ---------- */
 
+export type ShellVariant = 'desktop' | 'rail' | 'mobile';
+
 export interface AppShellProps {
+  /** Slot rendered as the desktop (264 px) sidebar. */
   sidebar?: ReactNode;
-  header?: ReactNode;
+  /** Slot rendered as the tablet (80 px) rail. */
+  rail?: ReactNode;
+  /** Slot rendered as the mobile dock. */
   dock?: ReactNode;
+  header?: ReactNode;
   children: ReactNode;
+  variant?: ShellVariant;
+  mainId?: string;
+  mainLabel?: string;
+  skipLabel?: string;
   className?: string;
 }
 
 /**
- * Root application frame. The shell renders the `banner` and `main`
- * landmarks and the skip link; navigation landmarks come from the
- * `Sidebar`/`Dock` components passed through the slots.
+ * Root application frame. It owns the single `<main>` landmark, the skip link
+ * (always the first focusable child) and exactly one navigation slot chosen by
+ * `variant`: sidebar on desktop, rail on tablet, dock on mobile. Pages must not
+ * render their own `<main>`.
  */
-export function AppShell({ sidebar, header, dock, children, className }: AppShellProps) {
+export function AppShell({
+  sidebar,
+  rail,
+  dock,
+  header,
+  children,
+  variant = 'desktop',
+  mainId = 'mads-main',
+  mainLabel,
+  skipLabel = 'Lewati ke konten',
+  className,
+}: AppShellProps) {
   return (
-    <div className={cx('mads-app-shell', className)}>
-      <a className="mads-skip-link" href="#mads-main">
-        Lewati ke konten utama
+    <div className={cx('mads-app-shell', `mads-app-shell--${variant}`, className)}>
+      <a className="mads-skip-link" href={`#${mainId}`}>
+        {skipLabel}
       </a>
-      <header className="mads-app-shell__header" role="banner">
-        {header}
-      </header>
+      {header ? (
+        <header className="mads-app-shell__header" role="banner">
+          {header}
+        </header>
+      ) : null}
       <div className="mads-app-shell__body">
-        {sidebar ? <div className="mads-app-shell__sidebar">{sidebar}</div> : null}
-        <main className="mads-app-shell__main" id="mads-main" role="main" tabIndex={-1}>
+        {variant === 'desktop' && sidebar ? (
+          <div className="mads-app-shell__sidebar">{sidebar}</div>
+        ) : null}
+        {variant === 'rail' && rail ? <div className="mads-app-shell__rail">{rail}</div> : null}
+        <main
+          className="mads-app-shell__main"
+          id={mainId}
+          role="main"
+          aria-label={mainLabel}
+          tabIndex={-1}
+        >
           {children}
         </main>
       </div>
-      {dock ? <div className="mads-app-shell__dock">{dock}</div> : null}
+      {variant === 'mobile' && dock ? (
+        <div className="mads-app-shell__dock">{dock}</div>
+      ) : null}
     </div>
   );
 }
@@ -127,11 +162,27 @@ export interface SheetProps {
   children: ReactNode;
   footer?: ReactNode;
   side?: 'left' | 'right';
+  /** CSS selector for the element that receives focus on open. */
+  initialFocusSelector?: string;
   className?: string;
 }
 
-export function Sheet({ open, title, onClose, children, footer, side = 'right', className }: SheetProps) {
-  const dialogRef = useDialogFocus(open, onClose);
+/**
+ * Side panel (MADS-LAY-06). Same focus contract as `Modal`: focus enters the
+ * panel, Tab cycles inside, Escape closes, the page behind cannot scroll, and
+ * focus returns to the trigger on close.
+ */
+export function Sheet({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  side = 'right',
+  initialFocusSelector,
+  className,
+}: SheetProps) {
+  const dialogRef = useDialogFocus(open, onClose, 'first', initialFocusSelector);
   const titleId = useId();
   if (!open) return null;
   return (

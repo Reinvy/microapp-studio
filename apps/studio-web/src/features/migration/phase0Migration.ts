@@ -16,7 +16,7 @@ import {
   resolveLegacyMapping,
   startMigrationReport,
 } from '@/db/repositories/search';
-import { createStudioDraft } from '@/db/repositories/search';
+import { createStudioProject } from '@/db/repositories/studio';
 
 export interface LegacyApp {
   id: string;
@@ -84,7 +84,7 @@ export async function migratePhase0(
         continue;
       }
       const name = (legacy.name ?? `Phase 0 ${legacy.id}`).slice(0, 120);
-      const draft = await createStudioDraft(db, {
+      const draft = await createStudioProject(db, {
         workspaceId,
         name,
         sourceLegacyId: legacy.id,
