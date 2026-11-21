@@ -8,7 +8,7 @@ prd_refs: ["§9 Non-Functional", "§12 Definisi Selesai"]
 
 # Baseline Evidence
 
-Baseline ini mencatat hasil verifikasi nyata setelah refactor dokumen web-only. Evidence tidak mengklaim requirement apa pun sebagai `implemented`; daftar `requirements` sengaja kosong sampai ada pemetaan test per requirement.
+Baseline ini mencatat hasil verifikasi nyata setelah refactor dokumen web-only. Daftar `requirements` hanya memuat requirement yang dipetakan ke gate yang benar-benar dijalankan; requirement lain tetap tanpa klaim sampai ada test yang memetakannya.
 
 ## 1. Ringkasan
 
