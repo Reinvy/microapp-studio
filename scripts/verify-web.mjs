@@ -38,10 +38,16 @@ function run(name, command, args, { mandatory = true } = {}) {
 const commands = [];
 commands.push(run('docs-check', 'node', ['scripts/check-docs.mjs', '--strict']));
 commands.push(run('catalog-check', 'node', ['scripts/generate-catalog.mjs', '--check']));
+commands.push(run('tokens-check', 'node', ['scripts/check-tokens.mjs']));
+commands.push(run('migrations-check', 'node', ['scripts/generate-migrations.mjs', '--check']));
+commands.push(run('migrations-test', 'node', ['scripts/test-migrations.mjs']));
+commands.push(run('error-codes', 'node', ['scripts/check-error-codes.mjs']));
+commands.push(run('security-scan', 'node', ['scripts/check-security.mjs']));
 commands.push(run('test', 'npm', ['test']));
 commands.push(run('typecheck', 'npm', ['run', 'typecheck']));
 commands.push(run('lint', 'npm', ['run', 'lint']));
 commands.push(run('build', 'npm', ['run', 'build']));
+commands.push(run('budget', 'node', ['scripts/check-budget.mjs']));
 
 if (hasCargo()) {
   commands.push(
@@ -93,12 +99,38 @@ try {
   commit = 'unknown';
 }
 
+/**
+ * Requirement evidence. Each entry names the gate that proves it; a requirement
+ * only appears here once a command actually exercises it.
+ */
+const REQUIREMENTS = [
+  { id: 'SEC-009', claim: 'no eval/new Function/innerHTML', gate: 'security-scan' },
+  { id: 'SEC-010', claim: 'CSP + COOP/COEP headers', gate: 'e2e' },
+  { id: 'SEC-012', claim: 'backup container is sealed', gate: 'cargo-test' },
+  { id: 'U-01', claim: 'MUIP limits and catalog', gate: 'test' },
+  { id: 'NFR-03', claim: 'route JS budget', gate: 'budget' },
+  { id: 'NFR-04', claim: 'a11y sweep', gate: 'e2e' },
+  { id: 'FR-DATA-002', claim: 'migrations forward/rollback', gate: 'migrations-test' },
+  { id: 'DESIGN-CLAY', claim: 'token-only stylesheets', gate: 'tokens-check' },
+  { id: 'SPEC-ERROR', claim: '27-code catalog only', gate: 'error-codes' },
+];
+
+const requirements = REQUIREMENTS.map((requirement) => {
+  const gate = commands.find((command) => command.name === requirement.gate);
+  return {
+    id: requirement.id,
+    claim: requirement.claim,
+    gate: requirement.gate,
+    status: gate?.status === 'pass' ? 'proven' : 'unproven',
+  };
+});
+
 const evidence = {
   generatedAt: new Date().toISOString(),
   commit,
   result,
   commands,
-  requirements: [],
+  requirements,
   limitations: skipped.map((c) => `${c.name}: ${c.note}`),
 };
 
@@ -128,7 +160,7 @@ Baseline ini mencatat hasil verifikasi nyata setelah refactor dokumen web-only. 
 | Waktu | ${evidence.generatedAt} |
 | Commit | \`${commit}\` |
 | Hasil | \`${result}\` |
-| Requirement terpetakan | 0 |
+| Requirement terpetakan | ${requirements.filter((r) => r.status === 'proven').length}/${requirements.length} |
 
 ## 2. Perintah
 
@@ -136,11 +168,17 @@ Baseline ini mencatat hasil verifikasi nyata setelah refactor dokumen web-only. 
 |---|---|---|---|
 ${rows}
 
-## 3. Batasan
+## 3. Requirement yang terbukti
+
+| ID | Klaim | Gate | Status |
+|---|---|---|---|
+${requirements.map((r) => `| ${r.id} | ${r.claim} | \`${r.gate}\` | ${r.status} |`).join('\n')}
+
+## 4. Batasan
 
 ${skipped.length === 0 ? 'Tidak ada perintah yang dilewati.' : skipped.map((c) => `- ${c.name}: ${c.note}.`).join('\n')}
 
-## 4. Aturan
+## 5. Aturan
 
 1. \`result\` hanya \`pass\` bila seluruh perintah wajib lulus dan tidak ada yang dilewati.
 2. \`partial\` berarti ada verifikasi opsional yang tidak dijalankan; tidak boleh dipakai untuk menaikkan status requirement.

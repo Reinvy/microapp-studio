@@ -25,6 +25,7 @@ export function WelcomeOverlay({ onTemplate, onMagic, onBlank, disabled }: Welco
   const bodyId = useId();
   const firstRef = useRef<HTMLButtonElement>(null);
   const visible = !host.prefs.welcomeDismissed;
+  const blocked = disabled || !host.ready;
 
   useEffect(() => {
     if (visible) firstRef.current?.focus();
@@ -41,13 +42,13 @@ export function WelcomeOverlay({ onTemplate, onMagic, onBlank, disabled }: Welco
       <h2 id={titleId}>{host.t('welcome.title')}</h2>
       <p id={bodyId}>{host.t('welcome.body')}</p>
       <div className="mads-cluster">
-        <Button ref={firstRef} onClick={() => { dismiss(); onTemplate(); }} disabled={disabled}>
+        <Button ref={firstRef} onClick={() => { dismiss(); onTemplate(); }} disabled={blocked}>
           {host.t('welcome.createTemplate')}
         </Button>
-        <Button variant="secondary" onClick={() => { dismiss(); onMagic(); }} disabled={disabled}>
+        <Button variant="secondary" onClick={() => { dismiss(); onMagic(); }} disabled={blocked}>
           {host.t('welcome.createMagic')}
         </Button>
-        <Button variant="secondary" onClick={() => { dismiss(); onBlank(); }} disabled={disabled}>
+        <Button variant="secondary" onClick={() => { dismiss(); onBlank(); }} disabled={blocked}>
           {host.t('welcome.createBlank')}
         </Button>
         <Button variant="ghost" onClick={dismiss}>

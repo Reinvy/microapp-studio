@@ -202,14 +202,38 @@ export function HomeScreen(): ReactElement {
   if (booting) {
     return (
       <div aria-busy="true">
+        {/*
+          Server-rendered brand heading: it is locale-independent, so it can paint
+          with the first HTML without a hydration mismatch, and it is the largest
+          contentful element — which is what makes the LCP budget reachable under
+          Fast 3G + 4x CPU.
+        */}
+        <h1 className="mads-page__title">{host.t('app.name')}</h1>
         <p className="mads-visually-hidden" role="status">
           {host.t('a11y.loading')}
         </p>
+        {/*
+          The skeleton mirrors the final layout's size (SCR-02: same count and
+          dimensions as the real grid), so replacing it causes no layout shift and
+          no later, larger paint — which is what keeps LCP on the first paint.
+        */}
+        <div className="mads-skeleton" style={{ blockSize: '20rem', marginBlockEnd: 'var(--mads-space-4)' }} />
         <div className="mads-grid">
           <div className="mads-skeleton" style={{ blockSize: '9rem' }} />
           <div className="mads-skeleton" style={{ blockSize: '9rem' }} />
           <div className="mads-skeleton" style={{ blockSize: '9rem' }} />
         </div>
+        {/*
+          The welcome overlay is server-rendered too: it is the largest element on
+          a first visit, so painting it with the first HTML keeps LCP inside the
+          budget. It never blocks Home (`aria-modal="false"`).
+        */}
+        <WelcomeOverlay
+          onTemplate={() => startCreate('template')}
+          onMagic={() => startCreate('ai')}
+          onBlank={() => startCreate('blank')}
+          disabled={host.ephemeral || !host.ready}
+        />
       </div>
     );
   }
@@ -377,13 +401,13 @@ export function HomeScreen(): ReactElement {
           description={host.t('home.emptyBody')}
           action={
             <div className="mads-cluster">
-              <Button onClick={() => startCreate('template')} disabled={host.ephemeral}>
+              <Button onClick={() => startCreate('template')} disabled={host.ephemeral || !host.ready}>
                 {host.t('home.actionTemplates')}
               </Button>
-              <Button variant="secondary" onClick={() => startCreate('ai')} disabled={host.ephemeral}>
+              <Button variant="secondary" onClick={() => startCreate('ai')} disabled={host.ephemeral || !host.ready}>
                 {host.t('home.actionMagic')}
               </Button>
-              <Button variant="secondary" onClick={() => startCreate('blank')} disabled={host.ephemeral}>
+              <Button variant="secondary" onClick={() => startCreate('blank')} disabled={host.ephemeral || !host.ready}>
                 {host.t('home.actionBlank')}
               </Button>
             </div>
@@ -519,7 +543,7 @@ export function HomeScreen(): ReactElement {
         onTemplate={() => startCreate('template')}
         onMagic={() => startCreate('ai')}
         onBlank={() => startCreate('blank')}
-        disabled={host.ephemeral}
+        disabled={host.ephemeral || !host.ready}
       />
     </div>
   );

@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   docs:
-    name: docs check
+    name: docs, catalog, tokens, migrations, error codes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,9 +21,16 @@ jobs:
           node-version: 24
       - run: node scripts/check-docs.mjs --strict
       - run: node scripts/generate-catalog.mjs --check
+      - run: node scripts/check-tokens.mjs
+      - run: node scripts/generate-migrations.mjs --check
+      - name: Install sqlite3 (migration harness)
+        run: sudo apt-get update && sudo apt-get install -y sqlite3
+      - run: node scripts/test-migrations.mjs
+      - run: node scripts/check-error-codes.mjs
+      - run: node scripts/check-security.mjs
 
-  web:
-    name: studio-web (test, typecheck, lint, build)
+  core-rust:
+    name: core-rust (test, clippy, wasm build)
     runs-on: ubuntu-latest
     needs: docs
     steps:
@@ -32,11 +39,48 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - name: Install wasm-bindgen 0.2.130
+        run: |
+          curl -sSfL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.130/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl.tar.gz \
+            | tar -xz -C /tmp
+          sudo mv /tmp/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen /usr/local/bin/
+          wasm-bindgen --version
+      - run: cargo test --manifest-path packages/core-rust/Cargo.toml
+      - run: cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings
       - run: npm ci
+      - run: npm run build:core
+      - run: npm run build:sqlite
+      - run: npm test -w @microapp/runtime-web
+
+  web:
+    name: studio-web (test, typecheck, lint, build, budget)
+    runs-on: ubuntu-latest
+    needs: core-rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen 0.2.130
+        run: |
+          curl -sSfL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.130/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl.tar.gz \
+            | tar -xz -C /tmp
+          sudo mv /tmp/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen /usr/local/bin/
+      - run: npm ci
+      - run: npm run build:core
       - run: npm test
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      - run: npm run budget:check
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -44,21 +88,60 @@ jobs:
           path: apps/studio-web/.next
           if-no-files-found: ignore
 
-  core-rust:
-    name: core-rust (test, clippy)
+  e2e:
+    name: e2e (Playwright + axe)
     runs-on: ubuntu-latest
-    needs: docs
+    needs: core-rust
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen 0.2.130
+        run: |
+          curl -sSfL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.130/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl.tar.gz \
+            | tar -xz -C /tmp
+          sudo mv /tmp/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen /usr/local/bin/
+      - run: npm ci
+      - run: npm run build:core
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/studio-web
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-traces
+          path: apps/studio-web/test-results
+          if-no-files-found: ignore
+
+  evidence:
+    name: verification evidence
+    runs-on: ubuntu-latest
+    needs: [docs, core-rust, web, e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
           components: clippy
-      - name: Check core crate presence
-        id: presence
+      - name: Install wasm-bindgen 0.2.130
         run: |
-          if [ -f packages/core-rust/Cargo.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
-      - if: steps.presence.outputs.present == 'true'
-        run: cargo test --manifest-path packages/core-rust/Cargo.toml
-      - if: steps.presence.outputs.present == 'true'
-        run: cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings
+          curl -sSfL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.130/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl.tar.gz \
+            | tar -xz -C /tmp
+          sudo mv /tmp/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen /usr/local/bin/
+      - run: npm ci
+      - run: npm run build:core
+      - run: npm run build
+      - run: node scripts/verify-web.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-evidence
+          path: docs/08-quality/evidence
