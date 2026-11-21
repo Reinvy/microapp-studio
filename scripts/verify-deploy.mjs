@@ -1,31 +1,44 @@
-const https = require('https');
+#!/usr/bin/env node
+/**
+ * verify-deploy.mjs — smoke test a deployed web build.
+ *
+ * Usage:
+ *   DEPLOY_URL=https://example.com node scripts/verify-deploy.mjs
+ *
+ * Checks the public routes and accepts 2xx/3xx. HEAD is tried first and GET is
+ * used when a host rejects HEAD. No credentials, no telemetry.
+ */
 
-const base = 'https://microapp-studio.vercel.app';
-const routes = ['/', '/login', '/app', '/builder', '/dev'];
+const base = process.env.DEPLOY_URL ?? 'https://microapp-studio.vercel.app';
+const routes = ['/', '/templates', '/packages', '/settings'];
 
-let allOk = true;
-let completed = 0;
-
-routes.forEach(path => {
+async function probe(path) {
   const url = new URL(path, base);
-  const req = https.request(url, { method: 'HEAD', timeout: 10000 }, (res) => {
-    const ok = res.statusCode >= 200 && res.statusCode < 400;
-    console.log(`${ok ? '✅' : '❌'} ${path} → HTTP ${res.statusCode}`);
-    allOk = allOk && ok;
-    completed++;
-    if (completed === routes.length) {
-      console.log(`\n${allOk ? '✅ All routes OK' : '❌ Some routes failed'}`);
-      process.exit(allOk ? 0 : 1);
+  for (const method of ['HEAD', 'GET']) {
+    try {
+      const res = await fetch(url, {
+        method,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+        headers: { 'user-agent': 'microapp-studio-deploy-check' },
+      });
+      if (method === 'HEAD' && (res.status === 405 || res.status === 501)) continue;
+      return { path, status: res.status, ok: res.status >= 200 && res.status < 400 };
+    } catch (error) {
+      if (method === 'GET') return { path, status: 0, ok: false, error: error.message };
     }
-  });
-  req.on('error', (e) => {
-    console.log(`❌ ${path} → ${e.message}`);
-    allOk = false;
-    completed++;
-    if (completed === routes.length) {
-      console.log(`\n❌ Some routes failed`);
-      process.exit(1);
-    }
-  });
-  req.end();
-});
+  }
+  return { path, status: 0, ok: false, error: 'no response' };
+}
+
+const results = [];
+for (const path of routes) results.push(await probe(path));
+
+for (const r of results) {
+  const detail = r.status === 0 ? r.error : `HTTP ${r.status}`;
+  console.log(`${r.ok ? 'ok' : 'fail'} ${r.path} -> ${detail}`);
+}
+
+const allOk = results.every((r) => r.ok);
+console.log(allOk ? 'deploy smoke: OK' : 'deploy smoke: FAILED');
+process.exit(allOk ? 0 : 1);

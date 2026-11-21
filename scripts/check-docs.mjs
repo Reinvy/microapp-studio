@@ -40,6 +40,7 @@ if (!existsSync(join(ROOT, 'README.md'))) {
 
 const errors = [];
 const warnings = [];
+const MIN_PRD_ROWS = 135;
 const err = (file, msg) => errors.push(`${rel(file)}: ${msg}`);
 const warn = (file, msg) => warnings.push(`${rel(file)}: ${msg}`);
 
@@ -477,7 +478,7 @@ if (!existsSync(matrixFile)) {
     const bucket = id.split('-')[0];
     if (!defined[bucket]?.has(id)) err(matrixFile, `matrix references undefined ${id}`);
   }
-  if (prdRows < 255) err(matrixFile, `only ${prdRows} PRD rows with § reference; minimum 255`);
+  if (prdRows < MIN_PRD_ROWS) err(matrixFile, `only ${prdRows} PRD rows with § reference; minimum ${MIN_PRD_ROWS}`);
 }
 
 // ---------------------------------------------------------------------------

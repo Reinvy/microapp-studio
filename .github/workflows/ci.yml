@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/check-docs.mjs --strict
+      - run: node scripts/generate-catalog.mjs --check
 
   web:
     name: studio-web (test, typecheck, lint, build)

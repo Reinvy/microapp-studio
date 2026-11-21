@@ -4,7 +4,7 @@
  * `docs/00-foundation/prd-compliance-matrix.md`.
  *
  * Usage:
- *   node scripts/apply-status.mjs --evidence docs/08-quality/evidence/phase-1.json [--write]
+ *   node scripts/apply-status.mjs --evidence docs/08-quality/evidence/baseline.json [--write]
  *
  * Rules:
  *  - every entry needs a known requirement ID and an `evidence` string;
