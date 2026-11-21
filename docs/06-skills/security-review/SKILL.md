@@ -1,83 +1,81 @@
 ---
-id: SKILL-SECURITY-REVIEW
+id: SKILL-SEC
 title: Security Review
 status: accepted
-owner: dx
-prd_refs: ["§5.1", "§5.2"]
+owner: security
+prd_refs: ["§11", "§8"]
 name: security-review
-description: "Meninjau perubahan terhadap threat model, sandbox, kripto, otorisasi, SSRF, dan supply chain dengan temuan ber-severity dan test regresi."
-when_to_use: "Dipakai sebelum merge untuk perubahan yang menyentuh sandbox, kriptografi, permission, auth, jaringan, registry, atau dependensi."
-required_docs: ["docs/01-architecture/threat-model.md", "docs/03-specs/permissions.md", "docs/01-architecture/identity-crypto.md", "docs/01-architecture/sandbox-capabilities.md", "docs/08-quality/security-test-plan.md", "docs/07-rules/security.md"]
+description: "Meninjau perubahan web-only terhadap threat model: CSP, sandbox escape, signature package, vault BYOK, dependency, dan kebocoran secret."
+when_to_use: "Dipakai sebelum merge untuk perubahan yang menyentuh sandbox, bridge, permission, kripto, package, headers, storage, atau dependency baru."
+required_docs: ["docs/01-architecture/threat-model.md", "docs/07-rules/security.md", "docs/08-quality/security-test-plan.md", "docs/03-specs/permissions.md", "docs/03-specs/03-sandbox-runtime.md", "docs/01-architecture/identity-crypto.md"]
 ---
 
 # Security Review
 
 ## Kapan Digunakan
 
-Dipakai untuk setiap perubahan yang menyentuh sandbox dan capability broker, kriptografi dan penyimpanan kunci, autentikasi dan otorisasi, jaringan keluar, registry dan signature, workflow dan webhook, atau dependensi baru. Review ini menghasilkan temuan yang dapat ditindaklanjuti, bukan opini umum.
+Dipakai pada setiap PR yang menyentuh salah satu area: iframe sandbox dan bootstrap, bridge broker, permission dan consent, WebCrypto dan vault, signature serta format `.mapp`, header CSP/COOP/COEP, service worker, penyimpanan OPFS/IndexedDB, BYOK, dan dependency baru.
 
-Di luar cakupan: audit kode menyeluruh tanpa perubahan (tetap dapat memakai prosedur ini dengan seluruh repo sebagai scope) dan pen-test eksternal.
+Di luar cakupan: audit performa (gunakan [performance-budgets.md](../../08-quality/performance-budgets.md)) dan review desain visual (gunakan [add-ui-component](../add-ui-component/SKILL.md)).
 
 ## Prasyarat
 
-- [01-architecture/threat-model.md](../../01-architecture/threat-model.md) dibaca: aset, aktor, trust boundary, tabel STRIDE, dan lima risiko utama PRD §5.1.
-- [03-specs/permissions.md](../../03-specs/permissions.md) dan [01-architecture/sandbox-capabilities.md](../../01-architecture/sandbox-capabilities.md) dipahami.
-- [01-architecture/identity-crypto.md](../../01-architecture/identity-crypto.md) dipahami: hierarki kunci, envelope, AAD, nonce, dan zeroize.
-- [security-test-plan.md](../../08-quality/security-test-plan.md) dan [07-rules/security.md](../../07-rules/security.md) tersedia sebagai acuan mitigasi dan test.
+- [threat-model.md](../../01-architecture/threat-model.md) dibaca: aset, STRIDE web, dan mitigasi.
+- [security.md](../../07-rules/security.md) dibaca: aturan `RULE-SEC-*` yang berlaku.
+- [security-test-plan.md](../../08-quality/security-test-plan.md) dibaca: skenario uji yang harus ada.
+- Diff PR dipahami; tidak ada perubahan tanpa deskripsi dampak keamanan.
+- Baseline test runtime dan E2E lulus sebelum review.
 
 ## Input
 
 | Input | Wajib | Contoh |
 |---|---|---|
-| Scope review | ya | Diff PR yang menambah connector HTTP baru |
-| Aset terdampak | ya | Vault, database micro-app, kunci sync |
-| Trust boundary yang berubah | ya | micro-app ke Host, server ke jaringan privat |
-| Dependensi baru | tidak | Paket npm atau crate yang ditambahkan |
-| Temuan sebelumnya | tidak | Temuan terbuka dari review terakhir |
+| Diff PR | ya | Perubahan broker dan iframe bootstrap |
+| Aset terdampak | ya | Data app, kunci identitas, vault BYOK |
+| Ancaman terkait | ya | Sandbox escape, signature tamper, XSS |
+| Test keamanan | ya | Test negatif permission dan CSP |
 
 ## Prosedur
 
-1. Tetapkan scope: baca diff, daftar file yang berubah, dan komponen arsitektur yang terlibat. Petakan setiap perubahan ke aset dan aktor pada [threat-model.md](../../01-architecture/threat-model.md).
-2. Periksa sandbox: `iframe` memakai `sandbox="allow-scripts"` tanpa `allow-same-origin`, CSP `default-src 'none'` dengan pengecualian eksplisit, eksekusi di Worker atau isolate QuickJS/Wasmtime tanpa akses ambient, dan kegagalan inisialisasi bersifat fail closed. Cari `new Function`, `eval`, `innerHTML` tanpa sanitasi, dan akses DOM induk.
-3. Periksa kriptografi dan kunci: envelope `version|key_id|nonce|ciphertext|tag`, nonce unik per kunci, AAD header kanonik, verifikasi signature di `packages/core-rust`, kunci non-extractable di Keychain/Keystore/WebCrypto, dan zeroize setelah pemakaian. Tandai setiap plaintext yang tersimpan atau terlog.
-4. Periksa otorisasi: RBAC per peran server, evaluasi ABAC sebelum aksi, pemeriksaan permission pada setiap panggilan bridge, sesi akses 15 menit dengan rotasi refresh, dan pencabutan perangkat yang benar-benar menolak `AUTH`.
-5. Periksa jaringan keluar: SSRF guard memblokir CIDR privat dan loopback secara default untuk workflow, webhook, plugin, dan connector; allowlist memakai domain, bukan IP; egress yang diblokir tercatat.
-6. Periksa supply chain: signature author dan registry terpisah, `contentHash` dan signature diverifikasi sebelum ekstraksi, TOFU dipertahankan, reproducible build diverifikasi, dan dependensi baru memiliki lisensi serta asal yang jelas.
-7. Jalankan pemindaian dependensi dan rahasia: `npm audit`, `cargo audit`, `govulncheck`, serta pencarian pola kredensial pada diff. Konfirmasi tidak ada secret yang masuk log, fixture, atau pesan error.
-8. Catat setiap temuan dengan format: ID temuan, severity (`critical`, `high`, `medium`, `low`), komponen, bukti, dampak, mitigasi yang diusulkan, dan test regresi. Severity mengikuti dampak nyata, bukan kemudahan perbaikan.
-9. Tambahkan test regresi untuk setiap temuan `critical` dan `high`, lalu perbarui [security-test-plan.md](../../08-quality/security-test-plan.md) dan residual risk pada [threat-model.md](../../01-architecture/threat-model.md).
-10. Hentikan merge bila masih ada temuan `critical` atau `high` tanpa mitigasi dan test. Temuan `medium` dan `low` boleh dilanjutkan dengan pemilik dan tenggat yang tercatat.
-11. Jalankan blok verifikasi, lalu catat ringkasan temuan pada deskripsi PR beserta tautan bukti.
+1. Petakan diff ke aset di threat model: data lokal, kunci identitas, package, vault, BYOK, dan shell. Tuliskan jalur serang yang mungkin berubah.
+2. Periksa eksekusi dinamis: tidak boleh ada `eval`, `new Function`, `innerHTML`, `document.write`, atau penyisipan HTML mentah. Renderer MUST memakai `textContent` dan node MUIP tervalidasi.
+3. Periksa sandbox: iframe memakai `sandbox="allow-scripts"` tanpa `allow-same-origin`; CSP `default-src 'none'` dengan nonce untuk bootstrap; tidak ada akses DOM host dari dalam iframe.
+4. Periksa bridge: setiap method ada di allowlist, permission diperiksa sebelum parameter, timeout dan rate limit berlaku, dan payload divalidasi. Kegagalan MUST menutup panggilan, bukan melanjutkan.
+5. Periksa header di `apps/studio-web/next.config.ts`: CSP ketat, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`, dan tidak ada `unsafe-eval`.
+6. Periksa package: manifest divalidasi, digest dan signature Ed25519 diverifikasi lokal, path traversal ditolak, dan perubahan public key diblokir.
+7. Periksa kripto: `CryptoKey` non-extractable, tidak ada kunci di `localStorage`, log, atau ekspor settings. BYOK hanya di vault dan tidak pernah dikirim ke selain endpoint pengguna.
+8. Periksa telemetry: tidak ada analytics, beacon, atau request otomatis pada build produksi.
+9. Jalankan pemindaian secret pada diff dan seluruh repo; periksa juga fixture agar hanya memakai nilai dummy yang ditandai.
+10. Tinjau dependency baru: sumber, lisensi, ukuran, dan izin script. Tolak dependency yang menambah kemampuan jaringan atau evaluasi kode tanpa justifikasi tertulis.
+11. Minta test negatif untuk setiap perubahan keamanan; tanpa test negatif, review tidak lulus.
 
 ## Verifikasi
 
 ```bash
-grep -rn "new Function\|eval(" apps packages --include=*.ts --include=*.tsx
+git grep -nE '(BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})' -- . ':!*.lock' ':!node_modules'
+git grep -nE '\b(eval|new Function|innerHTML|document\.write)\b' -- apps packages ':!*.test.*'
+npm test -w @microapp/runtime-web
+npm test -w @microapp/studio-web
+npm run e2e
 npm audit --audit-level=high
-cargo audit
-cd apps/selfhost-server && govulncheck ./...
-npm test
-npm run docs:check
+node scripts/check-docs.mjs --strict
 ```
 
-Perintah audit dan test harus exit `0`; hasil pencarian pola dianalisis manual dan setiap kecocokan harus dijelaskan atau diperbaiki. Test regresi baru harus gagal pada kode sebelum perbaikan dan lulus setelahnya.
+Pemindaian secret harus kosong kecuali nilai dummy yang ditandai. `npm audit` tidak boleh menemukan kerentanan high atau critical yang belum dimitigasi.
 
 ## Kesalahan Umum
 
 | Kesalahan | Perbaikan |
 |---|---|
-| Hanya membaca diff tanpa memetakan ke threat model | Petakan ke aset, aktor, dan trust boundary; tambahkan baris STRIDE bila perlu |
-| Menerima residual risk tanpa test | Setiap risiko yang diterima wajib memiliki test atau alasan tertulis |
-| Menurunkan severity agar PR cepat merge | Gunakan dampak nyata dan kriteria severity yang konsisten |
-| Mengandalkan pemindaian dependensi saja | Periksa desain sandbox, kripto, otorisasi, dan alur data |
-| Memperbaiki temuan tanpa test regresi | Tambahkan test yang gagal sebelum perbaikan |
-| Melewatkan manifest dan permission dalam review | Periksa juga permission, allowlist, dan signature paket |
+| Sandbox memakai `allow-same-origin` | Hapus; opaque origin wajib |
+| CSP memuat `unsafe-eval` atau `unsafe-inline` untuk script | Gunakan nonce dan hash |
+| Permission diperiksa setelah parameter diproses | Pindahkan pemeriksaan ke awal broker |
+| Kunci disimpan di `localStorage` | Simpan sebagai `CryptoKey` non-extractable atau di vault |
+| Menambah dependency tanpa meninjau izinnya | Tinjau sumber dan kemampuan, catat di PR |
 
 ## Definition of Done
 
-- Scope, aset, dan trust boundary yang terdampak tercatat.
-- Pemeriksaan sandbox, kripto, otorisasi, SSRF, dan supply chain selesai.
-- Setiap temuan memiliki severity, bukti, dampak, mitigasi, dan test.
-- Tidak ada temuan `critical` atau `high` yang belum dimitigasi.
-- Security test plan dan residual risk diperbarui.
-- Audit dependensi dan `npm run docs:check` lulus.
+- Setiap temuan memiliki perbaikan atau pengecualian tertulis yang disetujui.
+- Test negatif tersedia untuk area yang berubah.
+- Pemindaian secret bersih dan dependency high/critical tertangani.
+- Header dan sandbox diverifikasi pada respons nyata.

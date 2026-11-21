@@ -1,86 +1,84 @@
 ---
 id: RULE-SEC
-title: Aturan Keamanan
+title: Rules Keamanan Web
 status: accepted
 owner: security
-prd_refs: ["§5.1", "§6"]
+prd_refs: ["§5", "§11"]
 ---
 
-# Aturan Keamanan
+# Rules Keamanan Web
 
-Aturan ini mengikat seluruh kode, konfigurasi, pipeline rilis, dan infrastruktur. Pelanggaran yang tidak dapat dimitigasi adalah blocker merge tanpa pengecualian. ID pada tabel adalah nomor aturan `RULE-SEC-*`; requirement keamanan `SEC-001` sampai `SEC-020` tetap didefinisikan di [permissions.md](../03-specs/permissions.md). Model ancaman dan mitigasi rinci ada di [threat-model.md](../01-architecture/threat-model.md); rencana uji ada di [security-test-plan.md](../08-quality/security-test-plan.md).
+Aturan ini mengikat seluruh kode yang menangani identitas, sandbox, package, permission, backup, dan integrasi AI. Model ancaman lengkap ada di [threat-model.md](../01-architecture/threat-model.md); kontrak permission ada di [permissions.md](../03-specs/permissions.md). Aturan keamanan menang atas aturan lain saat terjadi konflik.
 
-## 1. Cakupan
+## 1. Tujuan dan Ruang Lingkup
 
-| Aset | Aturan kunci |
+| Aset | Perlindungan |
 |---|---|
-| Identitas dan kunci | Hanya `microapp-core`; non-extractable; zeroize |
-| Data pengguna | Enkripsi, AAD, tanpa plaintext di jaringan/log |
-| Sandbox | Zero privilege, CSP ketat, tanpa `eval` |
-| Jaringan keluar | SSRF guard, allowlist, DNS rebinding |
-| Supply chain | Signature, SBOM, checksum, dependency policy |
-| Server | Auth fail closed, RBAC, audit, sesi |
-| Operasi | Redaksi log, tanpa telemetry default, insiden |
+| Data lokal pengguna | SQLite WASM/OPFS, hanya diakses worker. |
+| Kunci identitas dan backup | WebCrypto non-extractable, backup terenkripsi. |
+| Package `.mapp` | Signature Ed25519, digest, verifikasi sebelum install. |
+| Vault BYOK | Terenkripsi, tidak pernah masuk log atau source. |
+| Origin host | CSP ketat, sandbox opaque origin, tanpa eksekusi string. |
 
-## 2. Aturan
+Di luar cakupan: kode micro-app pihak ketiga (dibatasi manifest dan broker), serta infrastruktur hosting (lihat [deployment.md](../09-operations/deployment.md)).
 
-### 2.1 Prinsip dan Kriptografi
+## 2. Prinsip
 
-| ID | Level | Aturan | Konsekuensi |
+1. **Zero trust.** Micro-app adalah kode tidak tepercaya; host memvalidasi setiap pesan, argumen, dan manifest.
+2. **Least privilege.** Tidak ada permission default; setiap akses melewati consent dan audit.
+3. **Fail closed.** Bila verifikasi, sandbox, atau CSP tidak tersedia, operasi ditolak; tidak ada jalur eksekusi alternatif.
+4. **Tanpa telemetry.** Tidak ada data keluar tanpa aksi eksplisit pengguna.
+
+## 3. Aturan
+
+| ID | Level | Aturan | Verifikasi |
 |---|---|---|---|
-| RULE-SEC-001 | MUST | Micro-app, registry, jaringan, dan server MUST dianggap tidak tepercaya; zero privilege adalah default sehingga tanpa grant aktif seluruh panggilan capability MUST ditolak sebelum validasi parameter, dan manifest bukan grant. | Trust boundary dilanggar atau akses tanpa consent; blocker keamanan. |
-| RULE-SEC-002 | MUST | Kriptografi MUST diimplementasikan hanya di `microapp-core` dengan primitive yang disetujui: Ed25519, X25519, AES-256-GCM, SHA-256, HKDF-SHA256, dan PBKDF2-HMAC-SHA512; kriptografi buatan sendiri, mode alternatif, dan `Math.random()` untuk material rahasia dilarang, dan CSPRNG platform MUST dipakai. | Implementasi kedua, algoritma baru tanpa ADR/RFC, atau kunci yang dapat diprediksi adalah blocker. |
-| RULE-SEC-003 | MUST | Nonce AES-GCM 96 bit MUST unik per (key, plaintext) dan MUST dibuat acak kriptografis; kunci MUST dirotasi sebelum 2^32 pesan, dan deteksi nonce reuse MUST menghentikan enkripsi serta memicu insiden. | Nonce reuse membocorkan plaintext; insiden SEV-1. |
-| RULE-SEC-004 | MUST | Kunci privat dan seed MUST disimpan di Keychain/Keystore/WebCrypto non-extractable atau Vault, MUST di-zeroize setelah dipakai, dan MUST NOT muncul di log, crash report, atau pesan error. | Ekstraksi kunci; blocker keamanan. |
-| RULE-SEC-005 | MUST | Envelope MUST memakai format `version(1)|key_id(16)|nonce(12)|ciphertext|tag(16)` dengan AAD kanonik yang mengikat `site_id`, `record_type`, `record_id`, dan `schema_version`; `key_id` tidak dikenal MUST gagal tertutup. | Ciphertext dapat dipindah antar-record; test kripto gagal. |
+| RULE-SEC-001 | MUST | Micro-app berjalan tanpa privilege sampai permission diberikan. Host MUST NOT mempercayai `postMessage` tanpa validasi origin, namespace, method, dan schema parameter. | Test bridge, review |
+| RULE-SEC-002 | MUST | Setiap permission dideklarasikan di manifest dengan alasan; permission yang tidak dideklarasikan tidak dapat diminta saat runtime. | Validasi manifest, SEC-002 |
+| RULE-SEC-003 | MUST | Consent JIT tampil sebelum akses pertama, dengan opsi izinkan sekali, selalu izinkan, dan tolak. Fokus awal pada tolak. | E2E consent, SEC-003 |
+| RULE-SEC-004 | MUST | Offline Cage aktif secara default: permintaan jaringan micro-app ditolak kecuali permission jaringan diberikan. | Test runtime, SEC-004 |
+| RULE-SEC-005 | MUST | Package hanya dipasang setelah signature Ed25519 dan digest terverifikasi. Verifikasi gagal berarti install dibatalkan. | Test package, SEC-005 |
+| RULE-SEC-006 | MUST | Perubahan public key untuk app yang sama memicu peringatan keras dan memerlukan konfirmasi eksplisit; tidak ada auto-trust. | Test, SEC-006 |
+| RULE-SEC-007 | MUST | Tidak ada secret, kunci, token, atau passphrase di source, fixture, log, pesan error, atau dokumen. Fixture memakai nilai sintetis. | Secret scan, SEC-007 |
+| RULE-SEC-008 | MUST | Kunci BYOK hanya disimpan di vault lokal dan dibaca saat permintaan; dilarang di `localStorage`, URL, cookie, atau state global. | Review, FR-SET-004 |
+| RULE-SEC-009 | MUST | Dilarang `eval`, `new Function`, HTML mentah, dan skrip inline. Render micro-app hanya lewat MUIP. | Grep CI, review |
+| RULE-SEC-010 | MUST | Respons memakai CSP `default-src 'none'` dengan nonce untuk bootstrap, ditambah COOP dan COEP. `unsafe-inline` dan `unsafe-eval` dilarang. | Header check, SEC-010 |
+| RULE-SEC-011 | MUST | Iframe micro-app memakai `sandbox="allow-scripts"` tanpa `allow-same-origin` sehingga origin opaque; akses ke DOM host dilarang. | Test sandbox, SEC-011 |
+| RULE-SEC-012 | MUST | Backup memakai AES-256-GCM dengan kunci turunan Argon2id; passphrase tidak pernah disimpan dan checksum per section diverifikasi saat restore. | Test backup, SEC-012 |
+| RULE-SEC-013 | MUST | Tidak ada telemetry, analytics pihak ketiga, atau beacon default. Penambahan apa pun memerlukan RFC dan opt-in eksplisit. | Audit jaringan, SEC-013 |
+| RULE-SEC-014 | MUST | Aksi sensitif (grant, revoke, install, ekspor, restore) dicatat pada audit lokal dengan hash chain dan redaksi data. | Test audit, SEC-014 |
+| RULE-SEC-015 | MUST | Kerentanan dilaporkan melalui jalur privat di [SECURITY.md](../../SECURITY.md) dan ditangani sesuai [incident-response.md](../09-operations/incident-response.md); detail tidak dipublikasikan sebelum perbaikan. | Prosedur insiden |
+| RULE-SEC-016 | MUST | Bila iframe sandbox, verifikasi signature, atau WebCrypto tidak tersedia, aplikasi menolak menjalankan atau memasang package dan menampilkan alasan; tidak ada fallback. | Test fail-closed, FR-RUN-013 |
 
-### 2.2 Identitas, Signature, dan Supply Chain
+## 4. Pemeriksaan Wajib per Perubahan
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-SEC-006 | MUST | Signature manifest, registry index, dan paket MUST diverifikasi sebelum parsing, instalasi, atau eksekusi; kegagalan MUST memblokir operasi tanpa fallback. | Artefak palsu dapat dieksekusi; instalasi ditolak. |
-| RULE-SEC-007 | MUST | Kunci registry dan kunci author MUST terpisah; TOFU per author MUST dipin, dan perubahan kunci MUST memicu peringatan keras serta blokir sampai pengguna menyetujui. | Registry hijacking tidak terdeteksi; PR registry ditolak. |
-| RULE-SEC-008 | MUST | Rilis MUST menyertakan SBOM, checksum SHA-256, signature, dan provenance yang dapat diverifikasi; artefak tanpa bukti ini MUST NOT dipublikasikan. | Supply chain tidak dapat diaudit; release gate gagal. |
-| RULE-SEC-009 | MUST | Dependency MUST dipatok dengan lockfile, melewati audit advisory dan kebijakan lisensi, serta MUST NOT menjalankan skrip install yang tidak diperlukan pada pipeline rilis; kerentanan MUST ditangani sesuai SLA acknowledge 48 jam, critical fix 7 hari, dan high 30 hari di [SECURITY.md](../../SECURITY.md). | Risiko supply chain atau SLA dilanggar; build dan rilis diblokir. |
+| Perubahan | Pemeriksaan minimal |
+|---|---|
+| Bridge atau permission | Test bypass, schema validation, rate limit, audit. |
+| Sandbox atau CSP | Uji escape, pelanggaran CSP, dan origin opaque. |
+| Package atau manifest | Signature tamper, digest mismatch, key mismatch. |
+| Crypto atau backup | Vektor uji, review `security`, dokumentasi format. |
+| AI atau vault | Tidak ada kunci di log, request hanya ke endpoint pengguna. |
 
-### 2.3 Isolasi dan Eksekusi
+## 5. Anti-pola
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-SEC-010 | MUST | Web MUST menjalankan micro-app di `iframe` opaque origin dengan `sandbox="allow-scripts"` tanpa `allow-same-origin`, CSP `default-src 'none'`, dan tanpa `unsafe-eval`/`unsafe-inline`. | Escape sandbox; blocker keamanan. |
-| RULE-SEC-011 | MUST | `eval`, `new Function`, WebView tanpa sandbox, dan eksekusi kode arbitrer MUST NOT dipakai di runtime produksi; bila isolate tidak tersedia, runtime MUST gagal tertutup. | Eksekusi kode Host; blocker keamanan. |
-| RULE-SEC-012 | MUST | Bridge MUST memvalidasi `app_id`, namespace, method, skema parameter, dan permission pada setiap request; method confusion dan akses lintas app MUST ditolak. | Capability bypass; security test gagal. |
-| RULE-SEC-013 | MUST | Ekstraksi arsip `.mapp` MUST menolak path traversal, symlink, entry absolut, zip bomb, dan rasio kompresi berlebih; batas ukuran dan jumlah entry MUST ditegakkan. | Penulisan file di luar direktori dan DoS; PR ditolak. |
-| RULE-SEC-014 | MUST | Micro-app MUST NOT mengakses DOM induk, cookie Host, `localStorage` Host, atau API Host secara langsung; satu-satunya kanal adalah bridge. | Isolasi bocor; blocker keamanan. |
+| Anti-pola | Risiko |
+|---|---|
+| Mempercayai `event.origin` tanpa allowlist | Pesan palsu dari frame lain. |
+| Menyimpan kunci di `sessionStorage` | Dapat dibaca skrip di origin yang sama. |
+| Menampilkan stack trace ke pengguna | Membocorkan path dan struktur internal. |
+| Menambahkan CDN font atau skrip | Memperluas permukaan pasokan dan melanggar CSP. |
+| Menonaktifkan sandbox untuk memperbaiki bug | Membuka akses DOM host. |
 
-### 2.4 Jaringan dan SSRF
+## 6. Verifikasi
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-SEC-015 | MUST | Egress MUST memblokir IP privat, loopback, link-local, multicast, dan metadata endpoint secara default; pengecualian hanya melalui `security.allowPrivateEgress` yang diaudit. | SSRF ke jaringan internal; blocker keamanan. |
-| RULE-SEC-016 | MUST | Redirect MUST divalidasi ulang, DNS MUST di-resolve dan IP-nya dipin pada dial, serta jumlah redirect dan ukuran respons MUST dibatasi. | DNS rebinding/redirect melewati guard; security test gagal. |
-| RULE-SEC-017 | MUST | `network.allowlist` MUST hanya berisi domain exact atau wildcard subdomain HTTPS; IP literal, CIDR, dan skema non-HTTPS MUST ditolak. | Allowlist dapat dipakai memindai jaringan; PR ditolak. |
+| Langkah | Perintah | Lulus bila |
+|---|---|---|
+| Unit dan integrasi | `npm test` | Test sandbox, bridge, package, dan backup lulus. |
+| Uji keamanan | Skenario di [security-test-plan.md](../08-quality/security-test-plan.md) | Tidak ada bypass yang ditemukan. |
+| Header | Pemeriksaan header build | CSP, COOP, COEP sesuai kontrak. |
+| Secret | Secret scan pada diff | Tidak ada kandidat secret. |
 
-### 2.5 Server, Rahasia, dan Operasi
+## 7. Pengecualian
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-SEC-018 | MUST | Rahasia server MUST berasal dari environment variable atau secret file, MUST NOT ditulis di `microapp.yaml`, kode, image, atau log, dan rotasi MUST tersedia tanpa rebuild; sesi MUST memakai access token 15 menit dengan refresh/session 30 hari, rotasi, dan revoke per device, tanpa token di `localStorage`. | Kebocoran rahasia atau sesi panjang yang dapat dicuri; deploy dan PR auth diblokir. |
-| RULE-SEC-019 | MUST | Otorisasi server MUST default deny, memakai RBAC/ABAC, dan setiap aksi sensitif MUST menghasilkan audit hash-chained yang tidak dapat dihapus diam-diam. | Privilege escalation tanpa jejak; blocker. |
-| RULE-SEC-020 | MUST | Log, trace, dan crash report MUST meredaksi token, cookie, kunci, isi prompt, dan PII; telemetri MUST opt-in, default mati, tanpa pihak ketiga, dan tanpa device fingerprint. | Kebocoran data dan pelanggaran privasi; blocker. |
-
-## 3. Pengecualian dan Penegakan
-
-1. Tidak ada pengecualian untuk RULE-SEC-001, RULE-SEC-002, RULE-SEC-010, RULE-SEC-011, RULE-SEC-012, RULE-SEC-014, RULE-SEC-015, atau RULE-SEC-020.
-2. Perubahan pada kriptografi, sandbox, permission, auth, signature, atau SSRF MUST melalui RFC dan review security sebelum implementasi.
-3. Setiap temuan security MUST memiliki severity, bukti reproduksi, dan test regresi; temuan critical/high memblokir rilis.
-4. Audit keamanan dijalankan pada setiap release menggunakan [security-review](../06-skills/security-review/SKILL.md).
-
-## 4. Referensi
-
-- [threat-model.md](../01-architecture/threat-model.md) — aset, aktor, STRIDE, residual risk.
-- [identity-crypto.md](../01-architecture/identity-crypto.md) — hierarki kunci dan envelope.
-- [sandbox-capabilities.md](../01-architecture/sandbox-capabilities.md) — isolasi dan broker.
-- [permissions.md](../03-specs/permissions.md) — katalog permission dan consent.
-- [registry-supply-chain.md](../01-architecture/registry-supply-chain.md) — signature dan TOFU.
-- [security-test-plan.md](../08-quality/security-test-plan.md) — uji dan severity.
+Pengecualian pada RULE-SEC MUST disetujui reviewer `security`, dicatat di PR, dan tidak boleh menyentuh RULE-SEC-005, RULE-SEC-009, RULE-SEC-010, RULE-SEC-011, atau RULE-SEC-016. Pelanggaran lama dicatat di [implementation-status.md](../00-foundation/implementation-status.md).

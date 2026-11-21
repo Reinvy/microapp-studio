@@ -1,78 +1,75 @@
 ---
-id: SKILL-DOCS-MAINTENANCE
+id: SKILL-DOCS
 title: Memelihara Dokumentasi
 status: accepted
 owner: dx
-prd_refs: ["§7.1", "§7.2"]
+prd_refs: ["§12", "§1"]
 name: docs-maintenance
-description: "Menjaga frontmatter, ID, link, matriks, dan status implementasi tetap konsisten serta lulus pemeriksaan dokumentasi."
-when_to_use: "Dipakai saat menambah atau mengubah dokumen, memperbarui matriks kepatuhan, atau memperbaiki kegagalan npm run docs:check."
-required_docs: ["docs/README.md", "docs/00-foundation/sdd-workflow.md", "docs/00-foundation/prd-compliance-matrix.md", "docs/00-foundation/implementation-status.md", "docs/07-rules/documentation.md"]
+description: "Menjaga frontmatter, ID, tautan, matriks, status implementasi, dan checker dokumentasi tetap hijau tanpa placeholder."
+when_to_use: "Dipakai setiap perubahan dokumen, penambahan requirement, perubahan status implementasi, rename file, atau sebelum merge."
+required_docs: ["docs/07-rules/documentation.md", "docs/00-foundation/sdd-workflow.md", "docs/00-foundation/prd-compliance-matrix.md", "docs/00-foundation/implementation-status.md", "docs/README.md"]
 ---
 
 # Memelihara Dokumentasi
 
 ## Kapan Digunakan
 
-Dipakai untuk setiap perubahan dokumentasi: dokumen baru, revisi spec atau flow, penambahan requirement, pembaruan matriks kepatuhan, perubahan status implementasi, atau perbaikan kegagalan checker. Dokumentasi adalah sumber kebenaran, sehingga kesalahan ID atau link adalah cacat kontrak, bukan sekadar kosmetik.
+Dipakai ketika dokumen berubah: menambah atau mengubah spec, flow, ADR, rules, skill, template, atau indeks; saat requirement baru didefinisikan; saat status implementasi berubah; dan sebelum setiap merge.
 
-Di luar cakupan: mengubah PRD asli (hanya product owner) dan menulis konten teknis baru yang seharusnya berada di spec modul.
+Di luar cakupan: menulis kode fitur (gunakan skill modul terkait), menambah komponen katalog (gunakan [add-ui-component](../add-ui-component/SKILL.md)), dan menetapkan keputusan produk baru (gunakan RFC atau PRD).
 
 ## Prasyarat
 
-- [docs/README.md](../../README.md) dibaca: peta dokumen, presedensi, legenda status, dan protokol pembaruan.
-- [00-foundation/sdd-workflow.md](../../00-foundation/sdd-workflow.md) dipahami: commit `docs:` mendahului implementasi, dan status hanya naik setelah verifikasi.
-- [07-rules/documentation.md](../../07-rules/documentation.md) dipahami: frontmatter, kata normatif, section wajib, dan larangan duplikasi.
-- `scripts/check-docs.mjs` dijalankan pada baseline agar kegagalan lama tidak tertukar dengan kegagalan baru.
+- [documentation.md](../../07-rules/documentation.md) dibaca: frontmatter, H1, ID, tautan, matriks, status, bahasa.
+- [sdd-workflow.md](../../00-foundation/sdd-workflow.md) dipahami: dokumen lebih dulu, commit `docs:` terpisah.
+- [docs/README.md](../../README.md) dipahami sebagai akar keterjangkauan.
+- `node scripts/check-docs.mjs --strict` lulus pada baseline.
+- Tidak ada file dokumen yatim atau tautan ke path yang akan dihapus.
 
 ## Input
 
 | Input | Wajib | Contoh |
 |---|---|---|
-| Dokumen yang berubah | ya | `docs/03-specs/05-registry.md` dan flow terkait |
-| Requirement terkait | tidak | `FR-REG-025` yang diperbarui |
-| Status implementasi | tidak | `missing` menjadi `partial` |
-| Keluaran checker | ya | Pesan error yang harus diperbaiki |
+| Perubahan dokumen | ya | Spec baru, rename, atau revisi requirement |
+| ID baru | kondisional | `FR-CREATE-012` (hanya jika disetujui) |
+| Perubahan status | kondisional | `partial` → `implemented` dengan bukti test |
+| Perintah verifikasi | ya | `node scripts/check-docs.mjs --strict` |
 
 ## Prosedur
 
-1. Jalankan `npm run docs:check` pada baseline dan catat kegagalan yang sudah ada agar tidak dikaitkan dengan perubahan baru.
-2. Untuk setiap dokumen yang berubah, periksa frontmatter: `id` dengan prefix yang diizinkan, `title`, `status` (`accepted` atau `implemented`), `owner` yang valid, dan `prd_refs` berupa array yang setiap elemennya diawali `§`.
-3. Pastikan H1 pertama sama dengan `title` dan section wajib ada sesuai jenis dokumen: spec memuat bagian 1, 3, 7, dan 8; flow memuat `Alur Utama`, `Cabang Gagal`, `Acceptance Criteria`, `Verifikasi`; skill memuat `Kapan Digunakan`, `Prosedur`, `Verifikasi`; ADR memuat `Konteks`, `Keputusan`, `Konsekuensi`.
-4. Periksa ID: `FR-*` dan `NFR-*` hanya didefinisikan di `docs/03-specs/`, `SEC-*` hanya di [permissions.md](../../03-specs/permissions.md), `ADR-*` di frontmatter ADR, dan kode error di [error-codes.md](../../03-specs/error-codes.md). Setiap referensi harus menunjuk ID yang sudah didefinisikan; jangan mengarang ID.
-5. Sinkronkan [prd-compliance-matrix.md](../../00-foundation/prd-compliance-matrix.md): setiap requirement baru mendapat satu baris, kolom `Spec` dan `Flow` menautkan file yang ada, dan kolom `Status` memakai `implemented`, `partial`, `missing`, atau `blocked`.
-6. Perbarui [implementation-status.md](../../00-foundation/implementation-status.md) hanya untuk perubahan yang benar-benar diverifikasi; hapus klaim yang tidak lagi benar dan jangan menyatakan fitur yang belum ada sebagai sudah jadi.
-7. Periksa link relatif dan anchor: setiap target file harus ada, dan anchor harus cocok dengan heading. Hindari anchor pada ID requirement bila heading tidak memuat ID tersebut.
-8. Pastikan setiap file baru tertaut dari [docs/README.md](../../README.md) agar dapat dijangkau melalui penelusuran link, termasuk README folder, ADR, dan skill.
-9. Hapus placeholder dan sisa draf di luar `docs/templates/` dan `docs/archive/`; ganti dengan isi nyata atau hapus bagian yang tidak relevan.
-10. Jalankan `node scripts/check-docs.mjs --strict` dan perbaiki setiap error maupun warning yang menyebut file yang Anda ubah. Jangan mengubah file di luar cakupan hanya untuk membuat checker lulus.
-11. Commit dengan urutan `docs:` untuk kontrak, lalu `docs(status):` setelah verifikasi implementasi tercatat.
+1. Setiap dokumen baru wajib diawali frontmatter dengan `id`, `title`, `status`, `owner`, dan `prd_refs`. `status` harus `accepted`; `prd_refs` berisi minimal satu entri yang diawali `§`. Skill juga wajib memuat `name`, `description`, `when_to_use`, dan `required_docs`.
+2. H1 pertama harus sama dengan `title` setelah normalisasi (tanpa penomoran). Jangan menaruh ID requirement di H1 kecuali memang bagian dari judul yang disepakati.
+3. Gunakan hanya ID yang sudah didefinisikan: `FR-*`, `NFR-*`, `SEC-*`, `FLOW-*`, `ADR-*`, dan `E-*` dari katalog resmi. ID baru hanya boleh lahir dari spec pemiliknya, bukan dari flow, rules, atau skill.
+4. Tautkan dengan path relatif yang benar dan tanpa anchor yang tidak ada. Tautkan setiap dokumen baru dari [docs/README.md](../../README.md) agar checker menganggapnya terjangkau.
+5. Setiap requirement baru wajib mendapat satu baris di [prd-compliance-matrix.md](../../00-foundation/prd-compliance-matrix.md) dengan kolom `PRD Ref`, `Requirement`, `Spec`, `Flow`, `Phase`, `Status`, `Verification`.
+6. Ubah status implementasi hanya dengan bukti nyata. `implemented` memerlukan test yang lulus; `partial` untuk kemampuan yang baru sebagian; `missing` untuk target yang belum ada. Catat bukti di [implementation-status.md](../../00-foundation/implementation-status.md).
+7. Hapus placeholder: tidak ada teks yang menjanjikan isi nanti. Jika bagian belum dapat ditulis, hapus bagian itu daripada meninggalkan janji.
+8. Jaga code fence seimbang dan blok mermaid tidak kosong.
+9. Saat rename atau hapus file, perbarui seluruh tautan dan indeks pada commit yang sama; jangan meninggalkan alias atau file `deprecated` yang masih tertaut.
+10. Jalankan checker, perbaiki setiap error dan warning, lalu pastikan generator katalog tidak berubah.
 
 ## Verifikasi
 
 ```bash
-npm run docs:check
 node scripts/check-docs.mjs --strict
+node scripts/generate-catalog.mjs --check
 ```
 
-Kedua perintah checker harus exit `0` tanpa warning. Mode `--strict` menggagalkan status draf di luar `docs/templates/` dan juga menolak placeholder di luar `docs/templates/` dan `docs/archive/`.
+Checker harus melaporkan `docs check: OK` dengan 0 error dan 0 warning. Generator katalog harus melaporkan 120 komponen dan tidak menulis ulang file. Jika checker menyebut tautan mati, perbaiki path; jangan melemahkan aturan.
 
 ## Kesalahan Umum
 
 | Kesalahan | Perbaikan |
 |---|---|
-| Menambah requirement tanpa baris matriks | Tambahkan baris dengan `Spec`, `Flow`, `Phase`, `Status`, dan `Verification` yang benar |
-| Menulis status draf di luar template | Gunakan `accepted`, atau selesaikan dokumen sebelum merge |
-| Menautkan file yang belum ada | Buat file lebih dulu atau gunakan teks biasa sampai file tersedia |
-| Memperbaiki link dengan mengubah file di luar cakupan | Perbaiki hanya file yang menjadi tanggung jawab perubahan |
-| Menaikkan status tanpa menjalankan verifikasi | Pertahankan `partial` sampai bukti verifikasi dicatat |
-| Mengarang ID requirement atau flow | Gunakan ID yang sudah didefinisikan; ID baru dialokasikan dalam rentang yang disetujui |
+| Menambah dokumen tanpa menautkannya dari indeks | Tambahkan tautan di `docs/README.md` |
+| Memakai ID requirement yang belum didefinisikan | Definisikan di spec pemilik atau hapus referensi |
+| Menandai `implemented` tanpa test | Turunkan ke `partial` sampai bukti ada |
+| Meninggalkan file lama sebagai alias | Hapus dan perbarui semua tautan |
+| Mengubah ambang checker agar lulus | Perbaiki dokumen, bukan aturannya |
 
 ## Definition of Done
 
-- Frontmatter, H1, dan section wajib benar untuk setiap dokumen yang diubah.
-- Seluruh referensi ID menunjuk definisi yang ada; tidak ada ID baru di luar rentang.
-- Matriks dan status implementasi konsisten dengan bukti verifikasi.
-- Semua file baru tertaut dari `docs/README.md`.
-- `node scripts/check-docs.mjs --strict` lulus tanpa warning.
-- Tidak ada status draf atau placeholder di luar template dan arsip.
+- `docs check: OK` tanpa warning.
+- Matriks dan status konsisten dengan bukti.
+- Semua tautan relatif valid dan setiap dokumen terjangkau dari indeks.
+- Tidak ada placeholder, ID liar, atau file yatim.

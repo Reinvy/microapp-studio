@@ -2,21 +2,21 @@
 id: AGENT-HANDOFF
 title: Prompt Handoff
 status: accepted
-owner: governance
-prd_refs: ["§7.2"]
+owner: dx
+prd_refs: ["§1", "§12"]
 ---
 
 # Prompt Handoff
 
-Dokumen ini menyediakan format context package dan prompt siap pakai untuk menyerahkan pekerjaan antar agen, antar peran, atau dari agen ke manusia. Prompt MUST dapat dijalankan tanpa akses ke percakapan sebelumnya.
+Dokumen ini menyediakan context package dan prompt siap pakai untuk menyerahkan pekerjaan antar peran atau dari agen ke manusia. Prompt MUST dapat dijalankan tanpa akses ke percakapan sebelumnya.
 
 ## 1. Prinsip
 
-1. **Mandiri.** Penerima MUST dapat menyelesaikan tugas hanya dari prompt dan berkas yang ditunjuk.
-2. **Berbasis path.** Semua rujukan memakai path repo; kutipan isi berkas hanya bila berkas tidak dapat diakses.
+1. **Mandiri.** Penerima menyelesaikan tugas hanya dari prompt dan berkas yang ditunjuk.
+2. **Berbasis path.** Rujukan memakai path repo; kutipan isi hanya bila berkas tidak dapat diakses.
 3. **Dapat diverifikasi.** Acceptance ditulis sebagai hasil yang dapat diamati dan perintah yang harus dijalankan.
-4. **Minimal.** Context package SHOULD muat dalam satu halaman; detail dipindahkan ke dokumen hulu yang ditautkan.
-5. **Tanpa keputusan terbuka tersembunyi.** Pertanyaan yang belum terjawab ditulis eksplisit, bukan diserahkan pada tebakan penerima.
+4. **Minimal.** Context package muat dalam satu halaman; detail dipindahkan ke dokumen hulu yang ditautkan.
+5. **Tanpa keputusan tersembunyi.** Pertanyaan terbuka ditulis eksplisit, bukan diserahkan pada tebakan penerima.
 
 ## 2. Context Package
 
@@ -24,277 +24,321 @@ Setiap handoff MUST memuat field berikut.
 
 | Field | Isi | Aturan |
 |---|---|---|
-| Tujuan | Satu kalimat hasil akhir yang diinginkan | Menggunakan kata kerja dan objek yang terukur |
-| Path | Berkas yang boleh diubah dan yang hanya dibaca | Path relatif dari root repo; sebut path terlarang bila perlu |
-| Kontrak | Requirement, acceptance, dan interface yang mengikat | Tautkan spec dan flow; sebut ID requirement |
-| Acceptance | Kondisi lulus yang dapat diamati | Minimal satu, ditulis Given/When/Then atau daftar periksa |
-| Larangan | Batas yang tidak boleh dilanggar | Sebut invariant yang relevan dari [AGENTS.md](AGENTS.md) |
-| Status | Keadaan sekarang: apa yang sudah ada dan apa yang belum | Merujuk `00-foundation/implementation-status.md`, bukan ingatan |
-| Artefak | Berkas, branch, PR, atau hasil yang sudah dibuat | Path atau nomor PR; tanpa artefak berarti tulis "belum ada" |
-| Pertanyaan terbuka | Hal yang butuh keputusan manusia | Setiap pertanyaan menyebut pemilik keputusan |
-| Verifikasi | Perintah yang harus dijalankan dan bukti yang dikembalikan | Perintah nyata dari [AGENTS.md](AGENTS.md) §4 |
+| Tujuan | Satu kalimat hasil akhir | Kata kerja dan objek terukur |
+| Path | Berkas yang boleh diubah dan yang hanya dibaca | Relatif dari root repo |
+| Kontrak | Requirement, acceptance, interface | Tautkan spec dan flow |
+| Acceptance | Kondisi lulus yang dapat diamati | Minimal satu, daftar periksa |
+| Verifikasi | Perintah yang harus lulus | Perintah nyata, bukan "test manual" |
+| Batasan | Invariant yang tidak boleh dilanggar | Tanpa native/server, token clay, a11y |
+| Terbuka | Pertanyaan yang belum dijawab | Kosongkan hanya bila benar-benar tidak ada |
 
-## 3. Template
+Aturan umum untuk semua handoff:
 
-```text
-# Context Package
+- Micro-app berjalan di iframe sandbox; tidak ada eksekusi kode arbitrer, `eval`, atau HTML mentah.
+- Tidak ada akun, cloud sync, telemetri, atau layanan pihak ketiga.
+- Warna, bayangan, radius, spacing, dan motion hanya dari token `--mads-*`; sumber visual adalah `DESIGN.md`.
+- Target aksesibilitas WCAG 2.2 AA dan alur inti selesai dengan keyboard.
 
-## Tujuan
-<hasil akhir dalam satu kalimat>
-
-## Path
-Boleh diubah: <path>
-Hanya dibaca: <path>
-
-## Kontrak
-Spec: <docs/path.md> — <ID requirement>
-Flow: <docs/04-flows/path.md>
-ADR terkait: <docs/01-architecture/adr/NNNN-*.md atau "tidak ada">
-Aturan kode: <docs/07-rules/*.md>
-Skill: <docs/06-skills/<nama>/SKILL.md>
-
-## Acceptance
-- <kondisi lulus 1, dapat diamati>
-- <kondisi lulus 2, dapat diamati>
-
-## Larangan
-- <larangan 1, mis. tanpa new Function, tanpa dependency baru>
-- <larangan 2, mis. jangan mengubah spec di PR ini>
-
-## Status
-Sudah ada: <fakta terverifikasi>
-Belum ada: <gap>
-
-## Artefak
-- Branch: <nama atau "belum ada">
-- PR: <nomor atau "belum ada">
-- Berkas terkait: <path>
-
-## Pertanyaan terbuka
-- <pertanyaan> → pemilik keputusan: <peran>
-
-## Verifikasi
-Jalankan: <perintah>
-Kembalikan: <bukti yang diminta, mis. exit code dan ringkasan>
-```
-
-## 4. Aturan Penulisan Prompt
-
-- Prompt MUST menyebut peran yang dijalankan dan reviewer yang akan menilai hasil.
-- Prompt MUST menyebut kelas perubahan (docs-only, perilaku, kontrak) agar penerima tahu apakah RFC diperlukan.
-- Acceptance MUST NOT berbunyi "berfungsi dengan baik" atau "sesuai harapan"; ganti dengan kondisi yang dapat diuji.
-- Larangan MUST menyebut API dan pola terlarang yang relevan: `new Function`, `eval`, `innerHTML` tanpa sanitasi, secret di client, telemetry default.
-- Prompt MUST NOT meminta penerima membaca seluruh PRD; sebut `§` atau bagian spec yang relevan.
-- Prompt MUST NOT menyertakan isi rahasia, kredensial, atau data pengguna nyata pada contoh.
-- Prompt MUST NOT merujuk percakapan, nama sesi, atau keputusan lisan; keputusan yang belum tertulis harus menjadi pertanyaan terbuka.
-
-## 5. Prompt Siap Pakai
-
-### 5.1 Implementasi
+## 3. Template Frontend
 
 ```text
-Kamu adalah agen implementasi pada repo microapp-studio. Jalankan peran <peran>.
+KONTEKS
+Repo: microapp-studio (web-only PWA Next.js 16 App Router, React 19, TypeScript strict).
+Baca dulu: docs/README.md → docs/00-foundation/PRD-v3.0.md → docs/00-foundation/implementation-status.md.
 
-Tujuan: <hasil akhir satu kalimat>.
+TUJUAN
+<isi: satu kalimat, mis. "Tambahkan empty state Home dengan tiga jalur create".>
 
-Baca berurutan: docs/README.md, docs/00-foundation/sdd-workflow.md,
-docs/01-architecture/system-overview.md, <spec>, <flow>, <rules>, <skill>.
+PATH
+Boleh diubah:
+- apps/studio-web/src/app/**
+- apps/studio-web/src/components/**
+- packages/ui-kit/src/**
+- docs/04-flows/<flow>.md (hanya jika alur berubah)
+Hanya dibaca:
+- docs/03-specs/01-app-shell.md
+- docs/02-design/screen-specs.md
+- docs/02-design/component-catalog.md
+- docs/07-rules/typescript.md
+- docs/07-rules/ui-ux.md
+- DESIGN.md
 
-Path yang boleh diubah: <path>.
-Path yang hanya dibaca: <path>.
+KONTRAK
+- Spec: docs/03-specs/01-app-shell.md (FR-SHELL-007 untuk empty state; FR-SHELL-004 untuk grid).
+- Layar: docs/02-design/screen-specs.md SCR-02 Home/Library.
+- Komponen core: EmptyState (FBK), Card (LAY), Button (INP).
+- Flow: docs/04-flows/01-first-run.md.
 
-Kontrak: spec <path> bagian <nomor> (requirement <ID>), flow <path>,
-ADR <nomor bila ada>. Acceptance: <daftar acceptance>.
+ACCEPTANCE
+- Empty state menampilkan tiga jalur: Template, Magic Create, Mulai kosong.
+- Setiap jalur dapat dicapai dengan Tab dan Enter; tidak ada modal nama project.
+- State loading, error, dan offline tampil sesuai screen spec.
+- Tidak ada warna, bayangan, atau radius hardcoded di luar token --mads-*.
+- Layout tidak pecah pada 360 px, 768 px, dan 1440 px.
 
-Larangan: jangan menebak perilaku di luar spec; jangan mengubah kontrak;
-jangan memakai new Function/eval; jangan menambah dependency; jangan menulis
-secret; jangan mengubah berkas di luar path yang diberikan.
+VERIFIKASI
+- npm test
+- npm run typecheck
+- npm run lint
+- npm run docs:check
 
-Langkah: 1) pastikan spec dan acceptance ada; 2) tulis atau perbarui test yang
-gagal; 3) implementasikan perubahan minimal; 4) jalankan verifikasi; 5) laporkan
-perubahan, hasil perintah, dan pertanyaan terbuka.
+BATASAN
+- Tanpa akun, cloud sync, telemetri, atau panggilan jaringan baru.
+- Tanpa eval, new Function, innerHTML, atau CSS mentah.
+- Jangan mengubah package.json atau skrip build.
 
-Verifikasi: npm run lint, npm test, npm run build, node scripts/check-docs.mjs --strict
-(bila docs berubah). Kembalikan exit code dan ringkasan tiap perintah.
+TERBUKA
+<kosongkan atau tulis pertanyaan yang belum terjawab.>
 ```
 
-### 5.2 Review Kode
+## 4. Template Runtime
 
 ```text
-Kamu adalah reviewer untuk repo microapp-studio. Nilai PR <nomor> pada branch
-<nama> terhadap spec <path> (requirement <ID>).
+KONTEKS
+Repo: microapp-studio. Micro-app berjalan di iframe sandbox="allow-scripts" dengan renderer MUIP dan bridge broker.
+Baca dulu: docs/01-architecture/sandbox-runtime.md → docs/03-specs/03-sandbox-runtime.md → docs/03-specs/host-bridge.md.
 
-Baca: spec bagian 3, 7, 8; flow terkait; rules <bahasa>; diff PR.
+TUJUAN
+<isi, mis. "Tambahkan watchdog yang menghentikan iframe setelah 5 detik tanpa heartbeat".>
 
-Periksa: kepatuhan requirement dan acceptance; perubahan perilaku tanpa spec;
-secret atau kredensial di diff; new Function/eval/innerHTML tanpa sanitasi;
-penanganan error dan kode error yang terdaftar; migrasi data dan rollback;
-test yang deterministik dan tidak skip; aksesibilitas dan key i18n; dampak
-performa; klaim status yang belum diverifikasi; tautan dan ID dokumen.
+PATH
+Boleh diubah:
+- packages/runtime-web/src/sandbox/**
+- packages/runtime-web/src/bridge/**
+- packages/runtime-web/src/muip/**
+Hanya dibaca:
+- docs/03-specs/03-sandbox-runtime.md
+- docs/03-specs/permissions.md
+- docs/03-specs/error-codes.md
+- docs/01-architecture/host-bridge-intents.md
+- docs/07-rules/security.md
 
-Keluaran: daftar temuan dengan tingkat blocking atau non-blocking, path dan
-baris, alasan berbasis spec, serta saran perbaikan. Akhiri dengan keputusan
-"approve" atau "request changes" dan alasan satu paragraf.
+KONTRAK
+- Requirement: FR-RUN-008 (watchdog), FR-RUN-009 (error boundary), FR-RUN-010 (restart budget).
+- Bridge: dokumentasi metode, parameter, timeout, dan rate limit di docs/03-specs/host-bridge.md.
+- Kode error yang dipakai harus terdaftar di docs/03-specs/error-codes.md.
+
+ACCEPTANCE
+- Freeze atau loop tak berujung terdeteksi dan iframe dihentikan tanpa memblokir Host.
+- Boundary menawarkan muat ulang, ekspor data, dan kembali ke Home.
+- Maksimal 3 restart per 5 menit; setelah itu tombol muat ulang nonaktif dengan penjelasan.
+- Permission diperiksa pada setiap panggilan bridge; tidak ada jalur bypass.
+- Bila sandbox tidak tersedia, runtime gagal tertutup, bukan menjalankan alternatif.
+
+VERIFIKASI
+- npm test
+- npm run typecheck
+- npm run lint
+- npm run build
+
+BATASAN
+- Tidak ada eksekusi di DOM Host dan tidak ada HTML/CSS/JS arbitrer.
+- Tidak menambah permission baru tanpa spec dan RFC.
+- Log tidak memuat data pengguna atau secret.
+
+TERBUKA
+<...>
 ```
 
-### 5.3 Test dan Verifikasi
+## 5. Template Data
 
 ```text
-Kamu adalah agen QA untuk repo microapp-studio. Tugas: membuktikan acceptance
-pada spec <path> bagian 7 untuk perubahan <deskripsi> pada branch <nama>.
+KONTEKS
+Repo: microapp-studio. Data lokal memakai SQLite WASM di OPFS melalui worker; IndexedDB hanya untuk CryptoKey dan metadata.
+Baca dulu: docs/01-architecture/data-model.md → docs/03-specs/04-data.md → docs/07-rules/data-migrations.md.
 
-Baca: spec bagian 7 dan 8; flow <path>; docs/07-rules/testing.md;
-docs/00-foundation/implementation-status.md untuk mengetahui apa yang belum ada.
+TUJUAN
+<isi, mis. "Tambahkan DB terisolasi per app untuk runner".>
 
-Tulis test pada <path test>. Cakup: happy path; cabang gagal yang disebut flow;
-perilaku offline; isolasi permission; determinisme (tanpa jaringan, tanpa waktu
-nyata, tanpa urutan acak yang tidak di-seed).
+PATH
+Boleh diubah:
+- apps/studio-web/src/db/**
+- apps/studio-web/src/workers/**
+- packages/core-rust/src/storage/** (bila parser atau format ikut berubah)
+Hanya dibaca:
+- docs/03-specs/04-data.md
+- docs/03-specs/06-backup.md
+- docs/01-architecture/data-model.md
+- docs/07-rules/data-migrations.md
 
-Larangan: jangan mengubah kode produksi untuk membuat test lulus; jangan
-menandai skip; jangan mengunci perilaku yang bertentangan dengan spec.
+KONTRAK
+- Requirement: FR-DATA-001, FR-DATA-002, FR-DATA-004, FR-DATA-005.
+- Nama DB deterministik dari app_id dan workspace_id.
+- Migrasi bernomor dengan snapshot sebelum apply dan rollback yang diuji.
 
-Jalankan: npm test dan perintah verifikasi lain pada spec bagian 8.
-Kembalikan: daftar acceptance beserta test yang membuktikannya, hasil perintah,
-dan acceptance yang belum dapat dibuktikan beserta alasannya.
+ACCEPTANCE
+- DB per app dibuat dan dibuka hanya untuk app pemiliknya.
+- Migrasi forward dan rollback lulus pada fixture.
+- Query lintas workspace ditolak.
+- Ekspor JSON/CSV tetap dapat dibaca setelah migrasi.
+- Tidak ada penggunaan Dexie untuk data baru.
+
+VERIFIKASI
+- npm test
+- npm run typecheck
+- npm run lint
+- npm run e2e (bila alur runner tersentuh)
+
+BATASAN
+- Tidak ada sinkronisasi cloud atau antar-perangkat.
+- Tidak ada penghapusan data tanpa konfirmasi eksplisit.
+- Tidak mengubah format .mapp-backup tanpa versi baru.
 ```
 
-### 5.4 Security Review
+## 6. Template Design
 
 ```text
-Kamu adalah security reviewer untuk repo microapp-studio. Lingkup: <modul,
-mis. sandbox, crypto, registry, server>.
+KONTEKS
+Repo: microapp-studio. Bahasa visual adalah claymorphism MADS v3; token CSS berprefix --mads-.
+Baca dulu: DESIGN.md → docs/02-design/design-system.md → docs/02-design/component-catalog.md.
 
-Baca: docs/01-architecture/threat-model.md, docs/01-architecture/identity-crypto.md,
-docs/01-architecture/sandbox-capabilities.md, docs/03-specs/permissions.md,
-docs/07-rules/security.md, diff PR.
+TUJUAN
+<isi, mis. "Spesifikasikan komponen core ConfirmDialog".>
 
-Periksa: sandbox escape dan bypass capability; validasi input bridge; path
-traversal dan zip bomb pada paket; replay dan nonce; penanganan kunci dan
-zeroize; SSRF pada workflow dan connector; otorisasi dan RBAC pada server;
-kebocoran secret pada log, test, dan bundle; signature dan TOFU registry;
-dependency baru dan asal-usulnya; redaksi log.
+PATH
+Boleh diubah:
+- DESIGN.md
+- docs/02-design/design-system.md
+- docs/02-design/component-catalog.md
+- docs/02-design/interaction-patterns.md
+Hanya dibaca:
+- docs/02-design/accessibility.md
+- docs/02-design/screen-specs.md
+- docs/03-specs/01-app-shell.md
 
-Keluaran: temuan dengan severity (critical/high/medium/low), bukti path dan
-baris, dampak, mitigasi yang disarankan, dan test keamanan yang harus
-ditambahkan ke docs/08-quality/security-test-plan.md. Jangan membuka issue publik;
-laporkan lewat SECURITY.md untuk kerentanan nyata.
+KONTRAK
+- Token kanonik: bg, surface, surface-raised, fg, muted, border, border-strong, primary, on-primary, accent, success, warning, error, info, focus.
+- Radius clay-sm 14px, md 20px, lg 28px, xl 36px, full 9999px.
+- Motion 120/180/240/320 ms dengan easing cubic-bezier(.34,1.56,.64,1).
+- Katalog harus tetap 120 komponen; 48 core dispesifikasikan penuh.
+
+ACCEPTANCE
+- Anatomi, props, dan state lengkap: default, hover, focus-visible, pressed, disabled, loading, error.
+- Setiap nilai visual menunjuk token, bukan hex atau nilai bebas.
+- Kontras teks >= 4.5:1, focus ring 3 px, target sentuh >= 44 px.
+- Contoh copy Bahasa Indonesia dan Inggris konsisten dengan docs/02-design/content-i18n.md.
+- Tidak ada perubahan jumlah atau ID komponen.
+
+VERIFIKASI
+- npm run docs:check
+- node scripts/generate-catalog.mjs --check
 ```
 
-### 5.5 Design Review
+## 7. Template Security
 
 ```text
-Kamu adalah design reviewer untuk repo microapp-studio. Lingkup: <layar atau
-komponen MADS>.
+KONTEKS
+Repo: microapp-studio. Model ancaman web: XSS/CSP, sandbox escape, paket jahat, eksfiltrasi storage, supply chain, kebocoran BYOK.
+Baca dulu: docs/01-architecture/threat-model.md → docs/03-specs/permissions.md → docs/07-rules/security.md.
 
-Baca: docs/02-design/design-system.md, docs/02-design/component-catalog.md,
-docs/02-design/screen-specs.md, docs/02-design/interaction-patterns.md,
-docs/02-design/accessibility.md, docs/02-design/content-i18n.md, dan perubahan UI
-pada branch <nama>.
+TUJUAN
+<isi, mis. "Tinjau jalur konsen permission untuk bridge intent".>
 
-Periksa: hanya token MADS yang dipakai; state wajib (loading, empty, error,
-offline, permission) tersedia; jalur keyboard dan urutan fokus; label dan role
-screen reader; kontras dan ukuran target; reduced motion; RTL; key i18n tanpa
-string hardcoded; pola destruktif memakai konfirmasi dan undo; tidak ada dark
-pattern.
+PATH
+Boleh diubah:
+- docs/01-architecture/threat-model.md
+- docs/03-specs/permissions.md
+- docs/08-quality/security-test-plan.md
+- packages/runtime-web/src/bridge/** (hanya bila mitigasi memerlukan perubahan kode)
+Hanya dibaca:
+- docs/03-specs/host-bridge.md
+- docs/01-architecture/package-distribution.md
+- SECURITY.md
 
-Keluaran: temuan dengan tingkat blocking atau non-blocking, referensi token dan
-kriteria a11y yang dilanggar, serta daftar perbaikan yang dapat langsung
-dikerjakan.
+KONTRAK
+- Zero privilege default; permission dideklarasikan di manifest dan diminta just-in-time.
+- Consent menyediakan izinkan sekali, selalu izinkan, dan tolak; fokus awal pada tolak.
+- CSP ketat + COOP/COEP; iframe memakai opaque origin.
+- Package wajib signature valid; public key mismatch memicu peringatan keras.
+
+ACCEPTANCE
+- Setiap jalur baru memiliki mitigasi tertulis dan kode error yang sesuai.
+- Tidak ada secret di source, log, fixture, atau dokumen.
+- Audit lokal mencatat grant, revoke, dan penolakan.
+- Tidak ada telemetri atau beacon jaringan default.
+
+VERIFIKASI
+- npm test
+- npm run typecheck
+- npm run build
+- npm run docs:check
 ```
 
-### 5.6 Docs Update
+## 8. Template QA
 
 ```text
-Kamu adalah agen dokumentasi untuk repo microapp-studio. Tugas: menyelaraskan
-dokumen dengan perubahan <deskripsi> yang sudah diverifikasi pada PR <nomor>.
+KONTEKS
+Repo: microapp-studio. Test stack: Vitest untuk unit/component, Playwright untuk E2E, axe untuk aksesibilitas.
+Baca dulu: docs/08-quality/test-strategy.md → docs/08-quality/definition-of-done.md → docs/08-quality/release-gates.md.
 
-Baca: docs/README.md, docs/00-foundation/sdd-workflow.md, dokumen yang akan diubah,
-dan diff PR.
+TUJUAN
+<isi, mis. "Buktikan empty state Home memenuhi acceptance dan catat evidence".>
 
-Ubah hanya: <path>. Pastikan frontmatter valid, H1 sama dengan title, ID yang
-dirujuk sudah terdefinisi, tautan relatif menuju berkas yang ada, tidak ada
-placeholder, dan tidak ada klaim fitur yang belum terverifikasi.
+PATH
+Boleh diubah:
+- apps/studio-web/**/*.test.ts(x)
+- apps/studio-web/e2e/**
+- docs/08-quality/evidence/baseline.md dan baseline.json
+Hanya dibaca:
+- docs/03-specs/01-app-shell.md
+- docs/04-flows/01-first-run.md
+- docs/02-design/accessibility.md
 
-Perbarui bila perlu: baris pada docs/00-foundation/prd-compliance-matrix.md, status
-pada docs/00-foundation/implementation-status.md, dan bagian verifikasi spec.
+KONTRAK
+- Satu test per acceptance yang dapat diamati; jangan menguji detail implementasi.
+- Test harus deterministik: tanpa jaringan eksternal, waktu tetap, dan data fixture lokal.
+- Status di matriks hanya naik bila test nyata lulus.
 
-Jalankan: node scripts/check-docs.mjs --strict. Kembalikan ringkasan perubahan
-dan exit code checker. Jangan mengubah isi PRD dan jangan menaikkan status tanpa
-bukti verifikasi.
+ACCEPTANCE
+- Acceptance yang diminta tercakup minimal satu test.
+- Alur inti lulus keyboard-only dan lolos axe tanpa pelanggaran serius.
+- Offline setelah satu kunjungan tetap membuka shell dan app terpasang.
+- Evidence mencatat perintah, hasil, dan timestamp.
+
+VERIFIKASI
+- npm test
+- npm run typecheck
+- npm run e2e
+- npm run verify:web
 ```
 
-## 6. Contoh Terisi
-
-Context package untuk pekerjaan auto-lock Vault, diserahkan ke peran host-runtime.
+## 9. Template Docs
 
 ```text
-# Context Package
+KONTEKS
+Repo: microapp-studio. Dokumentasi adalah kontrak; checker memvalidasi frontmatter, H1, tautan, ID, matriks, dan reachability.
+Baca dulu: docs/README.md → docs/00-foundation/sdd-workflow.md → docs/07-rules/documentation.md.
 
-## Tujuan
-Menerapkan auto-lock Vault setelah 5 menit tanpa interaksi dan mewajibkan
-unlock sebelum item dapat dibaca.
+TUJUAN
+<isi, mis. "Selaraskan indeks dan matriks setelah perubahan flow create".>
 
-## Path
-Boleh diubah: apps/studio-web/src/app/vault/** (path target; struktur final ditetapkan pada PR scaffold), docs/03-specs/01-host-shell.md
-Hanya dibaca: packages/core-rust/crypto/**, docs/03-specs/permissions.md
+PATH
+Boleh diubah:
+- docs/**
+- docs/templates/**
+Hanya dibaca:
+- docs/00-foundation/PRD-v3.0.md
+- docs/00-foundation/prd-compliance-matrix.md
+- docs/08-quality/evidence/baseline.md
 
-## Kontrak
-Spec: docs/03-specs/01-host-shell.md — FR-HOST-016
-Flow: docs/04-flows/01-first-run.md
-ADR terkait: docs/01-architecture/adr/0008-identity-auth.md
-Aturan kode: docs/07-rules/typescript.md
-Skill: docs/06-skills/add-host-feature/SKILL.md
+KONTRAK
+- Setiap dokumen memiliki frontmatter id, title, status, owner, prd_refs; status accepted.
+- H1 sama dengan title; tanpa nomor.
+- Hanya ID requirement dan error code yang terdaftar yang boleh dirujuk.
+- Setiap dokumen harus terjangkau dari docs/README.md.
+- Istilah platform yang tidak ada hanya boleh muncul dalam pernyataan di luar cakupan.
 
-## Acceptance
-- Setelah 5 menit tanpa interaksi, item Vault tidak dapat dibaca tanpa unlock.
-- Ciphertext di penyimpanan tidak memuat plaintext.
-- Unlock gagal tidak membocorkan item dan tercatat di audit lokal.
+ACCEPTANCE
+- node scripts/check-docs.mjs --strict melaporkan 0 error dan 0 warning.
+- Tidak ada tautan mati, anchor rusak, atau dokumen yatim.
+- Matriks memuat satu baris per requirement dengan status sesuai evidence.
+- Tidak ada placeholder terlarang di luar code fence.
 
-## Larangan
-- Jangan menyimpan kunci atau plaintext di localStorage/IndexedDB.
-- Jangan menambah dependency timer.
-- Jangan mengubah spec selain mencatat status verifikasi.
-
-## Status
-Sudah ada: Vault belum diimplementasikan; antarmuka Settings belum memuat Vault.
-Belum ada: penyimpanan terenkripsi, timer auto-lock, audit event.
-
-## Artefak
-- Branch: feat/host-vault-autolock
-- PR: belum ada
-- Berkas terkait: apps/studio-web/src/app/vault/
-
-## Pertanyaan terbuka
-- Apakah PIN dan biometrik wajib keduanya atau salah satu?
-  Pemilik keputusan: security.
-
-## Verifikasi
-Jalankan: npm run lint, npm test, npm run build.
-Kembalikan: exit code dan ringkasan; hasil test auto-lock setelah 5 menit idle.
+VERIFIKASI
+- npm run docs:check
+- node scripts/generate-catalog.mjs --check
 ```
 
-## 7. Format Hasil Handoff
+## 10. Penutup
 
-Penerima MUST mengembalikan ringkasan dengan field berikut.
-
-| Field | Isi |
-|---|---|
-| Status | `selesai`, `sebagian`, atau `blocked` |
-| Perubahan | Perilaku yang berubah, bukan daftar berkas |
-| Verifikasi | Perintah yang dijalankan dan hasil |
-| Acceptance | Setiap acceptance dengan status lulus atau belum |
-| Temuan | Masalah baru, utang, atau risiko residual |
-| Pertanyaan terbuka | Yang masih butuh keputusan dan pemiliknya |
-| Artefak | Branch, PR, atau berkas yang dihasilkan |
-
-Hasil `blocked` MUST menyebut apa yang sudah dicoba, hasilnya, dan prasyarat yang tidak tersedia. Hasil `selesai` MUST NOT memuat acceptance yang belum dijalankan.
-
-## 8. Verifikasi
-
-| Bukti | Prosedur |
-|---|---|
-| Context package lengkap | Periksa kesembilan field pada §2 terisi |
-| Prompt dapat dijalankan mandiri | Berikan prompt ke penerima tanpa konteks lain; ia harus dapat menemukan spec dan perintah |
-| Tidak ada rujukan percakapan | Pencarian frasa yang merujuk sesi, pembicaraan lisan, atau keputusan yang tidak tertulis pada prompt |
-| Path valid | Setiap path pada handoff menunjuk berkas yang ada, atau ditandai "belum ada" |
-| Acceptance terukur | Setiap acceptance dapat dipetakan ke test atau perintah |
+Penerima handoff MUST membalas dengan: pemahaman satu paragraf, daftar path yang akan diubah, dan pertanyaan terbuka bila ada. Bila prompt tidak cukup untuk mulai, penerima mengembalikan pertanyaan spesifik ke pengirim; tidak menebak requirement baru.

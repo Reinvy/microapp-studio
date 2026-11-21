@@ -1,88 +1,114 @@
 ---
 id: RULE-UI
-title: Aturan UI dan UX
+title: Rules UI/UX Clay
 status: accepted
-owner: dx
-prd_refs: ["§2.1", "§6"]
+owner: design
+prd_refs: ["§6"]
 ---
 
-# Aturan UI dan UX
+# Rules UI/UX Clay
 
-Aturan ini berlaku untuk seluruh permukaan Host, Studio, komponen `@microapp/ui-kit`, renderer MUIP web, dan widget Flutter. Sumber visual kanonik adalah MADS di [design-system.md](../02-design/design-system.md); katalog komponen dan ID `MADS-<CAT>-<NN>` ada di [component-catalog.md](../02-design/component-catalog.md).
+Aturan ini mengikat seluruh permukaan visual di `apps/studio-web` dan `packages/ui-kit` pada design system claymorphism MADS v3. Sumber visual kanonik ada di [DESIGN.md](../../DESIGN.md); kontrak token dan implementasi ada di [design-system.md](../02-design/design-system.md). Bila nilai visual berbeda, `DESIGN.md` menang.
 
-## 1. Cakupan
+## 1. Tujuan dan Ruang Lingkup
 
-| Area | Kewajiban utama |
+| Aspek | Kontrak |
 |---|---|
-| Token | Tanpa nilai visual hardcoded |
-| Komponen | Katalog 120 komponen, state lengkap |
-| Responsif | Breakpoint dan window mode |
-| Motion | Durasi/easing token, reduced motion |
-| Consent | Default deny, tanpa pre-check |
-| Destruktif | Konfirmasi dan undo |
-| Offline | Status offline sebagai state normal |
-| Aksesibilitas | WCAG 2.2 AA, keyboard, screen reader |
-| Internasionalisasi | ARB/JSON, RTL, pseudo-locale |
+| Bahasa visual | Claymorphism: radius besar, highlight dalam, bayangan hangat, tint pastel. |
+| Token | Hanya variabel `--mads-*`; tidak ada nilai visual mentah di komponen. |
+| Tema | Light, dark, dan high-contrast dengan struktur token yang sama. |
+| Platform | Satu layout responsif untuk desktop, tablet, dan mobile browser. |
 
-## 2. Aturan
+Di luar cakupan: katalog anatomi komponen (lihat [component-catalog.md](../02-design/component-catalog.md)), pola interaksi rinci (lihat [interaction-patterns.md](../02-design/interaction-patterns.md)), dan kriteria WCAG per layar (lihat [accessibility.md](../02-design/accessibility.md)).
 
-### 2.1 Token dan Komponen
+## 2. Prinsip
 
-| ID | Level | Aturan | Konsekuensi |
+1. **Clay, bukan kaca.** Permukaan terasa seperti tanah liat: radius besar, tepi terang di atas, bayangan dalam di bawah. Tidak ada glassmorphism sebagai bahasa utama.
+2. **Tenang.** Satu aksi utama per layar; warna pekat hanya untuk aksi, pastel untuk area.
+3. **Taktil.** Hover mengangkat, tekan menurunkan, lepas memantul kembali. Gerakan tidak pernah memblokir input.
+4. **Jujur.** Tidak ada pola gelap, urgensi palsu, atau consent yang sudah tercentang.
+
+## 3. Aturan
+
+| ID | Level | Aturan | Verifikasi |
 |---|---|---|---|
-| RULE-UI-001 | MUST | Warna, tipografi, spacing, radius, shadow, durasi, dan z-index MUST memakai token MADS; nilai hardcoded pada komponen, layar, atau micro-app dilarang. | Tema dan high-contrast rusak; review UI menolak. |
-| RULE-UI-002 | MUST | Komponen baru MUST ditambahkan ke katalog 120 terlebih dahulu (ID, anatomi, varian, state, token, a11y), lalu diimplementasikan di web dan Flutter dengan perilaku setara. | Komponen liar tidak dapat diuji dan tidak konsisten; PR ditolak. |
-| RULE-UI-003 | MUST | Setiap komponen interaktif MUST mendefinisikan state default, hover, focus, active, disabled, loading, error, dan empty bila relevan; state yang hilang dianggap bug. | Pengguna tidak mendapat umpan balik; test state gagal. |
-| RULE-UI-004 | MUST | Setiap layar MUST menangani loading, empty, error, offline, dan permission-denied; state kosong MUST menawarkan aksi berikutnya, bukan hanya teks kosong. | Layar buntu saat offline atau error; acceptance tidak terpenuhi. |
-| RULE-UI-005 | MUST | Ikon status MUST disertai label atau teks; warna MUST NOT menjadi satu-satunya pembeda status. | Buta warna dan high-contrast gagal; NFR-A11Y-004 dilanggar. |
+| RULE-UI-001 | MUST | Semua warna, radius, bayangan, spasi, dan tipografi memakai token `--mads-*`. Hex, `box-shadow`, `border-radius`, dan `font-size` mentah dilarang di komponen. | Lint token, review |
+| RULE-UI-002 | MUST | Bayangan memakai `--mads-clay-shadow-1` sampai `--mads-clay-shadow-3`; state tekan memakai `--mads-clay-shadow-pressed`. Bayangan ganda buatan sendiri dilarang. | Screenshot review |
+| RULE-UI-003 | MUST | Radius hanya dari `--mads-radius-clay-sm` (14 px), `md` (20 px), `lg` (28 px), `xl` (36 px), atau `full`. | Review |
+| RULE-UI-004 | MUST | Tipografi memakai skala 12/14/16/18/22/28/36/48 px dengan line-height token; font dibundel lokal sebagai WOFF2, tanpa CDN. | Review, audit jaringan |
+| RULE-UI-005 | MUST | Durasi gerak hanya 120, 180, 240, atau 320 ms; easing memakai `--mads-ease-clay` atau `--mads-ease-standard`. Nilai easing baru dilarang. | Review |
+| RULE-UI-006 | MUST | Setiap komponen mendefinisikan state `default`, `hover`, `focus-visible`, `pressed`, `disabled`, `loading`, `error`, dan `empty` bila relevan. State yang tidak relevan didokumentasikan alasannya di katalog. | Katalog, visual test |
+| RULE-UI-007 | MUST | Efek hover hanya aktif pada `@media (pointer: fine)`; perangkat sentuh tidak memakai state hover. | Test device emulation |
+| RULE-UI-008 | MUST | Umpan balik tekan: 90 ms, `scale(.97)`, `translateY(1px)`, bayangan pressed. Lepas kembali dengan spring `--mads-ease-clay` ≤ 180 ms dan overshoot ≤ 2%. | Visual test |
+| RULE-UI-009 | MUST | Fokus keyboard memakai ring 3 px `--mads-color-focus`, offset 2 px, dan halo putih 2 px pada tema gelap. `outline: none` tanpa pengganti dilarang. | axe, review |
+| RULE-UI-010 | MUST | Kontras teks normal ≥ 4.5:1, teks besar ≥ 3:1, batas kontrol dan focus ring ≥ 3:1. `--mads-color-muted` hanya untuk teks besar di atas `bg`. | Kontras checker, NFR-A11Y-001 |
+| RULE-UI-011 | MUST | Target sentuh minimal 44×44 px; kontrol sekunder minimal 24×24 px dengan padding yang memperluas area tekan. | axe, review |
+| RULE-UI-012 | MUST | Pada `prefers-reduced-motion: reduce`, semua durasi menjadi 0 ms, transform dihapus, blob dan confetti berhenti. | Emulasi media, NFR-A11Y-003 |
+| RULE-UI-013 | MUST | Satu aksi utama per layar, ditandai tombol filled `--mads-color-primary`. Aksi sekunder memakai outline atau teks. | Screen spec review |
+| RULE-UI-014 | MUST | Consent permission default `Deny`, fokus awal pada **Tolak**, dan `Esc` sama dengan menolak. Tidak ada consent yang sudah tercentang. | E2E consent, review |
+| RULE-UI-015 | MUST | Pola gelap dilarang: hitung mundur palsu, biaya tersembunyi, confirm-shaming, tombol tutup yang menipu, dan langganan paksa. | Review |
+| RULE-UI-016 | MUST | Empty state menjelaskan kondisi, menampilkan satu aksi utama, dan tidak memakai ilustrasi yang menutupi konten. | Screen spec review |
+| RULE-UI-017 | MUST | Pesan error memakai bahasa biasa, menyebut tindakan pemulihan, dan tidak menyalahkan pengguna; kode error ditampilkan kecil dan dapat disalin. | Review, test error surface |
+| RULE-UI-018 | MUST | Loading di atas 400 ms memakai skeleton berukuran sama dengan konten akhir; spinner tunggal tanpa placeholder dilarang karena memicu layout shift. | Visual test, CLS |
+| RULE-UI-019 | MUST | Setiap interaksi drag/drop memiliki jalur keyboard setara (pindah atas/bawah, masukkan, hapus) dan drop indicator 2 px primary. | E2E keyboard |
+| RULE-UI-020 | MUST | Layout memakai `CSS Grid`/`Flex` responsif dan properti logis (`margin-inline`, `padding-block`) agar RTL aman; navigasi mengikuti breakpoint 640/1024/1440 px tanpa scroll horizontal. | Screenshot matrix, NFR-I18N-002 |
 
-### 2.2 Layout dan Motion
+## 4. Pemetaan Token Wajib
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-UI-006 | MUST | Layout MUST mengikuti breakpoint compact <600, medium 600–1023, expanded 1024–1439, dan large ≥1440 px, serta MUST NOT menghasilkan horizontal scroll pada lebar 320 px. | Layout rusak di perangkat kecil; uji responsif gagal. |
-| RULE-UI-007 | MUST | Desktop MUST mendukung sidebar 280 px dan rail 72 px; mobile MUST memakai tab bar; peralihan window mode (split, tab, PiP) MUST mempertahankan state. | Navigasi tidak konsisten; flow multitasking gagal. |
-| RULE-UI-008 | MUST | Motion MUST memakai durasi 120/180/240/320 ms dan easing `cubic-bezier(0.2,0,0,1)`; dengan `prefers-reduced-motion` atau `disableAnimations`, durasi MUST menjadi 0 tanpa kehilangan informasi. | NFR-A11Y-005 dilanggar; audit motion gagal. |
-| RULE-UI-009 | MUST | Animasi dekoratif berulang, parallax, autoplay, dan getaran tanpa aksi pengguna dilarang. | Distraksi dan konsumsi baterai; review design menolak. |
+| Kebutuhan | Token |
+|---|---|
+| Latar halaman | `--mads-color-bg` |
+| Permukaan clay | `--mads-color-surface`, `--mads-color-surface-raised` |
+| Teks | `--mads-color-fg`, `--mads-color-muted` |
+| Aksi | `--mads-color-primary`, `--mads-color-on-primary` |
+| Status | `--mads-color-success`, `--mads-color-warning`, `--mads-color-error`, `--mads-color-info` |
+| Tint clay | `--mads-clay-mint`, `lilac`, `peach`, `butter`, `sky` |
+| Elevasi | `--mads-clay-shadow-1`, `2`, `3`, `pressed` |
+| Radius | `--mads-radius-clay-sm`, `md`, `lg`, `xl`, `full` |
+| Gerak | `--mads-ease-clay`, `--mads-ease-standard` |
 
-### 2.3 Consent, Destruktif, dan Dark Pattern
+Status surface dihitung dengan `color-mix(in srgb, var(--mads-color-<status>) 12%, var(--mads-color-surface))`, bukan warna hardcoded. Pada high-contrast, status surface memakai `#E0E0E0` dengan teks `#000000`.
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-UI-010 | MUST | Dialog permission MUST dirender Host, menampilkan nama app, permission ID, risk tier, alasan, dan opsi `Allow once`/`Allow`/`Deny`; default MUST `Deny` dan tanpa pre-check. | Consent tidak sah; SEC-015 dilanggar dan PR keamanan ditolak. |
-| RULE-UI-011 | MUST | Aksi destruktif MUST meminta konfirmasi eksplisit dengan label aksi, menampilkan toast undo 10 detik, dan setelah itu aksi bersifat final serta tercatat di audit. | Kehilangan data tanpa pemulihan; flow destruktif gagal. |
-| RULE-UI-012 | MUST | Dark pattern MUST NOT dipakai: tanpa countdown palsu, tombol menipu, pre-checked consent, unsubscribe tersembunyi, atau konfirmasi ganda yang mengarahkan. | Pelanggaran etika produk; PR ditolak. |
-| RULE-UI-013 | MUST | Status offline MUST ditampilkan sebagai state normal yang tenang, bukan error, dan MUST menjelaskan fitur yang tetap berjalan serta yang tertunda. | Pengguna mengira aplikasi rusak; flow offline gagal. |
+## 5. Contoh Implementasi
 
-### 2.4 Aksesibilitas dan Keyboard
+```css
+.clay-button {
+  border-radius: var(--mads-radius-clay-md);
+  background: var(--mads-color-primary);
+  color: var(--mads-color-on-primary);
+  box-shadow: var(--mads-clay-shadow-1);
+  transition:
+    transform 180ms var(--mads-ease-clay),
+    box-shadow 180ms var(--mads-ease-clay);
+}
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-UI-014 | MUST | Seluruh alur inti MUST dapat diselesaikan hanya dengan keyboard; focus MUST terlihat, urutan focus logis, dan focus MUST kembali ke pemicu setelah dialog ditutup. | NFR-A11Y-002 dilanggar; audit keyboard gagal. |
-| RULE-UI-015 | MUST | Setiap kontrol MUST memiliki nama, role, dan state yang terbaca screen reader; perubahan status MUST diumumkan via live region; heading MUST hierarkis. | NFR-A11Y-003 dilanggar; uji NVDA/VoiceOver gagal. |
-| RULE-UI-016 | MUST | Rasio kontras MUST ≥ 4,5:1 untuk teks dan ≥ 3:1 untuk komponen non-teks pada seluruh tema, termasuk dark, AMOLED, dan high-contrast. | NFR-A11Y-004 dilanggar; alat kontras gagal. |
-| RULE-UI-017 | MUST | Target sentuh MUST minimal 24×24 px dan SHOULD 44×44 px pada aksi utama; zoom 200% MUST tidak memotong konten atau kontrol. | Pengguna motorik terhambat; audit a11y gagal. |
+.clay-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--mads-clay-shadow-2);
+}
 
-### 2.5 Internasionalisasi dan Konten
+.clay-button:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: var(--mads-clay-shadow-pressed);
+}
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-UI-018 | MUST | String UI MUST berasal dari locale resource (`locales/<locale>/<namespace>.json` atau ARB), tanpa konkatenasi kalimat; `id-ID` dan `en-US` MUST lengkap dan RTL MUST tercermin benar. | NFR-I18N-001/002 dilanggar; pseudo-locale test gagal. |
-| RULE-UI-019 | MUST | Pesan error MUST mengikuti formula "apa yang terjadi + mengapa + langkah berikut", memakai kode `E-*`, tanpa jargon internal dan tanpa menyalahkan pengguna. | Pengguna tidak dapat memulihkan diri; content review menolak. |
-| RULE-UI-020 | SHOULD | Data padat MUST memakai tabel, filter, dan saved view; empty state MUST menawarkan pembuatan data atau impor; angka dan tanggal MUST diformat sesuai locale. | Alur kerja lambat dan tidak konsisten antar-locale. |
+@media (prefers-reduced-motion: reduce) {
+  .clay-button {
+    transition: none;
+    transform: none;
+  }
+}
+```
 
-## 3. Pengecualian dan Penegakan
+## 6. Verifikasi
 
-1. Setiap layar baru MUST melewati review design dan a11y sebelum merge; screenshot atau rekaman wajib dilampirkan pada PR.
-2. Perubahan token MUST mengubah [design-system.md](../02-design/design-system.md) lebih dulu; token baru tanpa dokumentasi ditolak.
-3. Micro-app MUST NOT mengganti chrome, dialog consent, atau indikator keamanan Host; tema micro-app hanya berlaku di dalam renderer-nya.
-4. Audit axe dan keyboard-only dijalankan pada setiap PR UI; temuan serius/kritis adalah blocker.
+| Langkah | Perintah | Lulus bila |
+|---|---|---|
+| Audit token | Review diff `ui-kit` | Tidak ada nilai visual mentah. |
+| Aksesibilitas | axe pada layar berubah + keyboard manual | Tanpa pelanggaran serius; fokus terlihat. |
+| Visual | Snapshot light/dark/high-contrast | Tidak ada regresi tanpa persetujuan desain. |
+| Reduced motion | Emulasi `prefers-reduced-motion` | Tidak ada transform atau animasi tersisa. |
 
-## 4. Referensi
+## 7. Pengecualian
 
-- [design-system.md](../02-design/design-system.md) — token, tema, breakpoint.
-- [component-catalog.md](../02-design/component-catalog.md) — 120 komponen dan anatomi.
-- [screen-specs.md](../02-design/screen-specs.md) — 22 layar dan state.
-- [interaction-patterns.md](../02-design/interaction-patterns.md) — DnD, palette, gesture, toast.
-- [accessibility.md](../02-design/accessibility.md) — checklist WCAG 2.2 AA.
-- [content-i18n.md](../02-design/content-i18n.md) — voice, tone, dan struktur locale.
+Pengecualian MUST mengikuti [README.md](README.md). Perubahan kontras, ukuran target sentuh, atau state consent memerlukan persetujuan reviewer `design` dan `security`, serta tidak boleh menurunkan NFR-A11Y.

@@ -1,87 +1,80 @@
 ---
 id: RULE-DATA
-title: Aturan Data dan Migrasi
+title: Rules Data dan Migrasi
 status: accepted
 owner: data
-prd_refs: ["§4.4", "§3 Modul 4"]
+prd_refs: ["§8"]
 ---
 
-# Aturan Data dan Migrasi
+# Rules Data dan Migrasi
 
-Aturan ini berlaku untuk database host, database per micro-app, ledger migrasi, CRDT, backup, dan pemetaan ke PostgreSQL. Model dan katalog tabel ada di [data-model.md](../01-architecture/data-model.md); requirement perilaku ada di [04-data-automation.md](../03-specs/04-data-automation.md).
+Aturan ini mengikat seluruh penyimpanan lokal: SQLite WASM di OPFS, database per app, FTS5, ekspor/impor, dan migrasi. Kontrak lengkap ada di [04-data.md](../03-specs/04-data.md) dan keputusan arsitektur di [ADR-0018](../01-architecture/adr/0018-browser-local-first-data.md). Tidak ada CRDT, sinkronisasi antar perangkat, atau server data; backup terenkripsi adalah satu-satunya jalur pemindahan data.
 
-## 1. Cakupan
+## 1. Tujuan dan Ruang Lingkup
 
-| Area | Kewajiban utama |
+| Aspek | Kontrak |
 |---|---|
-| Identitas record | UUIDv7, app ID reverse-DNS, Site ID, timestamp UTC |
-| Penyimpanan | Satu sumber SQLite, tanpa Dexie untuk data baru |
-| Migrasi | Forward + rollback, ledger, snapshot, transaksi |
-| CRDT | HLC, LWW per kolom, conflict history, tombstone |
-| Enkripsi | SQLCipher native, field-level AES-GCM di web |
-| Indeks | FTS5 dan sqlite-vec dibangun ulang |
-| Backup | Verifikasi, restore aman, tanpa data loss |
+| Mesin | SQLite WASM yang dijalankan di worker, disimpan di OPFS. |
+| Isolasi | Satu database host dan satu database per app per workspace. |
+| Migrasi | Bernomor, dapat di-rollback, dengan snapshot sebelum eksekusi. |
+| Pencarian | FTS5 untuk teks; tidak ada pemindaian penuh untuk pencarian. |
+| Transfer | Ekspor/impor JSON/CSV dan `.mapp-backup` terenkripsi. |
 
-## 2. Aturan
+Di luar cakupan: format package (lihat [05-packages.md](../03-specs/05-packages.md)) dan backup terenkripsi (lihat [06-backup.md](../03-specs/06-backup.md)).
 
-### 2.1 Identitas dan Nilai
+## 2. Prinsip
 
-| ID | Level | Aturan | Konsekuensi |
+1. **Data pengguna adalah milik pengguna.** Selalu ada jalur ekspor tanpa enkripsi dan tanpa jaringan.
+2. **Satu penulis.** Setiap database hanya ditulis oleh worker pemiliknya; tidak ada akses lintas worker.
+3. **Migrasi tidak boleh kehilangan data.** Snapshot dan transaksi wajib sebelum perubahan skema.
+4. **Deterministik.** ID dan urutan waktu stabil agar test dan ekspor dapat dibandingkan.
+
+## 3. Aturan
+
+| ID | Level | Aturan | Verifikasi |
 |---|---|---|---|
-| RULE-DATA-001 | MUST | Primary key record MUST `TEXT` berisi UUIDv7 lowercase 36 karakter; ID acak non-monotonik dan `AUTOINCREMENT` untuk ID domain dilarang. | Penggabungan lintas perangkat tidak deterministik; test data gagal. |
-| RULE-DATA-002 | MUST | `app_id` MUST reverse-DNS sesuai regex `^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$` dan MUST sama dengan `id` manifest. | Tabrakan antar-registry; instalasi ditolak. |
-| RULE-DATA-003 | MUST | Site ID MUST 16 byte acak kriptografis, disimpan sebagai `BLOB`, dan ditampilkan base32 tanpa padding; Site ID MUST NOT diturunkan dari kunci identitas. | Site ID dapat ditebak atau berubah saat rotasi; pairing gagal. |
-| RULE-DATA-004 | MUST | Timestamp MUST `INTEGER` epoch milidetik UTC; tanggal lokal, string tanggal, dan float waktu dilarang. | Urutan dan sinkronisasi kacau; query lintas zona waktu salah. |
-| RULE-DATA-005 | MUST | Uang dan desimal MUST disimpan sebagai integer unit terkecil atau `TEXT` desimal; `REAL`/floating point untuk nilai finansial dilarang. | Galat pembulatan; data tidak dapat direkonsiliasi. |
-| RULE-DATA-006 | MUST | Boolean MUST `INTEGER` 0/1 dengan `CHECK (kolom IN (0,1))`; JSON MUST `TEXT` kanonik RFC 8785 dengan `CHECK (json_valid(kolom))`. | Data tidak valid masuk dan hash tidak stabil; migrasi gagal. |
+| RULE-DATA-001 | MUST | ID entitas baru memakai UUIDv7 yang dihasilkan helper tunggal; ID berurutan yang dapat ditebak dilarang sebagai kunci publik. | Unit test helper |
+| RULE-DATA-002 | MUST | Waktu disimpan sebagai epoch milidetik UTC. Waktu lokal hanya untuk tampilan; konversi memakai `Intl` dengan zona pengguna. | Review skema |
+| RULE-DATA-003 | MUST | SQLite WASM dan OPFS diakses hanya dari worker melalui RPC bertipe. Main thread dilarang menyentuh handle OPFS atau menjalankan query sinkron. | Review, profil INP |
+| RULE-DATA-004 | MUST | Setiap app mendapat database sendiri per workspace dengan nama deterministik dari `app_id` dan `workspace_id`; app tidak dapat membuka database app lain. | Test isolasi, FR-DATA-002 |
+| RULE-DATA-005 | MUST | Migrasi bernomor berurutan, idempoten, dan memiliki skrip rollback. Migrasi yang sudah pernah dirilis tidak boleh diedit; perbaikan dibuat sebagai migrasi baru. | Test migrasi forward/rollback |
+| RULE-DATA-006 | MUST | Snapshot database dibuat sebelum migrasi dijalankan; bila migrasi gagal, snapshot dipulihkan dan error dilaporkan. | Test kegagalan migrasi |
+| RULE-DATA-007 | MUST | Setiap migrasi berjalan dalam satu transaksi dan selesai tanpa menunggu input pengguna. Transaksi tidak boleh terbuka melintasi interaksi UI. | Review, test |
+| RULE-DATA-008 | MUST | Skema memakai `NOT NULL` untuk kolom wajib, foreign key aktif, dan indeks untuk kolom filter/sort yang dipakai UI. | Review skema, query plan |
+| RULE-DATA-009 | MUST | Pencarian teks memakai tabel FTS5 dengan strategi rebuild yang terdokumentasi; `LIKE '%...%'` untuk pencarian penuh dilarang. | Test pencarian, FR-DATA-006 |
+| RULE-DATA-010 | MUST | Ekspor dan impor data memuat `schemaVersion`, divalidasi sebelum apply, dan menolak versi yang tidak dikenal tanpa mengubah data. | Test impor tidak valid |
+| RULE-DATA-011 | MUST | Dexie/IndexedDB tidak dipakai untuk data baru. Data lama dibaca sekali lewat alur migrasi read-only di [FLOW-08](../04-flows/08-migration.md); penghapusan hanya setelah konfirmasi pengguna. | Test migrasi, FR-DATA-012 |
+| RULE-DATA-012 | MUST | Pemakaian storage diestimasi dan diperingatkan pada 80% kuota; penulisan yang gagal dilaporkan ke pengguna, tidak pernah dibuang diam-diam. | Test kuota, FR-SHELL-012 |
+| RULE-DATA-013 | MUST | Setiap query difilter oleh `workspace_id` pada database host; penulisan lintas workspace dilarang dan dicatat sebagai audit. | Test isolasi |
+| RULE-DATA-014 | MUST | Tidak ada replikasi, CRDT, atau sinkronisasi antar perangkat. Satu perangkat adalah sumber kebenaran; pemindahan data hanya melalui ekspor atau backup terenkripsi. | Review arsitektur |
 
-### 2.2 Sumber Data dan Enkripsi
+## 4. Tata Cara Migrasi
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-DATA-007 | MUST | Data baru MUST disimpan di SQLite WASM + OPFS (web) atau SQLite native; Dexie/IndexedDB hanya boleh dipakai sebagai jembatan impor Phase 0 dan MUST NOT menjadi sumber data kedua. | Dua sumber data menyimpang; PR arsitektur ditolak. |
-| RULE-DATA-008 | MUST | Database micro-app MUST terisolasi per `app_id` dan workspace; `ATTACH`, akses lintas app, dan query lintas database dilarang. | Data app bocor ke app lain; security test gagal. |
-| RULE-DATA-009 | MUST | Native (Android/iOS/desktop) MUST memakai SQLCipher full-file; web MUST memakai AES-256-GCM field-level untuk kolom sensitif dan `vault_items`, dan MUST NOT mengklaim proteksi setara native. | Klaim keamanan palsu atau data sensitif plaintext; audit gagal. |
-| RULE-DATA-010 | MUST | Kolom sensitif MUST ditandai di schema dan dienkripsi sebelum ditulis; envelope MUST memakai subkey yang benar dan AAD yang mengikat tabel, baris, dan versi schema. | Plaintext muncul di file/backup; test enkripsi gagal. |
-| RULE-DATA-011 | MUST | `vault_items` MUST selalu terenkripsi, dan kunci vault MUST dibuka hanya setelah biometrik/PIN dengan auto-lock 5 menit. | Vault dapat dibaca tanpa autentikasi; blocker keamanan. |
-| RULE-DATA-012 | MUST | Rotasi kunci MUST mengenkripsi ulang nilai dalam satu transaksi dan MUST NOT mendekripsi nilai lama setelah rotasi selesai kecuali untuk rollback yang diotorisasi. | Data tidak dapat dipulihkan atau kunci lama tetap berlaku; PR ditolak. |
+1. Tambahkan berkas migrasi baru dengan nomor berikutnya; jangan mengubah berkas lama.
+2. Tulis langkah `up` dan `down`; keduanya diuji pada fixture berisi data representatif.
+3. Ambil snapshot, jalankan migrasi dalam transaksi, lalu perbarui versi skema hanya bila sukses.
+4. Catat migrasi di changelog internal dan matrix bila mengubah requirement.
+5. Sertakan test yang menjalankan seluruh rantai migrasi dari versi kosong dan dari versi sebelumnya.
 
-### 2.3 Migrasi dan Versioning
+## 5. Anti-pola
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-DATA-013 | MUST | Versi schema MUST dilacak dengan `PRAGMA user_version` dan tabel `schema_migrations` yang mencatat `version`, `name`, `checksum`, `applied_at_ms`, dan `rollback_sql`. | Versi tidak dapat diaudit dan migrasi dapat diulang; startup gagal. |
-| RULE-DATA-014 | MUST | Setiap perubahan schema MUST menghasilkan migrasi forward dan rollback bernomor di `db/migrations/`; migrasi satu arah dilarang. | Rollback tidak mungkin; E-DATA-002 tidak dapat dipulihkan. |
-| RULE-DATA-015 | MUST | Migrasi MUST diuji pada fixture database versi lama; forward, rollback, dan data hasil MUST dibandingkan sebelum migrasi dianggap sah. | Migrasi merusak data produksi; PR data ditolak. |
-| RULE-DATA-016 | MUST | Snapshot atomik MUST dibuat sebelum migrasi destruktif (rename/drop/backfill besar) dan hash snapshot MUST dicatat. | Kegagalan migrasi menghapus data permanen; blocker. |
-| RULE-DATA-017 | MUST | Migrasi MUST dijalankan dalam satu transaksi, idempoten setelah crash, dan MUST gagal tertutup tanpa membuat database kosong bila database tidak dapat dibuka. | Database kosong menimpa data; E-DATA-001 dilanggar. |
-| RULE-DATA-018 | MUST | Drop tabel/kolom berisi data pengguna MUST NOT dilakukan tanpa ekspor lebih dulu; penghapusan pengguna MUST memakai soft delete (`deleted_at_ms`) dan konfirmasi kedua. | Kehilangan data permanen; blocker data. |
-| RULE-DATA-019 | MUST | Setelah migrasi yang mengubah kolom terindeks atau setelah restore, FTS5 dan sqlite-vec MUST dibangun ulang dan hasilnya diverifikasi. | Pencarian mengembalikan hasil basi; test pencarian gagal. |
-| RULE-DATA-020 | MUST | Migrasi yang tidak kompatibel dengan peer lama MUST ditempatkan di `crdt_schema_staging` dan MUST NOT diterapkan ke tabel aktif sampai seluruh peer mendukung versi tersebut. | Skema korup saat sync; E-DATA-003 dilanggar. |
+| Anti-pola | Risiko |
+|---|---|
+| Query langsung di komponen | Blocking main thread dan bypass isolasi. |
+| `ATTACH DATABASE` untuk menulis lintas app | Merusak isolasi. |
+| Menghapus tabel lama tanpa ekspor | Kehilangan data permanen. |
+| Menyimpan blob besar di IndexedDB | Kuota tidak terpantau dan sulit diekspor. |
+| Mengandalkan `Date.now()` di dalam migrasi | Hasil tidak deterministik saat diuji ulang. |
 
-### 2.4 CRDT, Backup, dan Pemetaan Server
+## 6. Verifikasi
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-DATA-021 | MUST | HLC MUST 48-bit milidetik + 16-bit counter + 16 byte Site ID, diurutkan leksikografis; konflik MUST diselesaikan LWW per kolom dan nilai yang kalah MUST dicatat di `conflict_history`. | Konflik hilang tanpa jejak; property test gagal. |
-| RULE-DATA-022 | MUST | Delete MUST direpresentasikan sebagai tombstone (`value_json IS NULL`), bukan penghapusan baris, agar propagasi deterministik. | Data terhapus muncul kembali setelah sync; test konvergensi gagal. |
-| RULE-DATA-023 | MUST | Backup MUST memverifikasi hash konten dan `PRAGMA integrity_check` sebelum dianggap sah; restore MUST hanya ke `app_id` yang sama setelah verifikasi signature dan `content_hash`. | Backup rusak menimpa data sehat; gate backup gagal. |
-| RULE-DATA-024 | MUST | Backup MUST NOT memuat mnemonic, kunci privat, atau token sesi; snapshot terenkripsi hanya boleh dibuka dengan recovery phrase atau passkey PRF yang sah. | Kunci bocor melalui backup; blocker keamanan. |
-| RULE-DATA-025 | MUST | Data yang dibuat pengguna MUST NOT dihapus otomatis oleh pembersihan cache atau retensi; hanya data turunan/operasional yang boleh dipangkas. | Kehilangan data tanpa consent; blocker. |
-| RULE-DATA-026 | MUST | Pemetaan SQLite ke PostgreSQL MUST mempertahankan tipe: UUIDv7 → `UUID`, epoch ms → `TIMESTAMPTZ` UTC, JSON kanonik → `JSONB`, BLOB → `BYTEA`; FTS5 dan `vec0` MUST dibangun ulang sebagai `tsvector`/`pgvector`. | Query dan hash berbeda antar-backend; migrasi server gagal. |
+| Langkah | Perintah | Lulus bila |
+|---|---|---|
+| Forward/rollback | `npm test` pada paket data | Rantai migrasi lulus dari versi kosong dan sebelumnya. |
+| Isolasi | Test multi-workspace | Tidak ada query yang membaca app/workspace lain. |
+| Ekspor/impor | Test round-trip | Data identik dan `schemaVersion` valid. |
+| Kuota | Simulasi penuh | Peringatan tampil dan penulisan gagal dilaporkan. |
 
-## 3. Pengecualian dan Penegakan
+## 7. Pengecualian
 
-1. Perubahan schema pengguna MUST melalui [write-db-migration](../06-skills/write-db-migration/SKILL.md) dan RFC bila menyentuh kontrak data atau sync.
-2. Migrasi yang sudah diterapkan MUST NOT diedit; buat migrasi baru dan pertahankan checksum lama.
-3. Test migrasi dan restore MUST dijalankan pada salinan database, bukan pada data pengguna nyata.
-4. Pelanggaran RULE-DATA-009, RULE-DATA-011, RULE-DATA-016, RULE-DATA-018, atau RULE-DATA-024 MUST NOT diberi pengecualian sementara.
-
-## 4. Referensi
-
-- [data-model.md](../01-architecture/data-model.md) — ERD, tabel, migrasi, backup, retensi.
-- [sync-crdt.md](../01-architecture/sync-crdt.md) — HLC, batch, schema staging.
-- [04-data-automation.md](../03-specs/04-data-automation.md) — requirement data dan workflow.
-- [06-sync-backup.md](../03-specs/06-sync-backup.md) — format backup dan restore.
-- [identity-crypto.md](../01-architecture/identity-crypto.md) — envelope dan subkey.
-- [documentation.md](documentation.md) — pembaruan matriks dan status.
+Pengecualian pada RULE-DATA MUST disetujui reviewer `data`. RULE-DATA-004, RULE-DATA-006, dan RULE-DATA-013 tidak dapat dikecualikan karena melindungi isolasi dan integritas data.

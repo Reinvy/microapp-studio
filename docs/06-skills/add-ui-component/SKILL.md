@@ -1,81 +1,81 @@
 ---
-id: SKILL-ADD-UI-COMPONENT
-title: Menambah Komponen MADS
+id: SKILL-UI
+title: Menambah Komponen UI
 status: accepted
-owner: dx
-prd_refs: ["§3 Modul 2"]
+owner: design
+prd_refs: ["§6", "§5 F3"]
 name: add-ui-component
-description: "Mengimplementasikan komponen MADS pada katalog dan di kedua renderer, web serta Flutter, dengan state dan aksesibilitas yang lengkap."
-when_to_use: "Dipakai saat menambah komponen baru ke katalog MADS atau melengkapi komponen yang sudah terdaftar dengan varian, state, dan dukungan Flutter."
-required_docs: ["docs/02-design/design-system.md", "docs/02-design/component-catalog.md", "docs/02-design/accessibility.md", "docs/03-specs/ui-protocol.md", "docs/03-specs/02-studio-ide.md", "docs/07-rules/ui-ux.md"]
+description: "Menambah atau mengubah komponen clay dari katalog 120 ID tanpa mengubah jumlahnya: token, state, aksesibilitas, dan regresi visual."
+when_to_use: "Dipakai saat komponen katalog perlu diimplementasikan, diperbaiki, atau diberi varian baru, atau saat implementasi menyimpang dari design system."
+required_docs: ["docs/02-design/component-catalog.md", "docs/02-design/design-system.md", "docs/02-design/accessibility.md", "docs/03-specs/ui-protocol.md", "docs/07-rules/ui-ux.md", "DESIGN.md"]
 ---
 
-# Menambah Komponen MADS
+# Menambah Komponen UI
 
 ## Kapan Digunakan
 
-Dipakai ketika Studio atau Host membutuhkan komponen antarmuka baru, atau ketika komponen yang sudah ada di katalog MADS belum memiliki padanan Flutter, state wajib, atau perilaku aksesibilitas. Katalog MADS dikunci pada 120 komponen; pekerjaan ini utamanya melengkapi dan mengimplementasikan entri yang sudah terdaftar.
+Dipakai ketika sebuah komponen dari katalog MADS perlu dibuat, diperbaiki, atau diperluas variannya pada `packages/ui-kit` atau renderer MUIP. Katalog berisi tepat 120 ID; skill ini tidak boleh menambah, menghapus, atau mengganti ID.
 
-Di luar cakupan: perubahan token global atau tema (melalui revisi [design-system.md](../../02-design/design-system.md) dan ADR-0010), serta penambahan tipe node MUIP baru (melalui RFC kontrak UI).
+Di luar cakupan: menambah tipe node MUIP (gunakan [extend-manifest](../extend-manifest/SKILL.md) dan RFC), menambah layar (gunakan [add-screen](../add-screen/SKILL.md)), dan mengubah token global (gunakan [design-system.md](../../02-design/design-system.md) dan [DESIGN.md](../../../DESIGN.md) lebih dulu).
 
 ## Prasyarat
 
-- [02-design/design-system.md](../../02-design/design-system.md) dibaca: token warna, tipografi, spacing, radius, motion, breakpoint, dan aturan theme inheritance.
-- Baris komponen pada [component-catalog.md](../../02-design/component-catalog.md) sudah ada, atau permintaan penambahan komponen sudah disetujui lewat RFC.
-- [03-specs/ui-protocol.md](../../03-specs/ui-protocol.md) dipahami: tipe node, props, event, batas ukuran, dan aturan aksesibilitas.
-- `packages/ui-kit` sudah ter-scaffold dan dependensi workspace terpasang dengan `npm install`.
+- Entri komponen sudah ada di [component-catalog.md](../../02-design/component-catalog.md) dengan ID `MADS-<CAT>-<NN>`; bila belum, layar tidak boleh memakainya.
+- [design-system.md](../../02-design/design-system.md) dan [DESIGN.md](../../../DESIGN.md) dibaca; nilai visual yang berbeda mengikuti `DESIGN.md`.
+- [ui-protocol.md](../../03-specs/ui-protocol.md) dibaca untuk nama tipe, props, event, dan batas renderer.
+- `packages/ui-kit/src/tokens.css` dan `packages/ui-kit/src/tokens.ts` dipahami sebagai satu-satunya sumber nilai.
+- `node scripts/generate-catalog.mjs --check` lulus sebelum perubahan.
 
 ## Input
 
 | Input | Wajib | Contoh |
 |---|---|---|
-| Komponen target | ya | `Button` atau entri katalog lain yang sudah terdaftar |
-| Kebutuhan produk | ya | Studio membutuhkan tombol dengan varian dan state loading |
-| Platform | ya | Web React di `packages/ui-kit` dan Flutter di paket UI kit Flutter |
-| Pemakaian layar | ya | `SCR-07` Studio Dashboard dan `SCR-08` Visual Builder |
-| Acceptance a11y | ya | Fokus terlihat, nama/role terbaca, target sentuh minimum 24×24 |
+| ID komponen | ya | `MADS-INP-01` |
+| Perubahan | ya | Menambah state `loading` dan `error` pada Button |
+| Token yang dipakai | ya | `--mads-clay-shadow-2`, `--mads-radius-clay-md`, `--mads-color-primary` |
+| Keyboard dan ARIA | ya | `Enter`/`Space` memicu, `aria-busy` saat loading |
 
 ## Prosedur
 
-1. Baca token dan aturan komposisi di [02-design/design-system.md](../../02-design/design-system.md), lalu buka baris komponen terkait di `docs/02-design/component-catalog.md`.
-2. Verifikasi bahwa komponen sudah termasuk 120 entri katalog. Bila belum, hentikan implementasi: ajukan RFC penambahan komponen beserta kategori dan ID katalog melalui `docs/10-contributing/rfc-process.md` dan [templates/component-spec.md](../../templates/component-spec.md). Jangan mengarang ID atau menambah komponen ke-121 tanpa persetujuan.
-3. Lengkapi baris katalog: anatomy, varian, ukuran, state wajib, keyboard, ARIA, token yang dipakai, serta do/don't. Baris ini menjadi kontrak implementasi.
-4. Implementasikan versi web di `packages/ui-kit/src/components/` dengan React 19 dan TypeScript strict. Seluruh warna, spacing, radius, shadow, dan durasi motion MUST berasal dari CSS variable token; tidak boleh ada nilai hardcoded.
-5. Implementasikan padanan Flutter di paket UI kit Flutter dengan `ThemeExtension` yang memetakan token yang sama. Semantik, nama state, dan perilaku keyboard harus identik dengan versi web.
-6. Sediakan state wajib: default, hover, focus-visible, active, disabled, loading, serta error dan empty bila komponen menampilkan data. Hormati `prefers-reduced-motion` dan sediakan alternatif tanpa animasi.
-7. Pasang nama, role, dan state ARIA yang benar; pastikan urutan fokus logis dan seluruh aksi dapat dicapai dengan keyboard. Untuk target sentuh, gunakan minimal 24×24 dengan anjuran 44×44.
-8. Tulis test di `packages/ui-kit`: unit untuk props dan state, test keyboard, serta assertion role/nama a11y. Tambahkan golden test Flutter untuk visual dan state.
-9. Periksa kontras teks minimal 4,5:1 dan komponen non-teks minimal 3:1 pada tema light, dark, dan high-contrast.
-10. Bila komponen masuk ke component palette Studio, perbarui `docs/03-specs/02-studio-ide.md` pada requirement yang relevan dan pastikan pemetaan tipe node MUIP tercatat di [03-specs/ui-protocol.md](../../03-specs/ui-protocol.md).
-11. Jalankan blok verifikasi, lalu perbarui baris katalog dengan path implementasi dan status verifikasi.
+1. Buka entri katalog dan catat ID, nama tipe, anatomi, props, state, token, dan a11y yang tertulis. Jangan mengubah ID, nama, urutan, atau kategori.
+2. Jika komponen belum ada, tambahkan baris katalog dengan format `| MADS-<CAT>-<NN> | NamaKomponen | ... |` memakai ID yang sudah tercantum di kategori. Jumlah baris katalog MUST tetap 120.
+3. Implementasikan komponen di `packages/ui-kit/src/components/` dan ekspor dari `packages/ui-kit/src/index.ts`. Nilai visual hanya dari token `--mads-*`; jangan menulis hex, `box-shadow`, atau `border-radius` langsung.
+4. Implementasikan state yang diwajibkan katalog: `default`, `hover`, `focus-visible`, `pressed`, `disabled`, `loading`, `error`, dan `empty` bila relevan. Hover lift hanya untuk pointer halus; touch tidak memakai hover.
+5. Terapkan motion clay: hover 180 ms `translateY(-2px)`, press 90 ms `scale(.97)` + `translateY(1px)`, release 180 ms `ease-clay`. Semua durasi menjadi 0 di `prefers-reduced-motion: reduce`.
+6. Lengkapi a11y: elemen semantik yang benar, `aria-*` sesuai peran, focus ring 3 px dengan offset 2 px, target sentuh minimal 44x44 px, dan warna bukan satu-satunya pembeda status.
+7. Pastikan renderer MUIP memakai komponen yang sama; tipe node di `packages/runtime-web/src/muip/components.ts` dan validasi di `validate.ts` harus konsisten dengan katalog.
+8. Tambahkan test komponen di `packages/ui-kit/src/__tests__/ui-kit.test.tsx`: render tiap state, keyboard, dan atribut ARIA.
+9. Tambahkan snapshot regresi visual pada suite Playwright untuk komponen yang tampil di layar, dalam tema light dan dark.
+10. Jalankan `node scripts/generate-catalog.mjs` bila baris katalog berubah, lalu commit hasil `packages/runtime-web/src/muip/catalog.generated.ts`.
 
 ## Verifikasi
 
 ```bash
+node scripts/generate-catalog.mjs --check
 npm test -w @microapp/ui-kit
-npx tsc --noEmit -p packages/ui-kit
-npm run docs:check
-cd apps/host-flutter && flutter analyze && flutter test
+npm test -w @microapp/runtime-web
+npm run typecheck
+npm run lint
+npm run e2e
+node scripts/check-docs.mjs --strict
 ```
 
-Selain perintah di atas, periksa manual dengan keyboard saja pada tema light dan dark: fokus harus terlihat, tidak ada focus trap yang salah, dan tidak ada informasi yang hilang saat animasi dimatikan.
+Generator harus melaporkan 120 komponen dan tidak menulis ulang file. Snapshot visual dan axe tidak boleh menambah perbedaan atau pelanggaran serius.
 
 ## Kesalahan Umum
 
 | Kesalahan | Perbaikan |
 |---|---|
-| Menulis warna atau spacing hardcoded | Ganti dengan CSS variable token yang terdaftar di design system |
-| Hanya mengimplementasikan web | Implementasikan Flutter dengan token dan semantik yang sama, atau nyatakan pengecualian lewat RFC |
-| Menambah komponen ke-121 tanpa persetujuan | Ajukan RFC katalog; katalog dikunci 120 sampai keputusan diterima |
-| Melewatkan state focus-visible atau disabled | Lengkapi seluruh state wajib sebelum menambah varian baru |
-| Kontras di bawah ambang WCAG | Sesuaikan token atau pasangan warna; jangan menurunkan ambang |
-| Menambah tipe node MUIP tanpa memperbarui schema | Perbarui `docs/03-specs/schemas/ui-node.v1.schema.json` dan spec lewat RFC |
+| Menambah ID komponen baru | Pakai ID yang ada; jumlah dan kategori tidak boleh berubah |
+| Menulis `#5B4B8A` di komponen | Ganti dengan `var(--mads-color-primary)` |
+| Melewatkan state `focus-visible` | Tambahkan ring 3 px dan uji dengan keyboard |
+| Animasi memakai properti layout | Batasi ke `transform`, `opacity`, dan `box-shadow` |
+| Katalog diubah tanpa regenerasi | Jalankan generator dan commit file generated |
 
 ## Definition of Done
 
-- Baris katalog terisi lengkap: anatomy, varian, state, keyboard, ARIA, token, dan do/don't.
-- Implementasi web dan Flutter memakai token yang sama dan berperilaku setara.
-- Seluruh state wajib dan perilaku reduced-motion diuji.
-- Test unit, keyboard, a11y, dan golden test Flutter lulus.
-- Kontras memenuhi 4,5:1 untuk teks dan 3:1 untuk non-teks pada semua tema.
-- `npm run docs:check` lulus dan baris katalog diperbarui.
+- Katalog tetap 120 komponen dan `--check` lulus.
+- Seluruh state wajib diimplementasikan dan diuji.
+- Tidak ada nilai visual hardcoded.
+- Keyboard, ARIA, kontras, dan reduced motion terverifikasi.
+- Snapshot visual light/dark diperbarui dengan sengaja.

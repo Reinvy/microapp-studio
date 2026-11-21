@@ -1,70 +1,79 @@
 ---
 id: RULE-GIT
-title: Aturan Git dan Review
+title: Rules Git dan Review
 status: accepted
 owner: dx
-prd_refs: ["§7.2"]
+prd_refs: ["§12"]
 ---
 
-# Aturan Git dan Review
+# Rules Git dan Review
 
-Aturan ini mengatur branch, commit, pull request, review, dan merge agar setiap perubahan dapat dilacak ke spec, direview dengan risiko yang jelas, dan dapat di-rollback. Alur kerja lengkap ada di [workflow.md](../05-agents/workflow.md); template PR ada di [.github/pull_request_template.md](../../.github/pull_request_template.md).
+Aturan ini mengatur alur perubahan dari branch sampai merge. Tujuannya menjaga riwayat yang dapat dibaca, memastikan dokumen mendahului kode, dan membuat setiap perubahan dapat dibatalkan dengan aman.
 
-## 1. Cakupan
+## 1. Tujuan dan Ruang Lingkup
 
-| Area | Kewajiban utama |
+| Aspek | Kontrak |
 |---|---|
-| Branch | Nama berpola dan berumur pendek |
-| Commit | Atomik, konvensional, docs-first |
-| PR | Kecil, satu tujuan, menyebut spec |
-| Review | Checklist dan reviewer area |
-| Merge | Squash, linear, tanpa bypass |
-| Rollback | Revert dan catatan risiko |
-| Rilis | Changelog hanya melalui release gate |
+| Branch dasar | `development`; rilis dari `main` setelah gate lulus. |
+| Commit | Conventional commit, satu tujuan per commit. |
+| Pull request | Wajib untuk semua perubahan, termasuk dokumen. |
+| Rollback | Revert commit; riwayat bersama tidak ditulis ulang. |
 
-## 2. Aturan
+Di luar cakupan: kebijakan rilis (lihat [release-gates.md](../08-quality/release-gates.md)) dan tata kelola (lihat [governance.md](../10-contributing/governance.md)).
 
-### 2.1 Branch dan Commit
+## 2. Prinsip
 
-| ID | Level | Aturan | Konsekuensi |
+1. **Docs-first.** Spec dan flow diperbarui sebelum kode perilaku, dalam branch yang sama.
+2. **Kecil dan fokus.** PR besar menyembunyikan bug dan sulit ditinjau.
+3. **Dapat dibatalkan.** Setiap perubahan punya rencana rollback sebelum merge.
+4. **Tanpa rahasia.** Riwayat git bersifat permanen; secret yang masuk harus dirotasi.
+
+## 3. Aturan
+
+| ID | Level | Aturan | Verifikasi |
 |---|---|---|---|
-| RULE-GIT-001 | MUST | Branch MUST mengikuti pola `feat/<area>-<slug>`, `fix/<area>-<slug>`, atau `docs/<area>-<slug>` dengan slug kebab-case; branch `main` MUST dilindungi dari push langsung. | Riwayat tidak dapat diaudit; push ditolak. |
-| RULE-GIT-002 | MUST | Commit MUST mengikuti `type(scope): summary` dengan tipe `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `security`, atau `chore`; summary imperatif dan ≤ 72 karakter. | Changelog dan audit otomatis tidak dapat dibuat; PR ditolak. |
-| RULE-GIT-003 | MUST | Setiap commit MUST atomik: satu tujuan, build/test pada titik itu tidak sengaja rusak, dan tanpa perubahan tak terkait. | Bisect dan revert tidak dapat diandalkan; reviewer meminta commit dipecah. |
-| RULE-GIT-004 | MUST | Urutan commit dalam satu PR MUST `docs:` (spec/flow/acceptance) → `feat`/`fix` (implementasi) → `docs(status):` (status dan bukti verifikasi). | Perubahan perilaku tanpa spec dianggap bug; PR ditolak. |
-| RULE-GIT-005 | MUST | Commit MUST NOT memuat rahasia, kunci, token, data pengguna, atau file generated yang tidak disepakati; lockfile MUST ikut commit bila dependency berubah. | Kebocoran tidak dapat ditarik dari riwayat; PR diblokir dan kunci wajib dirotasi. |
+| RULE-GIT-001 | MUST | Branch dibuat dari `development` dengan nama `feat/`, `fix/`, `docs/`, `chore/`, `refactor/`, atau `test/` diikuti slug pendek, misalnya `docs/web-only-clay`. | Pemeriksaan nama branch |
+| RULE-GIT-002 | MUST | Satu branch menyelesaikan satu tujuan. Perubahan tak terkait dipisah ke branch lain. | Review diff |
+| RULE-GIT-003 | MUST | Perubahan perilaku MUST memperbarui spec/flow terkait lebih dulu atau dalam commit pertama branch (docs-first). Kode tanpa spec yang sesuai ditolak. | Review commit |
+| RULE-GIT-004 | MUST | Pesan commit memakai format `type(scope): ringkasan` dengan tipe `feat`, `fix`, `docs`, `refactor`, `test`, `chore`; subjek imperatif dan ≤ 72 karakter. | Pemeriksaan commit |
+| RULE-GIT-005 | MUST | Push langsung ke `main` atau `development` dilarang. Semua perubahan melewati pull request. | Proteksi branch |
+| RULE-GIT-006 | MUST | PR dijaga ≤ 400 baris perubahan di luar lockfile dan berkas generated. Bila lebih, pecah menjadi PR berurutan yang masing-masing dapat merge sendiri. | Statistik PR |
+| RULE-GIT-007 | MUST | Deskripsi PR memuat: tujuan, requirement/spec yang dirujuk, cara verifikasi yang dijalankan, risiko, dan rencana rollback. | Template PR |
+| RULE-GIT-008 | MUST | Minimal satu reviewer. Perubahan pada sandbox, permission, kripto, migrasi, atau token clay memerlukan reviewer pemilik area. | Aturan review |
+| RULE-GIT-009 | MUST | Reviewer memeriksa kebenaran, kepatuhan rules, test yang memadai, aksesibilitas, dan tidak ada scope creep. Komentar tanpa bukti dapat ditolak dengan penjelasan. | Review |
+| RULE-GIT-010 | MUST | Setelah review dimulai, branch tidak di-force-push. Perbaikan ditambahkan sebagai commit baru; penyatuan dilakukan saat merge sesuai kebijakan repo. | Riwayat PR |
+| RULE-GIT-011 | MUST | Setiap perubahan skema, format package, atau kontrak data menyertakan rencana rollback yang diuji atau dinyatakan eksplisit. Pembatalan memakai revert commit, bukan penulisan ulang riwayat. | Review, uji rollback |
+| RULE-GIT-012 | MUST | Secret, kunci, atau data pribadi MUST NOT masuk commit. Bila terjadi, commit diperbaiki sebelum push dan kunci dirotasi; riwayat yang sudah dibagikan tidak ditulis ulang tanpa persetujuan maintainer. | Secret scan, review |
 
-### 2.2 Pull Request
+## 4. Alur Kerja
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-GIT-006 | MUST | PR MUST kecil dan satu tujuan; perubahan yang menyentuh lebih dari satu area MUST dipecah kecuali saling bergantung dan dijelaskan. | Review dangkal dan risiko meningkat; PR diminta dipecah. |
-| RULE-GIT-007 | MUST | Deskripsi PR MUST menyertakan `Spec: <path>#<FR-ID>` untuk perubahan perilaku, atau alasan eksplisit `docs-not-needed` untuk perubahan yang tidak mengubah perilaku. | PR tanpa jejak spec ditolak reviewer. |
-| RULE-GIT-008 | MUST | Deskripsi PR MUST memuat Perubahan, Verifikasi (perintah dan hasil), Risiko/Rollback, serta checklist SDD, a11y, i18n, security, dan test. | Reviewer tidak dapat menilai kesiapan; PR dikembalikan. |
-| RULE-GIT-009 | MUST | PR MUST lulus `npm run docs:check` (dengan `--strict` pada gate rilis) dan seluruh test/typecheck area terkait sebelum meminta review final. | Gate dokumentasi gagal; merge diblokir. |
-| RULE-GIT-010 | MUST | Perubahan kontrak (manifest, bridge, MUIP, sync/CRDT, permission, crypto, registry, schema DB) MUST menyertakan link RFC yang diterima dan menaikkan versi kontrak. | Perubahan kontrak tanpa RFC ditolak. |
+1. Sinkronkan `development`, lalu buat branch sesuai RULE-GIT-001.
+2. Tulis atau perbarui dokumen (PRD tidak berubah tanpa RFC; spec/flow/rules sesuai kebutuhan).
+3. Implementasikan perubahan terkecil yang memenuhi acceptance.
+4. Jalankan gate lokal: `npm run typecheck`, `npm run lint`, `npm test`, dan `node scripts/check-docs.mjs --strict` bila menyentuh `docs/`.
+5. Buka PR dengan deskripsi lengkap, lampirkan hasil verifikasi.
+6. Tanggapi review dengan commit tambahan; jangan menulis ulang riwayat yang sedang ditinjau.
+7. Merge setelah disetujui dan gate lulus; hapus branch.
 
-### 2.3 Review dan Merge
+## 5. Anti-pola
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-GIT-011 | MUST | Setiap PR MUST direview minimal satu reviewer; perubahan keamanan, kriptografi, sandbox, auth, data, atau kontrak MUST direview reviewer dari owner area terkait. | Risiko tinggi lolos tanpa ahli; merge diblokir. |
-| RULE-GIT-012 | MUST | Reviewer MUST memeriksa: kesesuaian spec/acceptance, pelanggaran rules, test yang membuktikan perilaku, risiko keamanan/data, a11y/i18n, dan rollback. | Review kosmetik tidak memenuhi kewajiban; PR dikembalikan. |
-| RULE-GIT-013 | MUST | Merge MUST memakai squash merge ke `main` dengan pesan `type(scope): summary` dan nomor PR; merge commit dan force-push ke branch bersama dilarang. | Riwayat linear dan changelog dapat dihasilkan; merge ditolak. |
-| RULE-GIT-014 | MUST | Perubahan yang berisiko MUST memiliki rencana rollback: revert commit, feature flag, atau restore snapshot; rollback MUST diuji bila menyentuh data. | Kegagalan produksi tidak dapat dipulihkan; PR ditolak. |
-| RULE-GIT-015 | MUST | Changelog dan catatan rilis MUST hanya diperbarui melalui release gate, bukan pada setiap PR fitur; hotfix MUST menyertakan dokumen retro dalam 24 jam. | Changelog tidak konsisten dan hotfix meninggalkan dokumen basi. |
+| Anti-pola | Alasan |
+|---|---|
+| Commit "wip" atau "fix" tanpa konteks | Riwayat tidak dapat ditelusuri. |
+| Menyisipkan perubahan format besar di PR fitur | Menutupi diff sebenarnya. |
+| `push --force` ke branch yang sedang ditinjau | Menghilangkan jejak review. |
+| Menggabungkan dokumen dan perubahan runtime yang belum disetujui | Melanggar docs-first. |
+| Menyimpan `.env` atau kunci di repo | Tidak dapat dihapus dari riwayat. |
 
-## 3. Pengecualian dan Penegakan
+## 6. Verifikasi
 
-1. Hotfix keamanan MAY melewati urutan docs-first hanya untuk menutup eksploit aktif; dokumen retro dan test regresi MUST menyusul dalam 24 jam dan dicatat di PR.
-2. PR MUST NOT di-merge dengan status check yang gagal, konflik belum diselesaikan, atau diskusi reviewer yang belum dijawab.
-3. Perubahan pada `main` yang tidak melalui PR MUST di-revert, kecuali operasi rilis yang terdokumentasi.
-4. Branch yang sudah di-merge MUST dihapus; branch stale lebih dari 30 hari MUST ditutup atau di-rebase.
+| Langkah | Perintah | Lulus bila |
+|---|---|---|
+| Dokumen | `node scripts/check-docs.mjs --strict` | 0 error, 0 warning. |
+| Kode | `npm run typecheck && npm run lint && npm test` | Exit 0. |
+| E2E (bila alur berubah) | `npm run e2e` | Flow terkait lulus. |
+| Riwayat | Pemeriksaan pesan commit | Format sesuai RULE-GIT-004. |
 
-## 4. Referensi
+## 7. Pengecualian
 
-- [sdd-workflow.md](../00-foundation/sdd-workflow.md) — docs-first dan kelas perubahan.
-- [workflow.md](../05-agents/workflow.md) — alur issue sampai rilis.
-- [rfc-process.md](../10-contributing/rfc-process.md) — kapan RFC diperlukan.
-- [definition-of-done.md](../08-quality/definition-of-done.md) — kelengkapan bukti.
-- [documentation.md](documentation.md) — aturan checker dan status.
+Pengecualian pada RULE-GIT-005 dan RULE-GIT-012 tidak diberikan. Pengecualian lain mengikuti [README.md](README.md) dan dicatat di deskripsi PR.

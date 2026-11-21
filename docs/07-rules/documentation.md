@@ -1,86 +1,87 @@
 ---
 id: RULE-DOC
-title: Aturan Dokumentasi
+title: Rules Dokumentasi
 status: accepted
 owner: dx
-prd_refs: ["§7.2"]
+prd_refs: ["§12"]
 ---
 
-# Aturan Dokumentasi
+# Rules Dokumentasi
 
-Aturan ini mengatur penulisan dan pemeliharaan dokumen di `docs/`, template, dan root policy files. Dokumentasi adalah sumber kebenaran; pelanggaran aturan ini membuat dokumen tidak dapat dipercaya dan wajib diperbaiki sebelum PR perilaku dapat merge.
+Aturan ini mengikat seluruh berkas di `docs/`, `DESIGN.md`, dan dokumen kebijakan akar repo. Dokumentasi adalah kontrak: checker memperlakukannya seperti kode, dan status di dalamnya harus dapat dibuktikan.
 
-## 1. Cakupan
+## 1. Tujuan dan Ruang Lingkup
 
-| Area | Kewajiban utama |
+| Aspek | Kontrak |
 |---|---|
-| Frontmatter | Field wajib, nilai valid, ID unik |
-| Judul | H1 pertama sama dengan `title` |
-| Requirement | ID tidak diciptakan, rentang sesuai |
-| Section | Urutan dan section wajib per jenis dokumen |
-| Tautan | Relatif, target ada, tanpa anchor rusak |
-| SDD | Dokumen dulu, status jujur |
-| Matriks | Setiap requirement tercakup |
-| Checker | `npm run docs:check` lulus |
+| Format | Markdown dengan frontmatter YAML dan H1 tunggal. |
+| Identitas | ID unik berprefiks, requirement dengan nomor tetap. |
+| Tautan | Relatif, menuju berkas yang ada, tanpa anchor rusak. |
+| Bukti | Status requirement mengacu test atau artefak nyata. |
+| Gate | `node scripts/check-docs.mjs --strict` wajib bersih. |
 
-## 2. Aturan
+Di luar cakupan: isi keputusan arsitektur (lihat [adr/README.md](../01-architecture/adr/README.md)) dan proses rilis (lihat [deployment.md](../09-operations/deployment.md)).
 
-### 2.1 Frontmatter dan Judul
+## 2. Prinsip
 
-| ID | Level | Aturan | Konsekuensi |
+1. **Satu sumber kebenaran.** Setiap klaim ada di satu dokumen kanonik; dokumen lain menautkan, bukan menyalin nilai.
+2. **Dapat diperiksa mesin.** Aturan yang bisa dicek otomatis harus dicek otomatis.
+3. **Jujur soal status.** Dokumen target tidak boleh berbunyi seolah fitur sudah ada.
+4. **Ringkas dan spesifik.** Kalimat pendek, istilah konsisten, tanpa pemasaran.
+
+## 3. Aturan
+
+| ID | Level | Aturan | Verifikasi |
 |---|---|---|---|
-| RULE-DOC-001 | MUST | Setiap file `.md` di `docs/` (kecuali `docs/templates/**` dan `docs/archive/**`) MUST memiliki frontmatter `id`, `title`, `status`, `owner`, dan `prd_refs`. | Checker menggagalkan file; PR ditolak. |
-| RULE-DOC-002 | MUST | `status` MUST salah satu dari `draft`, `accepted`, `implemented`, `deprecated`; paket final MUST NOT memuat `draft` di luar template. | Checker `--strict` gagal; rilis dokumentasi ditahan. |
-| RULE-DOC-003 | MUST | `owner` MUST salah satu dari `product`, `architecture`, `design`, `runtime`, `data`, `sync`, `registry`, `server`, `dx`, `qa`, `ops`, `security`, `governance`. | Checker gagal; dokumen tidak memiliki penanggung jawab. |
-| RULE-DOC-004 | MUST | `id` MUST unik dan memakai prefix yang diizinkan: `DOC-`, `FOUND-`, `ARCH-`, `DESIGN-`, `SPEC-`, `FLOW-`, `AGENT-`, `SKILL-`, `RULE-`, `QA-`, `OPS-`, `GOV-`, `TPL-`, atau `ADR-`. | Duplikasi ID menggagalkan checker; rujukan menjadi ambigu. |
-| RULE-DOC-005 | MUST | H1 pertama MUST sama dengan `title` (case-insensitive setelah prefix nomor diabaikan). | Checker gagal; navigasi dokumen tidak konsisten. |
-| RULE-DOC-006 | MUST | `prd_refs` MUST array tidak kosong dan setiap entri MUST dimulai dengan `§`; nilai yang mengandung `:` atau `#` MUST dikutip. | Checker gagal; keterlacakan PRD hilang. |
+| RULE-DOC-001 | MUST | Setiap berkas markdown kanonik diawali frontmatter berisi `id`, `title`, `status`, `owner`, dan `prd_refs`; `prd_refs` berisi minimal satu rujukan `§`. | `node scripts/check-docs.mjs --strict` |
+| RULE-DOC-002 | MUST | `id` unik, memakai prefiks yang diizinkan (`RULE-`, `SPEC-`, `ARCH-`, `DESIGN-`, `FLOW-`, `QA-`, `OPS-`, `GOV-`, `ADR-`, dan sejenisnya) dan tidak dipakai ulang setelah berkas dihapus. | Checker |
+| RULE-DOC-003 | MUST | `status` hanya `accepted` untuk dokumen kanonik; `draft` hanya di `docs/templates/`. `implemented` hanya untuk requirement dengan bukti test. | Checker dan review |
+| RULE-DOC-004 | MUST | H1 sama dengan `title` setelah normalisasi; H1 tidak diberi nomor dan hanya ada satu per berkas. | Checker |
+| RULE-DOC-005 | MUST | Spec memuat section `1. Tujuan`, `3. Requirement`, `7. Acceptance Criteria`, dan `8. Verifikasi`. Flow memuat `Alur Utama`, `Cabang Gagal`, `Acceptance Criteria`, dan `Verifikasi`. ADR memuat `Konteks`, `Keputusan`, `Konsekuensi`. Skill memuat `Kapan Digunakan`, `Prosedur`, `Verifikasi`. | Checker |
+| RULE-DOC-006 | MUST | Setiap requirement didefinisikan tepat satu kali di spec kanoniknya, pada sel pertama tabel, memakai format `FR-*`, `NFR-*`, `SEC-*`, atau `E-*` yang terdaftar. ID di luar daftar resmi dilarang. | Checker |
+| RULE-DOC-007 | MUST | Tautan internal bersifat relatif, menunjuk berkas yang ada, dan anchor harus cocok dengan heading tujuan. Tautan ke berkas yang dihapus dilarang. | Checker |
+| RULE-DOC-008 | MUST | Setiap requirement memiliki satu baris di [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md) dengan `PRD Ref` berisi `§`, spec, flow, fase, status, dan cara verifikasi. | Checker dan review |
+| RULE-DOC-009 | MUST | Status `implemented` hanya diberikan bila ada test yang lulus dan dapat dijalankan ulang; selain itu `partial` atau `missing`. Tidak ada klaim tanpa bukti. | Review matrix |
+| RULE-DOC-010 | MUST | `node scripts/check-docs.mjs --strict` lulus dengan 0 error dan 0 warning sebelum PR dokumen di-merge. | Checker |
+| RULE-DOC-011 | MUST | Tidak ada penanda placeholder, teks contoh tanpa isi, atau pernyataan bahwa bagian akan dilengkapi nanti di dokumen kanonik. | Checker |
+| RULE-DOC-012 | MUST | Bahasa utama adalah Bahasa Indonesia teknis yang ringkas; istilah produk mengikuti [glossary.md](../00-foundation/glossary.md). Klaim yang belum terbukti dilarang. | Review |
+| RULE-DOC-013 | MUST | Blok kode seimbang, diberi tag bahasa, dan tidak memuat output palsu. Diagram Mermaid harus berisi dan memakai sintaks sederhana. | Checker |
+| RULE-DOC-014 | MUST | ADR yang sudah `accepted` tidak diedit isinya. Perubahan keputusan dibuat sebagai ADR baru yang menyatakan supersede, dengan pembaruan indeks. | Review |
+| RULE-DOC-015 | MUST | Perubahan perilaku, kontrak, atau status MUST disertai pembaruan dokumen terkait dalam PR yang sama. | Review |
+| RULE-DOC-016 | MUST | Setiap berkas kanonik dapat dicapai dari [docs/README.md](../README.md) melalui tautan; dokumen yatim dilarang. | Checker reachability |
 
-### 2.2 Requirement, Section, dan ID
+## 4. Format Requirement
 
-| ID | Level | Aturan | Konsekuensi |
+```markdown
+| ID | Level | Requirement | Acceptance |
 |---|---|---|---|
-| RULE-DOC-007 | MUST | ID requirement MUST mengikuti pola `FR-<DOMAIN>-<NNN>`, `NFR-<KATEGORI>-<NNN>`, `SEC-<NNN>`, `FLOW-<NN>`, `ADR-<NNNN>`, atau `E-<DOMAIN>-<NNN>` dan MUST berada dalam rentang yang dialokasikan. | ID bentrok atau tidak dapat dirujuk; checker gagal. |
-| RULE-DOC-008 | MUST | ID MUST NOT diciptakan untuk area yang belum memiliki requirement; dokumen MUST merujuk ID yang sudah terdefinisi di file sumbernya. | Referensi yatim menggagalkan checker. |
-| RULE-DOC-009 | MUST | Spec MUST memuat urutan section `1. Tujuan dan Ruang Lingkup`, `2. Aktor dan Prasyarat`, `3. Requirement`, `4. Model Data dan State`, `5. Error dan Recovery`, `6. Keamanan dan Privasi`, `7. Acceptance Criteria`, `8. Verifikasi`, `9. Referensi`. | Checker gagal; spec tidak dapat direview atau diuji. |
-| RULE-DOC-010 | MUST | Flow MUST memuat `Trigger`, `Aktor`, `Prasyarat`, `Alur Utama`, `Cabang Gagal`, `Data dan State`, `Izin dan Keamanan`, `Perilaku Offline`, `Acceptance Criteria`, `Verifikasi`, dan `Referensi`. | Checker gagal; flow tidak lengkap. |
-| RULE-DOC-011 | MUST | ADR MUST memuat `Konteks`, `Keputusan`, `Konsekuensi`, `Alternatif`, dan `Status`; ADR yang diterima MUST dicerminkan ke spec terkait. | Checker gagal; keputusan arsitektur tidak dapat ditelusuri. |
-| RULE-DOC-012 | MUST | Requirement table MUST memakai kolom `ID | Level | Requirement | Acceptance`, dengan `Level` bernilai `MUST`, `SHOULD`, atau `MAY`, dan setiap requirement MUST memiliki minimal satu acceptance criterion. | Requirement tidak dapat diuji; matriks dan checker gagal. |
+| FR-SHELL-001 | MUST | Shell merender skeleton non-blocking. | Shell tampil < 1 s pada perangkat referensi. |
+```
 
-### 2.3 Tautan dan Isi
+- ID di sel pertama tanpa backtick agar checker mendefinisikannya.
+- Satu requirement menyatakan satu perilaku yang dapat diuji.
+- Acceptance menyebut kondisi, aksi, dan hasil yang teramati.
+- Requirement yang dihapus juga dihapus dari matrix dan rujukannya di flow.
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-DOC-013 | MUST | Tautan internal MUST memakai path relatif terhadap file sumber, target MUST ada, dan anchor (bila dipakai) MUST cocok dengan heading yang ada. | Checker gagal; tautan mati membingungkan pembaca dan agen. |
-| RULE-DOC-014 | MUST | Setiap file di `docs/` MUST dapat dijangkau dari [docs/README.md](../README.md) melalui tautan relatif; file yatim MUST ditautkan atau dihapus. | Checker reachability gagal; dokumen tidak ditemukan. |
-| RULE-DOC-015 | MUST | Dokumen MUST NOT menduplikasi isi sumber lain; definisi, kontrak, dan angka MUST berada di satu file kanonik dan file lain MUST menautkannya. | Dua sumber menyimpang; reviewer menolak duplikasi. |
-| RULE-DOC-016 | MUST | Dokumen MUST NOT menyatakan fitur yang belum ada sebagai sudah jadi; status implementasi MUST memakai `implemented`, `partial`, `missing`, atau `blocked` dan bukti verifikasi MUST dicatat. | Klaim palsu menyesatkan pengguna; PR ditolak. |
-| RULE-DOC-017 | MUST | Placeholder pekerjaan tertunda atau teks pengisi (daftar token kanonik ditegakkan `scripts/check-docs.mjs`) MUST NOT muncul di luar `docs/templates/**` dan `docs/archive/**`; code fence MUST seimbang dan blok Mermaid MUST NOT kosong. | Checker gagal; dokumen dianggap belum selesai. |
-| RULE-DOC-018 | MUST | Prosa MUST Bahasa Indonesia; identifier, API, field, enum, perintah CLI, dan tipe data MUST Bahasa Inggris; kata normatif MUST memakai `MUST`/`SHOULD`/`MAY` kapital sesuai RFC 2119. | Review bahasa menolak dokumen; istilah menjadi ambigu bagi implementer. |
+## 5. Anti-pola
 
-### 2.4 SDD, Matriks, dan Checker
+| Anti-pola | Alasan |
+|---|---|
+| Menyalin tabel token lengkap ke banyak dokumen | Nilai dapat menyimpang; tautkan ke sumber kanonik. |
+| Menulis "sudah diimplementasikan" tanpa test | Melanggar RULE-DOC-009. |
+| Menautkan path absolut atau URL lokal pengembang | Rusak di mesin lain. |
+| Menyisipkan HTML mentah untuk tata letak | Sulit dicek dan tidak portabel. |
+| Mempertahankan dokumen lama sebagai alias | Menciptakan dua kebenaran. |
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-DOC-019 | MUST | Perubahan perilaku MUST mengubah spec/flow/acceptance lebih dulu, lalu kode, lalu status; urutan commit MUST docs-first. | Perubahan tanpa spec dianggap bug; PR ditolak. |
-| RULE-DOC-020 | MUST | Setiap `FR-*`, `NFR-*`, dan `SEC-*` yang didefinisikan MUST memiliki baris di [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md) dengan spec, flow, fase, status, dan verifikasi. | Checker cakupan matriks gagal; requirement yatim. |
-| RULE-DOC-021 | MUST | Status `implemented` MUST hanya dinaikkan setelah acceptance dijalankan dan bukti dicatat di `## Verifikasi`; tanpa bukti, status MUST tetap `partial` atau `missing`. | Klaim status palsu; release gate menolak. |
-| RULE-DOC-022 | MUST | `npm run docs:check` MUST lulus sebelum PR; verifikasi rilis MUST memakai `node scripts/check-docs.mjs --strict`. | Gate dokumentasi gagal; merge diblokir. |
-| RULE-DOC-023 | SHOULD | Dokumen MUST direview per release dan minimal setiap kuartal oleh owner; dokumen yang tidak lagi relevan MUST menjadi `deprecated`, bukan dihapus. | Dokumentasi basi; owner kehilangan kendali. |
+## 6. Verifikasi
 
-## 3. Pengecualian dan Penegakan
+| Langkah | Perintah | Lulus bila |
+|---|---|---|
+| Struktur dan tautan | `node scripts/check-docs.mjs --strict` | 0 error, 0 warning. |
+| Katalog komponen sinkron | `node scripts/generate-catalog.mjs --check` | Laporan `catalog up to date`. |
+| Matrix | Pemeriksaan manual matrix terhadap spec | Semua requirement tercakup tepat satu baris. |
+| Bukti | `npm run verify:web` | Status terekam di [baseline.md](../08-quality/evidence/baseline.md). |
 
-1. `docs/templates/**` MAY memakai placeholder `{{...}}` dan frontmatter status `draft`; template MUST tetap memiliki code fence seimbang dan tautan valid.
-2. `docs/archive/**` bukan normatif dan MUST NOT dijadikan acuan implementasi baru; arsip hanya wajib memiliki tautan valid.
-3. Perubahan ID, rentang requirement, atau struktur section MUST melalui RFC dan pembaruan checker pada PR yang sama.
-4. Checker bukan pengganti review: dokumen yang lulus checker tetapi bertentangan dengan PRD/ADR tetap ditolak.
+## 7. Pengecualian
 
-## 4. Referensi
-
-- [docs/README.md](../README.md) — peta dokumen dan presedensi.
-- [sdd-workflow.md](../00-foundation/sdd-workflow.md) — siklus dan kelas perubahan.
-- [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md) — cakupan requirement.
-- [spec.md](../templates/spec.md) — kerangka spec.
-- [flow.md](../templates/flow.md) — kerangka flow.
-- [adr.md](../templates/adr.md) — kerangka ADR.
-- [check-docs.mjs](../../scripts/check-docs.mjs) — implementasi checker.
+Pengecualian pada RULE-DOC-008, RULE-DOC-009, dan RULE-DOC-010 tidak diberikan. Pengecualian format lain mengikuti [README.md](README.md) dan harus dicatat di PR dengan alasan yang dapat diverifikasi.

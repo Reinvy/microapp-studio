@@ -1,80 +1,77 @@
 ---
 id: RULE-RS
-title: Aturan Rust
+title: Rules Rust WASM
 status: accepted
-owner: dx
-prd_refs: ["§7.1", "§5.1"]
+owner: runtime
+prd_refs: ["§7"]
 ---
 
-# Aturan Rust
+# Rules Rust WASM
 
-Aturan ini berlaku untuk crate `microapp-core` di `packages/core-rust` yang menyediakan kriptografi, verifikasi signature, parser `.mapp`, HLC/CRDT, dan sandbox guard. Crate ini adalah satu-satunya implementasi logika tersebut; binding WASM dan FFI tidak boleh menduplikasi perilakunya.
+Aturan ini mengikat `packages/core-rust` yang dikompilasi ke WebAssembly dan dimuat di browser untuk kriptografi, verifikasi manifest/signature, serta format `.mapp`. Target satu-satunya adalah `wasm32-unknown-unknown`; tidak ada FFI atau binding di luar WebAssembly.
 
-## 1. Cakupan
+## 1. Tujuan dan Ruang Lingkup
 
-| Area | Kewajiban utama |
+| Aspek | Kontrak |
 |---|---|
-| Keselamatan | Larangan `unsafe` di luar FFI terdokumentasi; tanpa panic lintas boundary |
-| Error | `thiserror`, error typed, tanpa `unwrap` pada input tidak tepercaya |
-| Rahasia | `zeroize`, tanpa log/Debug rahasia |
-| Kontrak | serde ketat, JSON kanonik, versioning |
-| WASM/FFI | Tanpa ambient capability, ABI stabil, buffer aman |
-| Kualitas | clippy, fuzz, test vector kriptografi, property test |
+| Target | `wasm32-unknown-unknown`, dimuat sebagai modul WASM. |
+| Batas | `wasm-bindgen` untuk fungsi yang diekspor; tidak ada binding lain. |
+| Peran | Verifikasi Ed25519, digest, parsing manifest, packing deterministik. |
+| Error | Mengembalikan `Result` yang dipetakan ke kode error host. |
 
-## 2. Aturan
+Di luar cakupan: kode TypeScript pemanggil (lihat [typescript.md](typescript.md)) dan kontrak package (lihat [05-packages.md](../03-specs/05-packages.md)).
 
-### 2.1 Keselamatan dan Error
+## 2. Prinsip
 
-| ID | Level | Aturan | Konsekuensi |
+1. **Sempit dan dapat diaudit.** Permukaan ekspor kecil; setiap fungsi punya kontrak jelas.
+2. **Gagal tanpa panic.** Input tidak valid menghasilkan error, bukan abort yang mematikan instance.
+3. **Deterministik.** Output byte identik untuk input identik.
+4. **Kriptografi tidak ditulis sendiri.** Gunakan crate yang teraudit dan vektor uji resmi.
+
+## 3. Aturan
+
+| ID | Level | Aturan | Verifikasi |
 |---|---|---|---|
-| RULE-RS-001 | MUST | Crate root MUST memakai `#![deny(unsafe_code)]`; satu-satunya pengecualian adalah modul FFI yang didokumentasikan, memiliki `// SAFETY:` pada setiap blok, dan ditinjau reviewer security. | `cargo clippy` gagal; PR dengan `unsafe` tanpa justifikasi ditolak. |
-| RULE-RS-002 | MUST | Tidak ada panic yang boleh menyeberangi FFI, WASM, atau callback Flutter/Dart; boundary MUST menangkap panic (`catch_unwind`) dan mengembalikan kode error terstruktur. | Panic yang menyeberang boundary adalah undefined behavior; library dianggap tidak dapat dipakai. |
-| RULE-RS-003 | MUST | `unwrap()` dan `expect()` MUST NOT dipakai pada input dari manifest, paket, jaringan, atau database; `expect()` hanya boleh untuk invariant internal dengan pesan yang menjelaskan invariant tersebut. | Input jahat dapat menghentikan proses; test fuzz menemukan panic dan PR diblokir. |
-| RULE-RS-004 | MUST | Setiap error MUST memakai tipe `thiserror` dengan varian spesifik dan MUST dipetakan ke kode `E-*` di boundary; error tidak boleh dikembalikan sebagai string bebas. | Pesan tidak stabil dan tidak dapat dipetakan ke UI; reviewer menolak. |
-| RULE-RS-005 | MUST | Overflow aritmetika pada HLC, ukuran, dan offset parser MUST memakai operasi checked atau `saturating_*` yang eksplisit; mode `release` tidak boleh menyembunyikan overflow. | Overflow menghasilkan timestamp/offset salah; test property gagal. |
+| RULE-RS-001 | MUST | Build hanya untuk target `wasm32-unknown-unknown`; `Cargo.toml` tidak mendefinisikan target native sebagai artefak rilis. | `cargo build --target wasm32-unknown-unknown` |
+| RULE-RS-002 | MUST | Tidak ada FFI, `extern "C"`, atau binding platform. Interaksi dengan host hanya melalui fungsi `wasm-bindgen` yang diekspor dan menerima/mengembalikan tipe primitif atau `Uint8Array`. | Review, `cargo tree` |
+| RULE-RS-003 | MUST | Tidak ada panic yang melintasi boundary WASM. Fungsi ekspor memakai `Result` dan memetakan error ke kode stabil; `unwrap`/`expect` pada input eksternal dilarang. | Test input tidak valid |
+| RULE-RS-004 | MUST | `unsafe` dilarang kecuali tercatat dengan alasan, invariant, dan reviewer `security`; crate memakai `#![deny(unsafe_code)]` bila memungkinkan. | Clippy, review |
+| RULE-RS-005 | MUST | Output `.mapp` deterministik: entri ZIP diurutkan, timestamp tetap, dan hash stabil. Iterasi `HashMap`/`HashSet` tidak boleh menentukan urutan output. | Test hash berulang |
+| RULE-RS-006 | MUST | Kriptografi hanya memakai crate yang disetujui (Ed25519, AES-GCM, Argon2) dengan vektor uji; perubahan algoritma atau parameter memerlukan review `security` dan pembaruan spec. | Vektor uji, review |
+| RULE-RS-007 | MUST | `cargo clippy -- -D warnings` dan `cargo fmt --check` wajib bersih; ukuran WASM diukur dan tidak melebihi budget paket. | Clippy, pengukuran ukuran |
+| RULE-RS-008 | MUST | Kode diuji pada host (`cargo test`) dan pada WASM (`wasm-bindgen-test`) untuk fungsi yang menyentuh I/O atau tipe JS. | `cargo test`, test WASM |
 
-### 2.2 Rahasia dan Kriptografi
+## 4. Contoh Boundary
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-RS-006 | MUST | Seed, passphrase, master key, subkey, dan kunci privat MUST dibungkus `zeroize::Zeroizing` atau tipe yang mengimplementasikan `ZeroizeOnDrop`; tipe rahasia MUST NOT mengimplementasikan `Debug`, `Display`, `Clone`, atau `Serialize`. | Kunci dapat muncul di log atau bertahan di memori; audit keamanan gagal. |
-| RULE-RS-007 | MUST | Implementasi kriptografi MUST memakai primitive yang disetujui: Ed25519 (RFC 8032), X25519 (RFC 7748), AES-256-GCM, SHA-256, HKDF-SHA256, PBKDF2-HMAC-SHA512; algoritma atau konstruksi baru MUST NOT ditambahkan tanpa ADR dan RFC. | Kriptografi buatan sendiri dianggap blocker keamanan. |
-| RULE-RS-008 | MUST | Nonce AES-GCM MUST 96 bit acak kriptografis dan unik per pasangan (key, plaintext); nonce MUST NOT dihasilkan dari counter yang tidak persisten. | Nonce reuse membocorkan plaintext; insiden SEV-1. |
-| RULE-RS-009 | MUST | Verifikasi signature MUST dilakukan sebelum parsing payload lebih lanjut, dan kegagalan verifikasi MUST mengembalikan error tanpa membocorkan detail kunci. | Payload tidak tepercaya masuk ke parser; PR ditolak. |
-| RULE-RS-010 | MUST | Test vector known-answer untuk Ed25519, X25519, HKDF, AES-256-GCM, BIP39, dan `.mapp` MUST ada dan MUST dipakai bersama oleh binding TypeScript dan Dart. | Perbedaan hasil antar-platform tidak terdeteksi; rilis diblokir. |
+```rust
+#[wasm_bindgen]
+pub fn verify_manifest(bytes: &[u8], signature: &[u8], key: &[u8]) -> Result<(), JsValue> {
+    let manifest = parse_manifest(bytes).map_err(to_js_error)?;
+    verify_signature(&manifest, signature, key).map_err(to_js_error)
+}
+```
 
-### 2.3 Kontrak, WASM, dan FFI
+Fungsi ekspor tidak boleh memanggil `panic!`, `unwrap`, atau `expect` pada data yang berasal dari package atau pengguna.
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-RS-011 | MUST | Tipe kontrak (manifest, registry index, MUIP, envelope) MUST memakai serde dengan `deny_unknown_fields` dan enum eksplisit; JSON untuk signature MUST dikanonikalisasi sesuai RFC 8785. | Field tambahan lolos validasi dan signature berbeda; test kontrak gagal. |
-| RULE-RS-012 | MUST | Target WASM (`wasm32-unknown-unknown`) MUST NOT mengakses filesystem, network, process, atau waktu ambient; seluruh input masuk melalui parameter dan seluruh output melalui return value. | Sandbox bocor melalui ambient capability; build WASM ditolak. |
-| RULE-RS-013 | MUST | ABI FFI MUST memiliki versi eksplisit, panjang buffer yang selalu diteruskan, kepemilikan memori yang terdokumentasi, dan tanpa asumsi layout Rust; binding MUST dihasilkan oleh generator, bukan ditulis tangan. | ABI mismatch menyebabkan crash atau kebocoran memori; PR diblokir. |
-| RULE-RS-014 | MUST | Parser `.mapp` MUST menegakkan batas ukuran total, jumlah entry, kedalaman, dan rasio kompresi, serta MUST menolak path traversal dan symlink. | Zip bomb atau path traversal mengancam Host; security test gagal. |
-| RULE-RS-015 | MUST | Packer `.mapp` MUST deterministik: entry terurut, timestamp tetap `1980-01-01`, deflate level 9, tanpa extra field, dan hash konten dihitung atas byte final. | Dua build dari commit sama menghasilkan hash berbeda; reproducible build gagal. |
+## 5. Anti-pola
 
-### 2.4 Kualitas dan Dependency
+| Anti-pola | Risiko |
+|---|---|
+| Menulis verifikasi signature sendiri | Kesalahan kriptografi yang tidak terlihat. |
+| Menyimpan state global mutable antar panggilan | Hasil tidak deterministik dan bocor antar app. |
+| Menggunakan `SystemTime` untuk timestamp ZIP | Output berubah setiap build. |
+| Mengekspos struct internal ke JS | Memperbesar permukaan dan memaksa kompatibilitas. |
+| Mengabaikan error dan mengembalikan nilai default | Verifikasi bisa lolos secara diam-diam. |
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-RS-016 | MUST | `cargo fmt --check` dan `cargo clippy -- -D warnings` MUST lulus; MSRV MUST dipatok di `rust-toolchain.toml`. | Gaya dan lint tidak konsisten; PR ditolak. |
-| RULE-RS-017 | MUST | Modul parser, verifikasi signature, dan CRDT MUST memiliki target fuzz (`cargo-fuzz`) dan property test (`proptest`); crash atau panic dari fuzz adalah blocker. | Bug input jahat tidak ditemukan sebelum rilis; gate rilis gagal. |
-| RULE-RS-018 | MUST | Dependency MUST melewati `cargo deny` untuk advisory, lisensi yang diizinkan (Apache-2.0/MIT), dan source registry; dependency dengan lisensi lain MUST NOT ditambahkan tanpa persetujuan governance. | Risiko hukum dan supply chain; build gate gagal. |
-| RULE-RS-019 | SHOULD | Kode kriptografi dan sandbox MUST mencapai 90% line coverage dan MUST memiliki mutation/fuzz target; coverage tidak menggantikan test perilaku. | Modul paling sensitif tidak teruji; release gate menolak. |
-| RULE-RS-020 | MUST | Perubahan perilaku core MUST disertai test yang gagal sebelum perbaikan dan lulus sesudahnya; test MUST deterministik dan tidak bergantung pada waktu nyata atau jaringan. | Regresi tidak terdeteksi; PR ditolak. |
+## 6. Verifikasi
 
-## 3. Pengecualian dan Penegakan
+| Langkah | Perintah | Lulus bila |
+|---|---|---|
+| Test | `cargo test --manifest-path packages/core-rust/Cargo.toml` | Seluruh test lulus. |
+| Lint | `cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings` | Tanpa warning. |
+| Build WASM | `cargo build --target wasm32-unknown-unknown` | Berhasil dan ukuran dalam budget. |
+| Determinisme | Test packing dua kali | Hash identik. |
 
-1. `unsafe` baru MUST melalui review security dan MUST mencatat invariant, aliasing, dan masa hidup pointer pada komentar `// SAFETY:`.
-2. Perubahan algoritma kriptografi, format envelope, atau layout `.mapp` MUST melalui RFC dan menaikkan versi kontrak.
-3. Panic yang ditemukan fuzz MUST diperbaiki, bukan diabaikan dengan `#[ignore]`.
-4. Coverage dan fuzz dijalankan pada crate sebelum rilis; hasilnya dilampirkan pada release gate.
+## 7. Pengecualian
 
-## 4. Referensi
-
-- [ADR-0003](../01-architecture/adr/0003-rust-shared-core.md) — keputusan shared core.
-- [identity-crypto.md](../01-architecture/identity-crypto.md) — hierarki kunci dan envelope.
-- [sync-crdt.md](../01-architecture/sync-crdt.md) — HLC dan mutation log.
-- [manifest-v2.md](../03-specs/manifest-v2.md) — validasi manifest.
-- [security.md](security.md) — kebijakan keamanan dan dependency.
-- [testing.md](testing.md) — coverage, fuzz, dan test vector.
+Pengecualian pada RULE-RS-003, RULE-RS-004, dan RULE-RS-006 memerlukan persetujuan reviewer `security` dan `runtime`, serta catatan di PR. Pengecualian tidak boleh berlaku untuk kode yang memverifikasi signature.

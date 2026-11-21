@@ -1,88 +1,97 @@
 ---
 id: RULE-TEST
-title: Aturan Testing
+title: Rules Testing Web
 status: accepted
-owner: dx
-prd_refs: ["§6", "§7.2"]
+owner: qa
+prd_refs: ["§9", "§12"]
 ---
 
-# Aturan Testing
+# Rules Testing Web
 
-Aturan ini menetapkan cara menulis, menjalankan, dan menilai test. Strategi lengkap ada di [test-strategy.md](../08-quality/test-strategy.md); aturan di sini mengikat keputusan harian yang harus dipatuhi setiap PR.
+Aturan ini mengikat cara membuktikan bahwa perubahan benar. Piramida, alat, dan ambang bukti ditetapkan di [test-strategy.md](../08-quality/test-strategy.md); anggaran performa di [performance-budgets.md](../08-quality/performance-budgets.md). Tidak ada requirement yang boleh ditandai `implemented` tanpa test yang benar-benar berjalan.
 
-## 1. Cakupan
+## 1. Tujuan dan Ruang Lingkup
 
-| Area | Kewajiban utama |
+| Lapisan | Alat | Cakupan |
+|---|---|---|
+| Unit | Vitest | Logika murni, parser, migrasi, kriptografi wrapper. |
+| Komponen | Vitest + Testing Library | State, keyboard, ARIA, token. |
+| End-to-end | Playwright | 8 flow kritis di build lokal. |
+| Aksesibilitas | axe | Layar dan komponen yang berubah. |
+| Visual | Snapshot terkontrol | Komponen clay pada light/dark/high-contrast. |
+| Keamanan | Skenario terpisah | Sandbox, CSP, signature, izin. |
+
+Di luar cakupan: pengujian perangkat keras atau runtime di luar browser.
+
+## 2. Prinsip
+
+1. **Test mengikuti perilaku, bukan implementasi.** Assert terhadap hasil yang dilihat pengguna atau kontrak data.
+2. **Cepat dan deterministik.** Tanpa jaringan nyata, tanpa waktu nyata, tanpa urutan acak.
+3. **Satu bug, satu test regresi.** Perbaikan tanpa test regresi dianggap belum selesai.
+4. **Bukti, bukan klaim.** Status requirement mengacu pada test yang dapat dijalankan ulang.
+
+## 3. Aturan
+
+| ID | Level | Aturan | Verifikasi |
+|---|---|---|---|
+| RULE-TEST-001 | MUST | Setiap perubahan perilaku menyertakan test pada lapisan terendah yang dapat membuktikannya; perbaikan bug menyertakan test regresi yang gagal sebelum perbaikan. | Review diff test |
+| RULE-TEST-002 | MUST | Unit dan komponen memakai Vitest; test perilaku tidak boleh bergantung pada snapshot markup saja. | Review |
+| RULE-TEST-003 | MUST | Alur create, edit, preview, install, backup, consent, crash recovery, dan migrasi memiliki smoke test Playwright. | `npm run e2e` |
+| RULE-TEST-004 | MUST | Layar atau komponen yang berubah lulus axe tanpa pelanggaran `serious` atau `critical`. | Test axe |
+| RULE-TEST-005 | MUST | Komponen clay memiliki regresi visual pada light, dark, dan high-contrast; perubahan snapshot memerlukan persetujuan reviewer desain. | Snapshot review |
+| RULE-TEST-006 | MUST | Test memakai fake timer, clock yang diinjeksi, dan ID deterministik; tidak ada ketergantungan pada waktu nyata atau UUID acak. | Review, test berulang |
+| RULE-TEST-007 | MUST | Dilarang `sleep` arbitrer atau retry untuk menutupi race. Tunggu kondisi, event, atau state yang eksplisit. | Lint test, review |
+| RULE-TEST-008 | MUST | Test offline/PWA memverifikasi shell dan app terpasang dapat dibuka setelah reload tanpa jaringan, serta perilaku cache yang benar. | Test offline, NFR-REL-001 |
+| RULE-TEST-009 | MUST | Test sandbox mencakup penolakan akses DOM host, pelanggaran CSP, panggilan bridge tanpa permission, dan fail-closed saat sandbox tidak tersedia. | Test keamanan |
+| RULE-TEST-010 | MUST | Test package mencakup signature salah, digest berubah, manifest tidak valid, dan public key berbeda; semuanya harus ditolak. | Test package |
+| RULE-TEST-011 | MUST | Coverage baris tidak turun dari baseline paket; kode baru pada modul kritis (kripto, migrasi, permission) memiliki coverage minimal 80%. | Laporan coverage |
+| RULE-TEST-012 | MUST | Fixture memakai data sintetis; tidak ada kunci, token, passphrase, atau data pribadi nyata di test. | Secret scan |
+| RULE-TEST-013 | MUST | Perubahan yang menyentuh render atau interaksi mengukur LCP, INP, dan CLS pada profil referensi dan mencatat hasilnya di PR. | Ukur di build produksi |
+| RULE-TEST-014 | MUST | Test flaky dikarantina dengan issue, pemilik, dan tenggat; retry otomatis tidak boleh menjadi cara lulus. | Review status test |
+
+## 4. Struktur Test
+
+```ts
+import { describe, expect, it, vi } from 'vitest';
+
+describe('autosave builder', () => {
+  it('menyimpan 500 ms setelah perubahan terakhir', async () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const scheduler = createAutosave(save, 500);
+
+    scheduler.schedule({ nodeId: 'n1' });
+    scheduler.schedule({ nodeId: 'n1' });
+    await vi.advanceTimersByTimeAsync(499);
+    expect(save).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+});
+```
+
+Nama test menyebut perilaku dan kondisi, bukan nama fungsi internal. Satu `it` membuktikan satu klaim.
+
+## 5. Anti-pola
+
+| Anti-pola | Alasan |
 |---|---|
-| Piramida | Unit dan contract dominan; E2E hanya untuk alur kritis |
-| Determinisme | Tanpa waktu nyata, jaringan publik, atau data produksi |
-| Offline/chaos | Offline adalah mode utama yang diuji |
-| CRDT | Property test dan konvergensi |
-| Sandbox/kripto | Escape suite dan known-answer vector |
-| Kontrak | JSON Schema, bridge, MUAP |
-| UI | a11y, i18n, performa |
-| Gate | Coverage dan larangan flaky |
+| `await page.waitForTimeout(1000)` | Lambat dan tetap flaky. |
+| Mock seluruh modul sehingga test tidak menyentuh kode nyata | Bukti palsu. |
+| Menurunkan ambang coverage agar PR lulus | Menyembunyikan regresi. |
+| Snapshot besar untuk seluruh halaman | Sulit ditinjau dan rapuh. |
+| Test yang bergantung pada urutan eksekusi | Gagal acak saat dijalankan paralel. |
 
-## 2. Aturan
+## 6. Verifikasi
 
-### 2.1 Struktur dan Determinisme
+| Langkah | Perintah | Lulus bila |
+|---|---|---|
+| Unit/komponen | `npm test` | Seluruh test lulus, tanpa flaky. |
+| E2E | `npm run e2e` | 8 flow kritis lulus. |
+| Aksesibilitas | axe pada layar berubah | Tanpa pelanggaran serius. |
+| Bukti rilis | `npm run verify:web` | Status dicatat di [baseline.md](../08-quality/evidence/baseline.md). |
 
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-TEST-001 | MUST | Test MUST diturunkan dari kolom `Acceptance` pada requirement; test yang tidak memetakan ke FR/NFR/SEC MUST dihapus atau dilengkapi alasannya. | Cakupan tidak dapat diaudit; reviewer menolak test dekoratif. |
-| RULE-TEST-002 | MUST | Mayoritas cakupan MUST berada di unit dan contract test; E2E hanya untuk alur yang tidak dapat dibuktikan lebih murah, dan setiap E2E MUST menunjuk flow terkait. | Suite lambat dan rapuh; PR ditolak bila mengandalkan E2E untuk logika murni. |
-| RULE-TEST-003 | MUST | Test MUST deterministik: tanpa `sleep`, waktu nyata, random tanpa seed, jaringan publik, atau urutan eksekusi yang diasumsikan; waktu memakai fake clock dan randomness memakai seed yang dicatat. | Test flaky; gate gagal dan PR diblokir. |
-| RULE-TEST-004 | MUST | Test paralel MUST mengisolasi state: database per test, port acak dari OS, direktori sementara unik, dan tanpa variabel global yang dimutasi. | Test saling mengganggu; hasil berbeda saat dijalankan ulang. |
-| RULE-TEST-005 | MUST | Test MUST NOT memakai data pengguna nyata atau PII; seluruh fixture MUST sintetis dan tidak dapat dilacak ke individu. | Pelanggaran privasi; test diblokir. |
-| RULE-TEST-006 | MUST | Bug regresi MUST menambahkan test yang gagal sebelum perbaikan dan lulus setelahnya; perbaikan tanpa test regresi ditolak kecuali dibuktikan tidak dapat diuji. | Bug yang sama berulang; PR ditolak. |
+## 7. Pengecualian
 
-### 2.2 Offline, Chaos, dan Data
-
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-TEST-007 | MUST | Suite integrasi MUST berjalan dengan jaringan mati secara default; test yang membutuhkan jaringan MUST memakai mock server lokal dan diberi tag `network-mock`. | Ketergantungan jaringan tersembunyi; offline regression lolos. |
-| RULE-TEST-008 | MUST | Setiap fitur sync, workflow, atau registry MUST memiliki test offline, putus di tengah operasi, dan resume dari cursor/idempotency key. | Duplikasi efek atau kehilangan mutasi; acceptance tidak terpenuhi. |
-| RULE-TEST-009 | MUST | Skenario chaos (kill isolate, restart server, disk penuh, jam mundur) MUST diuji untuk jalur yang menyentuh data persisten. | Data korup saat kegagalan; gate chaos gagal. |
-| RULE-TEST-010 | MUST | CRDT MUST diuji dengan property-based test untuk convergence, commutativity, idempotency, monotonic HLC, column LWW, cursor resumability, dan schema staging; minimal 5.000 kasus per PR dan 100.000 pada nightly. | Konflik tidak konvergen; gate sync gagal. |
-
-### 2.3 Keamanan, Kriptografi, dan Kontrak
-
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-TEST-011 | MUST | Setiap perubahan runtime web/native, core Rust, atau broker MUST menjalankan escape suite dan bypass capability; sandbox yang tidak dapat diuji MUST fail closed. | Escape tidak terdeteksi; rilis diblokir. |
-| RULE-TEST-012 | MUST | Kriptografi MUST diuji dengan known-answer vector resmi (Ed25519 RFC 8032, X25519 RFC 7748, BIP39, HKDF, AES-256-GCM) dan envelope negative case: tag salah, AAD diubah, `key_id` asing, ciphertext terpotong. | Implementasi menyimpang dari standar; test kripto gagal. |
-| RULE-TEST-013 | MUST | Kontrak manifest, registry index, MUIP, dan host bridge MUST memiliki test schema untuk contoh valid dan invalid, termasuk `additionalProperties`, enum, regex `id`, dan path traversal. | Payload invalid diterima; instalasi gagal di lapangan. |
-| RULE-TEST-014 | MUST | Contract test MUST dijalankan terhadap produsen dan konsumen yang sebenarnya (Rust parser, TS validator, Dart binding), bukan hanya satu sisi. | Dua sisi menyimpang; integrasi gagal. |
-
-### 2.4 UI, a11y, i18n, dan Performa
-
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-TEST-015 | MUST | Setiap PR UI MUST menjalankan axe dan keyboard-only check; temuan serius/kritis MUST diperbaiki sebelum merge. | NFR-A11Y-001/002 dilanggar; PR ditolak. |
-| RULE-TEST-016 | MUST | UI MUST diuji dengan pseudo-locale, `id-ID`, `en-US`, dan satu locale RTL; string hardcoded dan overflow layout MUST gagal. | Terjemahan dan RTL rusak; gate i18n gagal. |
-| RULE-TEST-017 | MUST | Perubahan yang menyentuh render, query, sync, atau startup MUST menjalankan benchmark dan MUST NOT melampaui anggaran di [performance-budgets.md](../08-quality/performance-budgets.md). | Regresi performa tidak terdeteksi; PR ditolak. |
-| RULE-TEST-018 | MUST | Golden/visual test MUST menunjuk komponen MADS dan state yang diuji; memperbarui golden tanpa review perubahan visual dilarang. | Perubahan visual tidak disengaja lolos. |
-
-### 2.5 Coverage, Penamaan, dan Gate
-
-| ID | Level | Aturan | Konsekuensi |
-|---|---|---|---|
-| RULE-TEST-019 | MUST | Coverage minimum: Rust core 90% line (khususnya crypto, parser, sandbox guard), TypeScript/Go/Dart 80% line; modul crypto/sandbox MUST memiliki mutation atau fuzz target sebagai tambahan, bukan pengganti. | Coverage gate gagal; rilis ditahan. |
-| RULE-TEST-020 | MUST | Nama test MUST menyatakan perilaku dan requirement: `it('menolak signature yang diubah (FR-REG-...)')`, `TestCreateRegistry_RejectsKeyChange`, `test('migration rollback restores rows')`; nama generik seperti `test1` dilarang. | Kegagalan tidak dapat dilacak ke requirement; review menolak. |
-| RULE-TEST-021 | MUST | Test yang flaky MUST diperbaiki atau dihapus; retry otomatis MUST NOT dipakai untuk membuat suite lulus, dan `skip` tanpa alasan dan batas waktu dilarang. | Kepercayaan pada suite hilang; PR diblokir. |
-| RULE-TEST-022 | MUST | Perintah test lokal dan gate rilis MUST sama; kegagalan test MUST memblokir merge, dan hasil perintah dilampirkan pada bagian Verifikasi PR. | “Lulus di mesin saya” tidak dapat diaudit; PR ditolak. |
-
-## 3. Pengecualian dan Penegakan
-
-1. Test yang membutuhkan perangkat fisik MUST mencatat perangkat, versi OS, dan hasil; ketiadaan perangkat bukan alasan untuk mengklaim lulus.
-2. Fuzz dan property test MUST menyimpan seed yang gagal sebagai test regresi.
-3. Perubahan kontrak MUST menambahkan fixture sebelum implementasi diubah.
-4. Gate coverage dan fuzz dijalankan sebelum release; hasilnya dicatat di [release-gates.md](../08-quality/release-gates.md).
-
-## 4. Referensi
-
-- [test-strategy.md](../08-quality/test-strategy.md) — lapisan, matriks platform, fixture.
-- [security-test-plan.md](../08-quality/security-test-plan.md) — uji keamanan dan severity.
-- [performance-budgets.md](../08-quality/performance-budgets.md) — ambang performa.
-- [definition-of-done.md](../08-quality/definition-of-done.md) — bukti yang harus ada.
-- [data-migrations.md](data-migrations.md) — test migrasi dan restore.
+Pengecualian pada RULE-TEST-003, RULE-TEST-004, atau RULE-TEST-009 memerlukan persetujuan reviewer `qa` dan `security`, serta tenggat perbaikan yang dicatat di PR. Tidak ada pengecualian untuk RULE-TEST-012.
