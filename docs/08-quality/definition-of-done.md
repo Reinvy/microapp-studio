@@ -1,139 +1,136 @@
 ---
 id: QA-DOD
-title: Definition of Done
+title: Definisi Selesai
 status: accepted
 owner: qa
-prd_refs: ["§7.2"]
+prd_refs: ["§9", "§12"]
 ---
 
-# Definition of Done
+# Definisi Selesai
 
-Dokumen ini menetapkan syarat minimum agar pekerjaan boleh disebut selesai. "Selesai" berarti perilaku yang diminta telah diimplementasikan, acceptance criteria terbukti, dokumentasi selaras, dan bukti verifikasi dapat diperiksa oleh orang lain. Kode yang berjalan tetapi tidak memenuhi dokumen adalah bug, bukan pekerjaan selesai.
+Dokumen ini menetapkan kapan sebuah artefak dianggap selesai. "Selesai" berarti perilaku yang dijanjikan telah diimplementasikan, diuji, didokumentasikan, dan dibuktikan dengan evidence yang dapat dijalankan ulang. Tidak ada artefak yang selesai hanya karena kode sudah ditulis atau dokumen sudah ada.
 
-## 1. Tujuan dan Prinsip
+## 1. Aturan Bukti
 
-1. **Tidak ada done tanpa acceptance.** Setiap pekerjaan MUST merujuk minimal satu requirement atau acceptance criterion; pekerjaan yang tidak dapat dirujuk MUST ditolak atau didahului spec.
-2. **Tidak ada done tanpa verifikasi.** Klaim "sudah diuji" MUST disertai perintah dan hasil. Test yang tidak dijalankan bukan bukti.
-3. **Dokumen lebih dulu.** Perubahan perilaku MUST mengubah spec/flow/acceptance sebelum kode.
-4. **Bersih, bukan ditambal.** Tidak ada placeholder pekerjaan tertunda, mock produksi, fallback tidak aman, atau kode mati yang ditinggalkan.
-5. **Dapat di-rollback.** Perubahan yang berisiko MUST memiliki rencana rollback yang diuji.
+1. **Setiap klaim punya bukti.** Status `implemented` pada [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md) MUST didukung minimal satu test yang lulus dan tercatat di [baseline.md](evidence/baseline.md).
+2. **Bukti spesifik.** Nama test, perintah, dan hasilnya disebutkan. "Sudah dicoba" bukan bukti.
+3. **Bukti segar.** Bukti berlaku untuk commit yang dinilai. Perubahan setelah test dijalankan membatalkan bukti untuk area yang berubah.
+4. **Bukti deterministik.** Test yang lulus hanya dengan retry berulang tidak dihitung; penyebab flakiness harus diperbaiki.
+5. **Bukti aman.** Evidence tidak memuat secret, token AI, data pribadi, atau isi vault. Log yang diekspor MUST teredaksi.
+6. **Tidak ada klaim masa depan.** Dokumen dan evidence tidak boleh menyatakan fitur target sebagai sudah ada. Gunakan `missing` atau `partial` sampai test membuktikan sebaliknya.
+7. **Satu artefak, satu pemilik.** Pemilik artefak bertanggung jawab memastikan checklist terpenuhi sebelum meminta review.
 
-## 2. DoD Global
+## 2. Spesifikasi
 
-Berlaku untuk setiap PR, terlepas dari jenis artefak:
+Spec selesai bila:
 
-- [ ] Spec/flow terkait diperbarui dan menyebut ID requirement yang dipenuhi.
-- [ ] Acceptance criteria memiliki test otomatis atau prosedur verifikasi manual yang tercatat.
-- [ ] `node scripts/check-docs.mjs --strict` hijau.
-- [ ] Typecheck, lint, dan test untuk area yang berubah hijau.
-- [ ] Tidak ada string hardcoded pada UI; kunci `id-ID` dan `en-US` lengkap.
-- [ ] Tidak ada secret, token, kunci, atau data pengguna nyata di kode, test, log, atau fixture.
-- [ ] Tidak ada `eval`, `new Function`, `innerHTML` tanpa sanitasi, atau akses host langsung dari sandbox.
-- [ ] Kode error baru terdaftar di [03-specs/error-codes.md](../03-specs/error-codes.md) dan dipakai di spec/flow.
-- [ ] Perubahan UI memenuhi keyboard, screen reader, kontras, dan reduced motion.
-- [ ] Perubahan kontrak (manifest, bridge, sync, permission, crypto, registry) melalui RFC.
-- [ ] Dokumentasi tidak mengklaim fitur yang belum ada; status implementasi memakai `missing`/`partial`/`implemented` secara jujur.
-- [ ] PR menyebut `Spec:` atau alasan `docs-not-needed`; reviewer menyetujui.
-- [ ] Rencana rollback ada untuk perubahan yang menyentuh data, migrasi, atau rilis.
+- [ ] Memuat section `## 1. Tujuan`, `## 3. Requirement`, `## 7. Acceptance Criteria`, dan `## 8. Verifikasi`.
+- [ ] Setiap requirement memiliki ID unik, level, pernyataan yang dapat diuji, dan acceptance yang terukur.
+- [ ] Tidak ada ID yang tidak terdefinisi; rujukan requirement lain valid.
+- [ ] Setiap flow terkait disebut, dan setiap error code yang relevan terhubung ke [error-codes.md](../03-specs/error-codes.md).
+- [ ] Setiap requirement memiliki baris pada [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md).
+- [ ] `node scripts/check-docs.mjs --strict` lulus untuk file tersebut.
+- [ ] Tidak ada klaim platform atau kemampuan yang tidak ada di produk web-only.
 
-## 3. DoD per Artefak
+Bukti: spec tertaut dari [docs/README.md](../README.md), matrix memuat seluruh ID, dan checker lulus.
 
-### 3.1 Spec
+## 3. Flow
 
-- [ ] Frontmatter `id`, `title`, `status`, `owner`, `prd_refs` valid dan unik.
-- [ ] H1 sama dengan `title`; bahasa Indonesia; istilah kanonik konsisten.
-- [ ] Bagian wajib lengkap: tujuan, aktor, requirement, model data/state, error, keamanan, acceptance, verifikasi, referensi.
-- [ ] Setiap requirement memakai level MUST/SHOULD/MAY dan memiliki minimal satu acceptance criterion.
-- [ ] Setiap requirement memiliki baris di [matriks kepatuhan](../00-foundation/prd-compliance-matrix.md).
-- [ ] Tidak ada requirement yatim, ID duplikat, atau referensi ke ID yang tidak terdefinisi.
-- [ ] Spec mencerminkan ADR `accepted`; bila berbeda, ADR menang dan spec direvisi.
+Flow selesai bila:
 
-### 3.2 Kode
+- [ ] Memuat section `## Alur Utama`, `## Cabang Gagal`, `## Acceptance Criteria`, dan `## Verifikasi`.
+- [ ] Setiap langkah merujuk minimal satu requirement FR atau SEC.
+- [ ] Jalur gagal menyebut kode error yang ditampilkan dan keadaan data setelah gagal.
+- [ ] Acceptance dapat diuji dan tidak memuat ambiguitas seperti "cepat" tanpa angka.
+- [ ] Ada E2E atau test integrasi yang mencakup jalur utama dan minimal satu cabang gagal.
+- [ ] Tidak ada langkah yang membutuhkan akun, server, atau konfigurasi awal yang tidak ada.
 
-- [ ] Mengikuti aturan bahasa terkait di [07-rules](../07-rules/typescript.md) setelah dokumen tersebut tersedia.
-- [ ] Typecheck ketat dan lint bersih; tidak ada `any` implisit atau suppression tanpa alasan.
-- [ ] Unit test mencakup jalur sukses, jalur gagal, batas input, dan error code terkait.
-- [ ] Contract test diperbarui bila schema/envelope berubah.
-- [ ] Log tidak memuat PII, token, kunci, atau path absolut; error memakai kode terdaftar.
-- [ ] Sumber daya (file, koneksi, isolate, Worker) ditutup pada semua jalur, termasuk error.
-- [ ] Perubahan performa diverifikasi terhadap [performance-budgets.md](performance-budgets.md).
-- [ ] Tidak ada dependency baru tanpa review lisensi, keamanan, dan lockfile.
+Bukti: nama test E2E pada [baseline.md](evidence/baseline.md) dan tautan flow pada spec terkait.
 
-### 3.3 Test
+## 4. ADR
 
-- [ ] Test deterministik: seed, fake clock, tanpa jaringan publik.
-- [ ] Test memetakan ke acceptance criterion, bukan hanya ke fungsi internal.
-- [ ] Ada test negatif untuk keamanan, permission, signature, dan input tidak valid.
-- [ ] Fixture baru disimpan di repositori dengan checksum bila biner.
-- [ ] Tidak ada test flaky; bila ditemukan, dikarantina maksimal 24 jam dengan issue.
-- [ ] Fuzz/mutation dijalankan untuk modul crypto dan sandbox yang berubah.
+ADR selesai bila:
 
-### 3.4 Dokumentasi
+- [ ] Memuat `## Konteks`, `## Keputusan`, dan `## Konsekuensi`.
+- [ ] Menyebut alternatif yang ditolak dan alasan penolakannya.
+- [ ] Status `accepted` dan terdaftar di [ADR README](../01-architecture/adr/README.md).
+- [ ] Tidak bertentangan dengan [PRD-v3.0.md](../00-foundation/PRD-v3.0.md) atau spec aktif.
+- [ ] Menyebut dampak pada implementasi, keamanan, dan migrasi bila ada.
+- [ ] Ditinjau oleh architecture dan, bila menyentuh keamanan, security.
 
-- [ ] Link relatif valid; tidak ada anchor mati.
-- [ ] Tidak ada penanda placeholder atau teks contoh yang belum diganti.
-- [ ] Status `implemented` hanya dipakai setelah verifikasi nyata di `## Verifikasi`.
-- [ ] Perubahan perilaku tercermin di spec, flow, dan matriks secara konsisten.
-- [ ] Istilah baru ditambahkan ke [glossary](../00-foundation/glossary.md).
-- [ ] Dokumen yang saling bergantung tidak saling bertentangan; sumber kebenaran dirujuk, bukan diduplikasi.
+Bukti: ADR tertaut dari indeks dan dirujuk oleh spec atau kode yang menerapkannya.
 
-### 3.5 Keamanan
+## 5. Komponen UI
 
-- [ ] Risiko terkait di [threat model](../01-architecture/threat-model.md) memiliki suite dan test regresi.
-- [ ] Tidak ada temuan critical/high terbuka tanpa pengecualian tertulis.
-- [ ] Permission baru memiliki ID, risk tier, consent copy, audit event, dan test grant/revoke.
-- [ ] Input tidak dipercaya divalidasi pada boundary; output di-escape sesuai konteks.
-- [ ] Fail closed: isolasi/verifikasi yang gagal menghentikan operasi, bukan menurunkan keamanan.
-- [ ] Secret tidak pernah ditulis ke disk, log, atau crash report.
+Komponen selesai bila:
 
-### 3.6 Desain
+- [ ] Memiliki entri katalog `MADS-<CAT>-<NN>` yang tepat di [component-catalog.md](../02-design/component-catalog.md); ID dan nama tidak berubah tanpa pembaruan generator.
+- [ ] Untuk 48 komponen core: anatomi, props/varian, state, token, keyboard, ARIA, dan contoh copy lengkap.
+- [ ] Hanya memakai token `--mads-*`; tidak ada `box-shadow`, radius, warna, atau durasi hardcoded.
+- [ ] State `default`, `hover`, `focus-visible`, `pressed`, `disabled`, `loading`, dan `error` diuji sesuai relevansi.
+- [ ] Lolos axe tanpa pelanggaran `serious` atau `critical`.
+- [ ] Lolos visual regression pada tema light, dark, dan high-contrast.
+- [ ] `prefers-reduced-motion` menonaktifkan transform dan animasi.
+- [ ] `node scripts/generate-catalog.mjs --check` lulus.
 
-- [ ] Memakai token MADS; tidak ada warna/ukuran hardcoded.
-- [ ] State loading, empty, error, offline, dan permission tercakup.
-- [ ] Komponen yang dipakai tercatat di katalog 120 dengan anatomi, state, token, dan a11y.
-- [ ] Kontras, target sentuh, fokus, dan keyboard terverifikasi.
-- [ ] Copy mengikuti formula error dan voice/tone; tidak ada string hardcoded.
-- [ ] Dark, light, high-contrast, dan reduced motion diuji.
+Bukti: component test, snapshot visual yang ditinjau, dan laporan axe.
 
-### 3.7 Operasi
+## 6. Fitur
 
-- [ ] Runbook instalasi/upgrade/rollback diperbarui bila perintah atau konfigurasi berubah.
-- [ ] Backup dan restore diuji, termasuk verifikasi checksum dan jumlah record.
-- [ ] Observability tidak mengaktifkan telemetry secara default; log teredaksi.
-- [ ] Health/readiness membedakan dependency dan melaporkan degraded dengan benar.
-- [ ] Resource budget (1 vCPU/512 MB) diverifikasi untuk perubahan server.
-- [ ] Prosedur insiden dan rotasi kunci tersedia untuk perubahan yang menyentuh kunci atau signing.
+Fitur selesai bila seluruh poin berikut terpenuhi:
 
-## 4. Bukti dan Verifikasi
+- [ ] Acceptance pada spec terpenuhi dan dapat ditunjukkan.
+- [ ] Unit atau component test mencakup logika baru.
+- [ ] E2E mencakup alur pengguna yang berubah, termasuk jalur gagal.
+- [ ] Aksesibilitas: keyboard-only, fokus, label, dan kontras sesuai [accessibility.md](../02-design/accessibility.md).
+- [ ] Offline: perilaku tanpa jaringan diuji bila fitur menyentuh shell, data, atau runtime.
+- [ ] i18n: string baru ada di `id-ID` dan `en-US`; tidak ada teks hardcoded di komponen.
+- [ ] Keamanan: izin, validasi input, dan penanganan error mengikuti [security-test-plan.md](security-test-plan.md) bila relevan.
+- [ ] Tidak menambah telemetry, request eksternal, atau dependensi tanpa persetujuan.
+- [ ] Dokumentasi, matrix, dan evidence diperbarui pada PR yang sama.
+- [ ] Status requirement diubah ke `implemented` hanya setelah bukti tersedia; jika belum, tetap `partial` atau `missing`.
 
-| Jenis pekerjaan | Bukti minimum |
+Bukti: daftar test yang lulus, hasil axe, hasil offline, dan baris matrix yang diperbarui.
+
+## 7. Dokumen
+
+Dokumen selesai bila:
+
+- [ ] Frontmatter memuat `id`, `title`, `status`, `owner`, dan `prd_refs` yang valid.
+- [ ] H1 sama dengan `title` dan tidak bernomor.
+- [ ] Semua tautan relatif menunjuk file yang ada; tidak ada tautan ke dokumen yang dihapus.
+- [ ] Tidak ada placeholder, bagian kosong, atau janji implementasi tanpa bukti.
+- [ ] Istilah dan angka konsisten dengan spec serta [implementation-status.md](../00-foundation/implementation-status.md).
+- [ ] Dapat dijangkau dari [docs/README.md](../README.md).
+- [ ] `node scripts/check-docs.mjs --strict` lulus tanpa warning.
+
+Bukti: keluaran checker dan daftar file yang berubah.
+
+## 8. Rilis
+
+Rilis selesai bila:
+
+- [ ] Seluruh gate blokir pada [release-gates.md](release-gates.md) lulus pada commit yang dideploy.
+- [ ] [baseline.md](evidence/baseline.md) memuat `result: pass`, commit, timestamp, dan status setiap perintah.
+- [ ] Deploy smoke lulus untuk `/`, `/templates`, `/packages`, dan `/settings`.
+- [ ] Budget performa dan aksesibilitas terpenuhi pada build produksi.
+- [ ] Tidak ada temuan keamanan kritis atau tinggi yang terbuka.
+- [ ] Matrix dan implementation status sesuai kenyataan; tidak ada klaim yang belum diuji.
+- [ ] Rencana rollback tersedia dan telah diuji minimal sekali pada lingkungan staging.
+- [ ] Catatan rilis menyebut perubahan, batasan, dan requirement yang belum selesai.
+
+Bukti: tautan evidence, hasil deploy smoke, dan catatan rilis.
+
+## 9. Ringkasan Bukti Minimum
+
+| Artefak | Bukti minimum |
 |---|---|
-| Perubahan perilaku | Test otomatis + hasil perintah + acceptance yang dipetakan |
-| Perubahan UI | Screenshot/test snapshot + laporan axe + keyboard path |
-| Perubahan kontrak | Schema test + fixture valid/invalid + RFC |
-| Perubahan data | Test migrasi forward/rollback + fixture versi lama |
-| Perubahan keamanan | Suite keamanan terkait + test negatif |
-| Perubahan performa | Sebelum/sesudah pada perangkat referensi |
-| Perubahan rilis | Checklist [release-gates.md](release-gates.md) §5 |
+| Spec | Checker lulus, matrix memuat seluruh ID |
+| Flow | E2E jalur utama dan satu cabang gagal |
+| ADR | Entri indeks dan rujukan dari spec/kode |
+| Komponen | Component test, axe, visual regression, catalog check |
+| Fitur | Unit/component, E2E, a11y, offline, i18n, matrix |
+| Dokumen | Checker lulus tanpa warning dan tautan valid |
+| Rilis | Seluruh gate blokir, evidence `pass`, deploy smoke |
 
-Bukti MUST disimpan di tempat yang dapat diakses reviewer (CI, PR, catatan rilis). Klaim lisan atau tautan ke percakapan pribadi bukan bukti.
-
-## 5. Larangan
-
-Pekerjaan MUST NOT disebut selesai bila:
-
-- Acceptance criterion belum dijalankan atau hanya "diperkirakan".
-- Test dinonaktifkan, di-skip, atau dilonggarkan agar lulus.
-- Fitur PRD diklaim sudah ada padahal statusnya `missing`/`partial`.
-- Perubahan perilaku tidak memiliki spec/flow.
-- Ada migrasi destruktif tanpa export dan rollback.
-- Ada placeholder pekerjaan tertunda, mock produksi, atau fallback tidak aman yang tertinggal.
-- Pengecualian gate keamanan tidak tercatat dan tidak disetujui.
-- Dokumentasi, matriks, atau status implementasi tidak diperbarui.
-
-## 6. Referensi
-
-- [00-foundation/sdd-workflow.md](../00-foundation/sdd-workflow.md), [00-foundation/prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md)
-- [03-specs/nfr.md](../03-specs/nfr.md), [03-specs/error-codes.md](../03-specs/error-codes.md)
-- [test-strategy.md](test-strategy.md), [performance-budgets.md](performance-budgets.md), [security-test-plan.md](security-test-plan.md), [release-gates.md](release-gates.md)
-- [01-architecture/threat-model.md](../01-architecture/threat-model.md)
+Jika salah satu bukti tidak ada, artefak belum selesai. Menurunkan cakupan hanya boleh dilakukan dengan persetujuan eksplisit pada issue atau PR, bukan dengan menghapus checklist.

@@ -1,179 +1,163 @@
 ---
-id: QA-TEST-STRATEGY
+id: QA-TEST
 title: Strategi Test
 status: accepted
 owner: qa
-prd_refs: ["§6", "§8"]
+prd_refs: ["§9", "§12"]
 ---
 
 # Strategi Test
 
-Dokumen ini menetapkan strategi pengujian normatif untuk seluruh ekosistem MicroApp Studio: Host Shell, Studio IDE, sandbox runtime, data layer, sync/CRDT, registry, server self-host, serta DevTools/CLI/SDK. Setiap requirement di [03-specs](../03-specs/nfr.md) wajib memiliki bukti uji yang dapat dijalankan ulang; test yang tidak deterministik dianggap gagal.
+Dokumen ini menetapkan strategi pengujian untuk produk web-only MicroApp Studio: satu PWA Next.js yang berjalan di browser desktop, tablet, dan mobile. Test diturunkan dari kolom `Acceptance` pada requirement di [03-specs](../03-specs/nfr.md), bukan dari detail implementasi. Test yang tidak memetakan ke FR, NFR, atau SEC tidak menambah keyakinan dan SHOULD dihapus.
 
 ## 1. Tujuan dan Prinsip
 
-1. **Acceptance adalah kontrak.** Test diturunkan dari kolom `Acceptance` pada tabel requirement, bukan dari implementasi. Test yang tidak memetakan ke FR/NFR/SEC tidak menambah keyakinan dan SHOULD dihapus.
-2. **Deterministik.** Test MUST NOT bergantung pada waktu nyata, jaringan publik, urutan eksekusi paralel, atau data produksi. Waktu memakai fake clock; randomness memakai seed yang dicatat.
-3. **Offline-first diuji sebagai mode utama.** Jaringan dimatikan secara default pada suite integrasi; test yang membutuhkan jaringan MUST memakai mock server lokal dan diberi tag `network-mock`.
-4. **Fail closed.** Bila isolasi sandbox atau verifikasi signature tidak tersedia, test MUST memastikan runtime berhenti, bukan fallback ke mode tidak aman.
-5. **Piramida, bukan es krim.** Mayoritas cakupan ada di unit dan contract test; E2E dipakai untuk alur kritis yang tidak dapat dibuktikan lebih murah.
-6. **Satu sumber fixture.** Fixture manifest, arsip `.mapp`, database lama, dan vektor kriptografi dipakai bersama lintas bahasa agar tidak ada dua definisi kebenaran.
+1. **Acceptance adalah kontrak.** Setiap test menyebut requirement atau flow yang dibuktikannya. Test tanpa rujukan tidak dihitung sebagai bukti pada [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md).
+2. **Deterministik.** Test MUST NOT bergantung pada waktu nyata, jaringan publik, urutan eksekusi paralel, atau data pengguna nyata. Waktu memakai fake timer, randomness memakai seed yang dicatat, dan locale dipatok.
+3. **Offline adalah mode utama.** Shell dan micro-app terpasang diuji tanpa jaringan. Test yang memerlukan jaringan MUST memakai server lokal atau mock dan diberi tag `network-mock`.
+4. **Fail closed.** Bila sandbox, signature, atau izin tidak tersedia, test MUST membuktikan runtime berhenti, bukan jatuh ke mode tidak aman.
+5. **Piramida, bukan es krim.** Mayoritas cakupan ada di unit dan component test; E2E hanya untuk alur yang tidak dapat dibuktikan lebih murah.
+6. **Satu sumber fixture.** Fixture manifest, arsip `.mapp`, database lama, dan vektor kriptografi dipakai bersama lintas paket agar tidak ada dua definisi kebenaran.
+7. **Baseline bukan target.** Angka pada §3 adalah fakta saat refactor dokumen, bukan janji rilis. Angka tersebut MUST diverifikasi ulang sebelum dipakai sebagai bukti.
 
-## 2. Lapisan Test
+## 2. Piramida Test Web
 
-| Lapisan | Cakupan | Alat | Lingkungan | Gate |
-|---|---|---|---|---|
-| Unit | Fungsi murni, reducer, parser, validator, kriptografi | Vitest, `cargo test`, `go test`, `flutter test` | Lokal + CI, tanpa I/O | Setiap PR |
-| Contract | Host bridge, MUIP, manifest schema, registry index, sync envelope | JSON Schema validator + test konsumen | CI | Setiap PR yang menyentuh kontrak |
-| Integration | SQLite/OPFS, Rust core via WASM/FFI, server dengan DB nyata, registry fetch lokal | Vitest + testcontainers/Go `httptest` | CI, service lokal | Setiap PR |
-| E2E | First run, install/update/rollback, build with AI, sync dua peer, publish, self-host | Playwright (web), `flutter_test` integration, Go e2e | Nightly + release | Nightly dan release |
-| Chaos | Mati listrik, kill isolate, jaringan putus, server restart, disk penuh | Fault injector internal | Nightly | Nightly |
-| Security | Escape sandbox, bypass capability, crypto misuse, SSRF, signature mismatch | Lihat [security-test-plan.md](security-test-plan.md) | CI + nightly fuzz | Setiap PR keamanan + release |
-| Performance | Cold/warm start, FPS, memori, ukuran artefak, latensi sync | Lihat [performance-budgets.md](performance-budgets.md) | Perangkat referensi | Nightly + release |
-| A11y | Keyboard-only, screen reader, kontras, reduced motion, zoom 200% | axe-core, audit manual | CI (axe) + manual | Setiap PR UI + release |
-| i18n | Kelengkapan kunci, pluralisasi, RTL, pseudo-locale, format tanggal/angka | Locale lint + snapshot | CI | Setiap PR UI + release |
+| Lapisan | Cakupan | Alat | Gate |
+|---|---|---|---|
+| Unit | Fungsi murni, reducer, parser, validator, kriptografi, util token | Vitest | Setiap PR |
+| Component | Komponen React, state, keyboard, ARIA, token clay | Vitest + Testing Library | Setiap PR UI |
+| Contract | Manifest v2, MUIP, bridge, schema backup, index statis | JSON Schema validator + test konsumen | Setiap PR kontrak |
+| Integration | SQLite WASM/OPFS di worker, migrasi, import/export, WASM core | Vitest environment worker + `cargo test` | Setiap PR data/runtime |
+| E2E | First run, create, edit/preview, share/install, backup, consent, crash, migrasi | Playwright | Nightly dan release |
+| Visual | Regresi visual clay pada komponen dan layar | Playwright screenshot | Setiap PR UI |
+| A11y | Keyboard, kontras, focus, reduced motion, ARIA | axe-core + audit manual | Setiap PR UI dan release |
+| Offline/PWA | Service worker, cache, reload offline, update | Playwright context offline | Setiap PR shell/runtime |
+| Security | Escape sandbox, bypass izin, signature, XSS/CSP, exfiltration | Lihat [security-test-plan.md](security-test-plan.md) | Setiap PR keamanan dan release |
+| Performance | LCP, INP, CLS, ukuran JS, interaksi builder | Lihat [performance-budgets.md](performance-budgets.md) | Nightly dan release |
 
-## 3. Matriks Platform
+## 3. Baseline Test Saat Ini
 
-| Platform | Unit | Contract | Integration | E2E | Chaos | Performance |
-|---|---|---|---|---|---|---|
-| Web (`apps/studio-web`, `packages/*`) | Wajib | Wajib | Wajib (SQLite WASM/OPFS, Worker) | Wajib (Playwright) | Wajib | Wajib (Chromium referensi) |
-| Flutter (`apps/host-flutter`) | Wajib | Wajib (bridge FFI) | Wajib (QuickJS/Wasmtime) | Wajib (integration test) | Wajib | Wajib (Android mid-range) |
-| Rust (`packages/core-rust`) | Wajib | Wajib (serde/JSON Schema) | Wajib (WASM + FFI target) | — | Wajib (fuzz) | Opsional (benchmark core) |
-| Go (`apps/selfhost-server`) | Wajib | Wajib (API + registry) | Wajib (SQLite + PostgreSQL) | Wajib (Lite e2e) | Wajib (restart/DB failure) | Wajib (1 vCPU/512 MB) |
+Angka berikut adalah kondisi nyata saat refactor dokumen dan MUST diverifikasi ulang dengan perintah pada kolom terakhir. Tidak ada angka yang boleh dinaikkan tanpa menjalankan suite.
 
-Aturan tambahan:
+| Area | Lokasi | Baseline | Perintah |
+|---|---|---|---|
+| Unit/component aplikasi | `apps/studio-web` | 15 file, 153 test | `npm test` |
+| Runtime sandbox | `packages/runtime-web` | ±7 file, 69 test | `npm test` |
+| UI kit | `packages/ui-kit` | ±1 file, 33 test | `npm test` |
+| WASM core | `packages/core-rust` | 53 test | `cargo test --manifest-path packages/core-rust/Cargo.toml` |
+| E2E web | `e2e` | ±5 skenario | `npm run e2e` |
 
-- Logika kriptografi, parsing `.mapp`, CRDT/HLC, dan verifikasi signature MUST diuji di Rust core dan MUST NOT diduplikasi menjadi implementasi test di TS/Dart.
-- Perbedaan perilaku web dan native MUST diuji terhadap kontrak yang sama; test web tidak boleh menjadi satu-satunya bukti untuk klaim native.
+Baseline ini tidak membuktikan fitur target. Builder visual, galeri template, Magic Create, per-app database saat runtime, dan UI clay belum tercakup sampai test-nya ditulis.
 
-## 4. Fixture dan Data Uji
+## 4. Unit dan Component
 
-| Fixture | Isi minimal | Dipakai oleh |
+- Framework: Vitest. Test aplikasi berada di `apps/studio-web`, test runtime di `packages/runtime-web`, test komponen di `packages/ui-kit`.
+- Environment: `jsdom` atau `happy-dom` untuk komponen; worker untuk modul yang memang berjalan di worker.
+- Larangan: `fetch`, `XMLHttpRequest`, `WebSocket`, dan `EventSource` asli. Semua I/O dimock; unit test yang membuka jaringan dianggap gagal.
+- Waktu: `vi.useFakeTimers()` untuk debounce autosave, watchdog, toast, dan retry. Test MUST memajukan waktu secara eksplisit, bukan menunggu nyata.
+- Randomness: `crypto.randomUUID` dan generator ID dimock atau diberi seed; snapshot tidak memuat UUID acak.
+- Nama test menyebut requirement atau perilaku, misalnya `FR-STUDIO-010 undo menghapus langkah terakhir`. Test tanpa rujukan tidak dihitung sebagai bukti.
+- Component test memeriksa state `default`, `hover`, `focus-visible`, `pressed`, `disabled`, `loading`, dan `error` sesuai [component-catalog.md](../02-design/component-catalog.md), serta memastikan tidak ada nilai visual hardcoded di luar token `--mads-*`.
+- Snapshot DOM tidak dipakai sebagai satu-satunya bukti; assertion perilaku dan aksesibilitas lebih diutamakan.
+
+## 5. Contract dan Integration
+
+- **Manifest dan package.** Fixture `microapp.manifest.json` divalidasi terhadap schema di [manifest.md](../03-specs/manifest.md). Kasus wajib: field hilang, versi tidak didukung, permission tidak dikenal, signature kosong, dan hash tidak cocok.
+- **MUIP.** Setiap node di [ui-protocol.md](../03-specs/ui-protocol.md) diuji dengan props valid dan tidak valid. Renderer MUST menolak HTML, CSS, atau JavaScript arbitrer.
+- **Bridge.** Setiap method di [host-bridge.md](../03-specs/host-bridge.md) diuji untuk parameter, timeout, rate limit, dan penolakan tanpa grant.
+- **Data.** Test integrasi membuka SQLite WASM melalui worker dengan OPFS tiruan, menjalankan migrasi 001/002, memeriksa snapshot sebelum migrasi, FTS5, serta isolasi database antar app. Data uji tidak boleh menyentuh OPFS pengguna nyata.
+- **WASM core.** `cargo test` mencakup signature, digest, format `.mapp`, dan pemrosesan manifest. `cargo clippy --all-targets -- -D warnings` adalah gate terpisah.
+- **Backup.** Fixture `.mapp-backup` mencakup passphrase benar/salah, checksum rusak, section terpotong, dan header salah.
+
+## 6. E2E Playwright
+
+E2E berada di `e2e` dan menjalankan build produksi terhadap origin lokal. Setiap test memakai konteks browser bersih, storage terisolasi, dan tidak membuka host eksternal.
+
+Alur wajib:
+
+| Flow | Bukti |
+|---|---|
+| [01-first-run.md](../04-flows/01-first-run.md) | Identitas otomatis, Home tampil tanpa jaringan, tidak ada mnemonic sebelum Home, create ≤ 3 klik |
+| [02-create-app.md](../04-flows/02-create-app.md) | Tiga jalur create berakhir di builder dengan draft tersimpan |
+| [04-share-install.md](../04-flows/04-share-install.md) | Ekspor `.mapp`, verifikasi, permission preview, install |
+| [05-backup-recovery.md](../04-flows/05-backup-recovery.md) | Backup terenkripsi, restore gabung/ganti, passphrase salah ditolak |
+| [06-permission-consent.md](../04-flows/06-permission-consent.md) | Consent JIT, allow once/always/deny, revoke berlaku langsung |
+| [07-crash-recovery.md](../04-flows/07-crash-recovery.md) | Watchdog, boundary, reload, ekspor data, draft aman |
+
+Aturan E2E:
+
+- Test MUST memblokir semua request eksternal dengan `page.route` dan gagal bila ada request tak terduga.
+- Test offline memakai `context.setOffline(true)` setelah kunjungan pertama; shell dan app terpasang harus tetap terbuka.
+- Test tidak boleh bergantung pada urutan file. Setiap test membuat workspace dan data sendiri.
+- Timeout didefinisikan eksplisit; tidak ada `waitForTimeout` sebagai sinkronisasi. Gunakan assertion yang menunggu kondisi.
+- Screenshot atau trace disimpan sebagai artefak CI saat gagal, bukan sebagai bukti kelulusan.
+
+## 7. Visual Regression Clay
+
+- Snapshot diambil untuk 48 komponen core di [component-catalog.md](../02-design/component-catalog.md), pada tema light, dark, dan high-contrast.
+- State yang diuji: default, hover, focus-visible, pressed, disabled, loading, dan error. State hover/pressed dipicu lewat kelas uji, bukan gerakan mouse nyata.
+- Animasi dimatikan lewat `prefers-reduced-motion: reduce` sebelum snapshot; snapshot dengan animasi berjalan dianggap tidak stabil.
+- Perbedaan visual MUST ditinjau manusia. Perubahan baseline hanya boleh disertai alasan desain dan pembaruan [DESIGN.md](../../DESIGN.md) bila nilainya berubah.
+- Snapshot tidak boleh menyertakan data dinamis seperti waktu, ID, atau nama pengguna.
+
+## 8. Aksesibilitas
+
+- axe-core dijalankan pada 12 layar di [screen-specs.md](../02-design/screen-specs.md) dan pada komponen core. Pelanggaran level `serious` atau `critical` memblokir.
+- Keyboard-only: setiap alur inti diselesaikan tanpa mouse; fokus terlihat, urutan logis, `Esc` menutup lapisan teratas, dan fokus kembali ke pemicu.
+- Kontras dihitung dari token pada [design-system.md](../02-design/design-system.md); kombinasi teks kecil dengan `muted` di atas `bg` diuji sebagai pelanggaran.
+- `prefers-reduced-motion: reduce` disimulasikan di Playwright; durasi transisi dan transform MUST menjadi nol.
+- Target sentuh diperiksa minimal 44×44 px pada viewport mobile.
+- Pemeriksaan manual screen reader dilakukan untuk alur first run, create, consent, dan crash recovery sebelum rilis.
+
+## 9. Offline dan PWA
+
+- Setelah satu kunjungan, service worker MUST menyajikan shell dan aset statis tanpa jaringan.
+- Test memeriksa: reload offline, navigasi ke `/settings`, membuka app terpasang, dan pesan `offline` yang benar.
+- Update service worker diuji dengan dua build berbeda; pengguna MUST mendapat prompt update, bukan white screen.
+- Simulasi storage penuh dan eviction memastikan UI menampilkan peringatan serta jalur ekspor, bukan kehilangan data diam-diam.
+- Test offline tidak boleh lulus dengan fallback ke jaringan; request eksternal harus gagal.
+
+## 10. Keamanan Paket
+
+Suite keamanan mengikuti [security-test-plan.md](security-test-plan.md). Minimum yang berjalan di CI setiap PR yang menyentuh sandbox, bridge, package, atau kriptografi:
+
+- escape iframe dan akses DOM induk;
+- pemanggilan bridge tanpa grant;
+- signature dan digest `.mapp` yang dimodifikasi;
+- zip traversal dan entri duplikat;
+- XSS melalui props MUIP dan pelanggaran CSP;
+- pembacaan storage lintas app;
+- kebocoran BYOK ke log atau jaringan;
+- perubahan audit chain.
+
+## 11. Fixture, Determinisme, dan Isolasi
+
+- Fixture bersama berada di `e2e/fixtures` dan `packages/*/test/fixtures`. Fixture package ditandatangani dengan kunci uji yang tidak pernah dipakai produksi.
+- Tidak ada secret nyata, token AI nyata, atau data pribadi di fixture. Kunci uji diberi label jelas dan tidak dapat dipakai untuk menandatangani rilis.
+- Database uji dibuat per test dan dihapus setelahnya. Test paralel memakai workspace dan port terpisah.
+- Seed, zona waktu, dan locale dipatok. Test yang gagal karena waktu nyata harus diperbaiki, bukan di-retry sampai lulus.
+- Retry maksimal satu kali hanya untuk test E2E yang bergantung pada browser; retry tidak boleh menutupi kegagalan deterministik.
+
+## 12. Perintah Verifikasi
+
+| Perintah | Cakupan | Wajib |
 |---|---|---|
-| Manifest corpus | Contoh valid, field hilang, enum salah, `id` tidak sesuai regex, path `..`, signature salah | Contract, registry, CLI |
-| `.mapp` archive | ZIP deterministik valid, urutan entry salah, timestamp berubah, zip bomb, path traversal, entry terlalu besar | Rust parser, registry install |
-| Database lama | Snapshot skema versi sebelumnya untuk setiap migrasi yang pernah dirilis | Data migration, restore |
-| Crypto vectors | Ed25519 (RFC 8032), BIP-39, HKDF-SHA256, AES-256-GCM, envelope dengan AAD | Rust core, sync, vault |
-| Sync corpus | Batch 500 mutation/8 MiB, batch batas lewat, cursor duplikat, payload versi lebih baru | Sync engine, staging |
-| Log redaction | Baris log sintetis berisi token, kunci, path absolut, email | Security, observability |
-| Locale corpus | `id-ID`, `en-US`, pseudo-locale, `ar` (RTL) | i18n, a11y |
+| `node scripts/check-docs.mjs --strict` | Frontmatter, link, ID, matrix, reachability | Ya |
+| `node scripts/generate-catalog.mjs --check` | Katalog 120 komponen tidak melenceng | Ya |
+| `npm test` | Unit dan component Vitest | Ya |
+| `npm run typecheck` | TypeScript strict | Ya |
+| `npm run lint` | Aturan web-only dan aksesibilitas statis | Ya |
+| `npm run build` | Build Next.js dan budget dasar | Ya |
+| `cargo test --manifest-path packages/core-rust/Cargo.toml` | WASM core | Ya |
+| `cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings` | Lint Rust | Ya |
+| `npm run e2e` | Alur kritis Playwright | Ya saat rilis |
+| `npm run verify:web` | Seluruh rangkaian dan penulisan evidence | Ya saat rilis |
 
-Aturan fixture:
+Hasil setiap perintah dicatat pada [baseline.md](evidence/baseline.md) melalui `npm run verify:web`. Gate yang memakai perintah ini didefinisikan di [release-gates.md](release-gates.md).
 
-- Data pengguna nyata MUST NOT dipakai; seluruh PII MUST sintetis dan tidak dapat dilacak ke individu.
-- Fixture biner MUST disimpan di repositori dengan checksum dan lisensi yang jelas; fixture besar (> 5 MiB) MAY diunduh dari artefak build bertanda tangan.
-- Setiap bug regresi MUST menambahkan fixture atau test yang gagal sebelum perbaikan dan lulus setelahnya.
+## 13. Hubungan dengan Dokumen Lain
 
-## 5. Simulasi Offline, Jaringan, dan Waktu
-
-| Skenario | Cara simulasi | Ekspektasi |
-|---|---|---|
-| Offline total | Matikan koneksi proses; tolak seluruh socket keluar | Aplikasi tetap berfungsi dari cache; tidak ada request keluar (NFR-SUPPLY-003) |
-| Latensi dan packet loss | Proxy lokal dengan delay 50–500 ms dan loss 1–10% | Retry/backoff sesuai default; tidak ada duplikasi efek |
-| Putus saat batch sync | Terminasi koneksi di tengah batch | Resume dari cursor; idempotency key mencegah duplikasi |
-| DNS gagal | Resolver mock mengembalikan NXDOMAIN | Fallback transport deterministik, bukan crash |
-| Server restart | Kill proses server saat workflow berjalan | Job dilanjutkan dari checkpoint; tidak ada job hilang |
-| Jam mundur/maju | Fake clock | HLC tetap monotonik; tidak ada konflik palsu |
-| App background | Simulasi lifecycle OS | Hibernasi 30 detik; timer dan rekaman berhenti |
-| Disk penuh | Filesystem quota | Fail closed dengan kode error terdaftar, data lama utuh |
-
-## 6. Test Konvergensi CRDT
-
-Suite ini membuktikan properti, bukan hanya contoh:
-
-1. **Convergence** — dua replika yang menerima himpunan mutasi sama MUST memiliki state identik tanpa memandang urutan.
-2. **Commutativity** — pertukaran urutan mutasi independen MUST menghasilkan state yang sama.
-3. **Idempotency** — penerapan mutasi yang sama dua kali MUST NOT mengubah state atau menambah baris konflik.
-4. **Monotonic HLC** — HLC yang dihasilkan MUST selalu naik; clock mundur MUST dikoreksi.
-5. **Column-level LWW** — hanya kolom yang bertabrakan yang menghasilkan `conflict_history`; kolom lain tidak tersentuh.
-6. **Cursor resumability** — batch yang ditolak atau diputus MUST dapat dikirim ulang dari cursor tanpa kehilangan mutasi.
-7. **Schema staging** — mutasi dengan schema version lebih baru MUST tersimpan di staging dan tidak diterapkan sampai upgrade.
-
-Pelaksanaan: property-based test dengan generator operasi acak; minimal 5.000 kasus per PR dan 100.000 kasus pada nightly. Seed yang gagal MUST dicetak dan disimpan sebagai test regresi.
-
-## 7. Sandbox Escape dan Crypto Vectors
-
-- Suite escape sandbox, bypass capability, dan injeksi MUIP dijalankan pada setiap PR yang menyentuh `packages/runtime-web`, `apps/host-flutter`, atau `packages/core-rust`; detail di [security-test-plan.md](security-test-plan.md).
-- Kriptografi MUST diuji terhadap vektor standar dan implementasi referensi. Dilarang membuat vektor sendiri untuk klaim kompatibilitas.
-- Test envelope MUST mencakup tag gagal, AAD diubah, `key_id` tidak dikenal, nonce reuse, dan ciphertext terpotong; ekspektasi adalah penolakan, bukan dekripsi parsial.
-- Test signature `.mapp` MUST mencakup kunci benar, kunci salah, kunci berubah (TOFU), signature terpotong, dan payload diubah setelah signing.
-
-## 8. Lingkungan dan Perangkat
-
-| Lingkungan | Pemakaian | Aturan |
-|---|---|---|
-| Lokal | TDD, debugging | Boleh memakai subset suite; tidak menjadi bukti rilis |
-| CI PR | Unit, contract, integration, smoke E2E, axe | Wajib hijau sebelum merge; tanpa akses internet |
-| Nightly | E2E penuh, chaos, fuzz, performance, RTL | Hasil disimpan sebagai artefak 90 hari |
-| Release candidate | Seluruh suite + perangkat referensi | Menjadi bukti gate rilis |
-| Air-gap | Instalasi dan operasi tanpa egress | Tidak ada request keluar; dibuktikan dengan audit jaringan |
-
-Perangkat referensi mengikuti [03-specs/nfr.md](../03-specs/nfr.md) §2: Android mid-range 4 GB RAM, laptop 8 GB RAM 4 core, Chromium stabil, VPS 1 vCPU/512 MB. Perangkat lain MAY diuji sebagai informasi, bukan gate.
-
-## 9. Coverage, Mutasi, dan Fuzz
-
-| Area | Ambang wajib | Tambahan |
-|---|---|---|
-| Rust core | 90% line coverage | Mutation testing minimal 80% mutation score untuk modul crypto, parser `.mapp`, CRDT/HLC |
-| TypeScript (Studio, runtime-web, SDK) | 80% line coverage | Fuzz target untuk validator bridge dan parser MUIP |
-| Go (server) | 80% line coverage | Fuzz target untuk SSRF guard dan parser registry index |
-| Dart/Flutter (host) | 80% line coverage | Golden test untuk komponen kritis dan theme token |
-
-Aturan:
-
-- Coverage MUST dihitung dari build test dengan instrumentasi, bukan estimasi manual.
-- Baris generated, binding FFI yang dihasilkan, dan kode `main` bootstrap MAY dikecualikan dengan daftar eksplisit di konfigurasi.
-- Modul crypto dan sandbox MUST memiliki mutation atau fuzz target; coverage saja tidak cukup.
-- Fuzz corpus yang menemukan crash MUST dikomit dan dijalankan ulang di CI.
-- Penurunan coverage lebih dari 0,5 poin persen pada PR MUST dijelaskan di deskripsi PR atau ditolak.
-
-## 10. Kepemilikan dan Triase
-
-| Lapisan | Pemilik | Eskalasi |
-|---|---|---|
-| Unit/contract platform | Tim platform terkait (`runtime`, `data`, `sync`, `server`, `dx`) | Architect |
-| Security suite | `security` | Insiden sesuai [security-test-plan.md](security-test-plan.md) |
-| Performance | `qa` + pemilik modul | Architect |
-| A11y/i18n | `design` + `qa` | Product |
-| E2E lintas modul | `qa` | Maintainer council |
-
-- Test flaky MUST dikarantina maksimal 24 jam dengan issue dan pemilik; setelah itu diperbaiki atau dihapus. Karantina tidak boleh dipakai untuk melewati gate rilis.
-- Kegagalan test yang disebabkan bug produk MUST diperbaiki di produk, bukan dengan melonggarkan assertion.
-- Test yang dihapus MUST disertai alasan dan penggantinya; penghapusan tanpa pengganti ditolak reviewer.
-
-## 11. Perintah
-
-```bash
-npm test
-npm run lint
-npx tsc --noEmit
-npx vitest run --coverage
-npx playwright test
-cargo test -p microapp-core
-cargo clippy -p microapp-core -- -D warnings
-cargo llvm-cov -p microapp-core --fail-under-lines 90
-go test ./apps/selfhost-server/...
-go test -cover ./apps/selfhost-server/...
-flutter test
-flutter test --coverage
-microapp test --sandbox --coverage
-node scripts/check-docs.mjs --strict
-```
-
-Perintah di atas adalah kontrak target monorepo; selama migrasi Phase 0, perintah yang belum tersedia MUST ditandai `partial` di [00-foundation/implementation-status.md](../00-foundation/implementation-status.md), bukan dianggap lulus.
-
-## 12. Gate dan Bukti
-
-- **Per PR:** unit + contract + integration untuk modul yang berubah, smoke E2E, axe untuk perubahan UI, locale lint, dan `docs:check --strict`.
-- **Nightly:** seluruh suite, chaos, fuzz, performance, RTL, dan restore dari backup.
-- **Per release:** seluruh suite pada perangkat referensi, bukti keamanan, bukti performa, dan SBOM/provenance; detail di [release-gates.md](release-gates.md).
-- Bukti MUST disimpan sebagai artefak CI (log, laporan coverage, hasil benchmark, laporan axe) dan ditautkan di PR atau catatan rilis. Screenshot tanpa log bukan bukti.
-
-## 13. Referensi
-
-- [03-specs/nfr.md](../03-specs/nfr.md), [03-specs/error-codes.md](../03-specs/error-codes.md)
-- [01-architecture/sandbox-capabilities.md](../01-architecture/sandbox-capabilities.md), [01-architecture/sync-crdt.md](../01-architecture/sync-crdt.md)
-- [01-architecture/identity-crypto.md](../01-architecture/identity-crypto.md), [01-architecture/registry-supply-chain.md](../01-architecture/registry-supply-chain.md)
-- [security-test-plan.md](security-test-plan.md), [performance-budgets.md](performance-budgets.md), [release-gates.md](release-gates.md), [definition-of-done.md](definition-of-done.md)
-- [00-foundation/sdd-workflow.md](../00-foundation/sdd-workflow.md)
+- Requirement dan angka NFR: [nfr.md](../03-specs/nfr.md).
+- Aturan implementasi test: [testing.md](../07-rules/testing.md).
+- Bukti dan status: [evidence/README.md](evidence/README.md) dan [prd-compliance-matrix.md](../00-foundation/prd-compliance-matrix.md).
+- Alur kerja kontribusi: [workflow.md](../05-agents/workflow.md).

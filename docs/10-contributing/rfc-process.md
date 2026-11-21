@@ -3,163 +3,143 @@ id: GOV-RFC
 title: Proses RFC
 status: accepted
 owner: governance
-prd_refs: ["§7.2"]
+prd_refs: ["§10", "§11"]
 ---
 
 # Proses RFC
 
+Dokumen ini menetapkan kapan RFC (Request for Comments) wajib, bagaimana usul ditulis dan direview, berapa lama periode review, dan bagaimana keputusan dihubungkan ke ADR. RFC adalah satu-satunya jalur yang sah untuk mengubah kontrak yang dipakai paket `.mapp`, runtime sandbox, dan desain.
+
 ## 1. Tujuan dan Ruang Lingkup
 
-RFC (Request for Comments) adalah mekanisme publik untuk mengubah kontrak yang dipakai lintas komponen: manifest, Host Bridge, MUIP, sync/CRDT, permission, crypto, registry, CLI/SDK, serta tata kelola dan lisensi. RFC memastikan perubahan kontrak tidak diputuskan sepihak dan kompatibilitas ekosistem terjaga.
+- Mencegah perubahan kontrak yang memutus kompatibilitas tanpa review terbuka.
+- Menjaga jejak keputusan yang dapat diaudit: usul, diskusi, keputusan, ADR, implementasi.
+- Menetapkan sinkronisasi antara RFC, spec, schema, dan rules.
 
-Dokumen ini melengkapi [governance.md](governance.md) dan [00-foundation/sdd-workflow.md](../00-foundation/sdd-workflow.md). Kerangka dokumen ada di [templates/rfc.md](../templates/rfc.md).
+RFC mengatur perubahan dokumen dan kontrak. RFC tidak menggantikan review kode atau gate rilis; keduanya tetap berlaku.
 
 ## 2. Kapan RFC Wajib
 
-| Area | Contoh perubahan | RFC |
+| Area | Contoh perubahan | Dokumen terkait |
 |---|---|---|
-| Manifest | Field baru, enum baru, perubahan validasi, kenaikan `schemaVersion` | Wajib |
-| `.mapp` | Layout arsip, aturan signature, format deterministik | Wajib |
-| Host Bridge | Namespace, method, envelope, error shape, timeout | Wajib |
-| MUIP | Node type, event, batas validasi, negosiasi versi | Wajib |
-| Sync/CRDT | Handshake, transport baru, format batch, resolusi konflik | Wajib |
-| Permission | ID baru, perubahan risk tier, semantik consent | Wajib |
-| Crypto | Algoritma, envelope, hierarki kunci, rotasi | Wajib |
-| Registry | Format indeks, trust level, pencabutan kunci, delta | Wajib |
-| CLI/SDK | Perubahan breaking, exit code, output `--json` | Wajib bila breaking |
-| Tata kelola/lisensi | Perubahan dokumen governance atau lisensi | Wajib |
+| Manifest `.mapp` | Field baru/wajib, perubahan arti field, versi schema | [manifest](../03-specs/manifest.md) |
+| Bridge host | Method baru, perubahan parameter/error, timeout, consent | [host bridge](../03-specs/host-bridge.md) |
+| Permission | Permission baru, perubahan risk tier, perubahan default cage | [permissions](../03-specs/permissions.md) |
+| Token desain | Nama, nilai, atau semantik token `--mads-*` | [design system](../02-design/design-system.md) |
+| Format paket/index | Layout ZIP, signature, digest, schema index statis | [package distribution](../01-architecture/package-distribution.md) |
+| Data | Skema migration yang tidak kompatibel mundur, format ekspor | [data spec](../03-specs/04-data.md) |
 
-RFC **TIDAK** diperlukan untuk: typo, perbaikan dokumentasi yang tidak mengubah kontrak, refactor internal tanpa perubahan perilaku, perbaikan bug yang mempertahankan kontrak, pembaruan dependency patch, dan penambahan test.
+RFC juga **WAJIB** untuk perubahan cakupan platform, penambahan backend, atau perubahan model privasi, karena semuanya mengubah PRD.
 
-Bila ragu, ajukan RFC. Menunda RFC untuk perubahan kontrak dianggap pelanggaran SDD dan PR **MUST** ditolak.
+Tidak perlu RFC untuk: perbaikan bug yang memulihkan perilaku sesuai spec, penambahan test, perbaikan copy yang tidak mengubah makna, peningkatan dependency patch yang tidak mengubah kontrak, dan perubahan internal komponen yang tidak mengubah API publik.
 
 ## 3. Status RFC
 
-| Status | Arti | Pindah ke |
+| Status | Arti |
+|---|---|
+| `draft` | Penulis masih melengkapi; belum direview |
+| `review` | Terbuka untuk komentar; periode review berjalan |
+| `accepted` | Disetujui; ADR dan pekerjaan implementasi boleh dimulai |
+| `rejected` | Ditolak dengan alasan tertulis; tidak ada implementasi |
+| `withdrawn` | Ditarik penulis |
+| `superseded` | Digantikan RFC/ADR yang lebih baru |
+
+Status **MUST** terlihat pada judul atau frontmatter berkas RFC. RFC `draft` tidak boleh dipakai sebagai dasar implementasi.
+
+## 4. Langkah
+
+1. **Cek duplikasi.** Cari RFC, issue, dan ADR yang sudah ada; tautkan konteksnya.
+2. **Tulis usul** dengan kerangka §6. Sertakan contoh manifest/bridge/token yang konkret, bukan deskripsi abstrak.
+3. **Ajukan PR** berlabel `rfc` yang hanya memuat berkas RFC; jangan mencampur kode.
+4. **Buka periode review** minimal 7 hari kalender; 14 hari bila menyentuh keamanan, kriptografi, signature, atau permission.
+5. **Bahasa dan kompatibilitas.** Jelaskan dampak ke paket lama, versi minimum host, dan rencana migrasi/deprecation.
+6. **Putuskan** sesuai [governance](governance.md): lazy consensus untuk perubahan kecil, 2/3 council untuk struktural.
+7. **Catat ADR** bila keputusan mengubah arsitektur atau kontrak jangka panjang; tautkan RFC dan ADR dua arah.
+8. **Perbarui spec/schema** dalam PR terpisah yang menautkan RFC `accepted`; implementasi menyusul setelah spec diperbarui.
+
+Urutan yang mengikat: RFC `accepted` → spec/schema diperbarui → implementasi → verifikasi. Implementasi sebelum spec adalah pelanggaran proses dan **MUST** ditolak pada review.
+
+## 5. Periode Review dan Keputusan
+
+| Faktor | Dampak |
+|---|---|
+| Komentar substansial | Penulis **MUST** menjawab setiap komentar atau menyatakan tidak berlaku beserta alasan |
+| Perubahan besar saat review | Periode review dimulai ulang; status kembali `draft` bila arah berubah |
+| Tidak ada komentar sampai tenggat | Lazy consensus berlaku untuk perubahan non-struktural |
+| Keberatan keamanan | Wajib diselesaikan oleh security maintainer sebelum `accepted` |
+| Perubahan struktural | Butuh 2/3 suara council aktif |
+
+Keputusan **MUST** dicatat di berkas RFC pada bagian **Keputusan** dengan tanggal, hasil, dan daftar approver.
+
+## 6. Kerangka RFC
+
+```markdown
+# RFC-NNNN: <judul>
+
+- Status: draft
+- Penulis:
+- Reviewer:
+- Tanggal:
+- ADR terkait:
+
+## Ringkasan
+Satu paragraf: apa yang berubah dan mengapa.
+
+## Motivasi
+Masalah nyata, dampak pengguna, dan alternatif yang sudah dipertimbangkan.
+
+## Spesifikasi
+Perubahan kontrak secara presisi: field, method, token, atau format.
+Sertakan contoh valid dan contoh yang harus ditolak.
+
+## Kompatibilitas
+Versi host minimum, perilaku paket lama, rencana deprecation, dan migrasi.
+
+## Keamanan dan Privasi
+Risiko baru, permission yang terpengaruh, dan kontrol mitigasi.
+
+## Alternatif
+Opsi lain beserta alasan tidak dipilih.
+
+## Rencana Implementasi
+Urutan spec → schema → kode → test → dokumentasi, dengan pemilik.
+
+## Keputusan
+Tanggal, hasil, approver, dan tautan diskusi.
+```
+
+Nomor RFC berurutan dan tidak dipakai ulang. Judul berkas `rfc-NNNN-<slug>.md`; RFC yang ditolak tetap disimpan.
+
+## 7. Hubungan dengan ADR
+
+| Situasi | Tindakan |
+|---|---|
+| RFC mengubah kontrak teknis jangka panjang | Wajib ADR baru; RFC menautkan ADR, ADR menautkan RFC |
+| RFC hanya menyempurnakan detail yang sudah diputuskan ADR | Cukup perbarui spec; ADR diberi catatan amandemen |
+| RFC menggantikan keputusan lama | ADR baru berstatus menggantikan; ADR lama tidak dihapus dari riwayat |
+| RFC ditolak | Tidak ada ADR; alasan cukup di berkas RFC |
+
+ADR **MUST** mengikuti format di [ADR index](../01-architecture/adr/README.md) dan memuat Konteks, Keputusan, serta Konsekuensi.
+
+## 8. Contoh Perubahan yang Sering Ditanyakan
+
+| Usul | Perlu RFC? | Alasan |
 |---|---|---|
-| `draft` | Usulan ditulis, belum dibuka untuk komentar luas | `review` |
-| `review` | Periode komentar publik berjalan | `accepted`, `rejected` |
-| `accepted` | Disetujui; spec dan implementasi boleh dimulai | `implemented` |
-| `implemented` | Spec, kode, dan verifikasi selesai | `superseded` |
-| `rejected` | Ditolak dengan alasan tertulis | `draft` (revisi baru) |
-| `superseded` | Digantikan RFC atau ADR yang lebih baru | — |
+| Menambah permission `storage.read` | Ya | Permission baru dan consent baru |
+| Mengubah teks tombol consent | Tidak | Copy, bukan kontrak |
+| Menambah method bridge `clipboard.write` | Ya | Kanal baru ke host dan audit baru |
+| Mengubah nilai `--mads-color-primary` | Ya | Token visual adalah kontrak desain |
+| Menambah 1 komponen advanced ke katalog | Ya, ringan | ID katalog dibaca generator |
+| Memperbaiki bug drag yang menyimpang dari FR-STUDIO-004 | Tidak | Memulihkan perilaku sesuai spec |
+| Mengganti library ZIP internal | Ya bila mengubah hash deterministik | Format paket berubah |
 
-Aturan transisi:
+## 9. Verifikasi
 
-- Perpindahan `draft → review` dilakukan author setelah dokumen lengkap.
-- Perpindahan `review → accepted` memerlukan dua persetujuan maintainer dan tidak ada keberatan yang belum diselesaikan.
-- Perpindahan `accepted → implemented` hanya setelah spec diperbarui, kode di-merge, dan verifikasi dijalankan.
-- RFC yang ditolak **MUST** menyimpan alasan dan tidak dihapus.
-- RFC yang digantikan **MUST** menautkan penggantinya dan tetap tersimpan untuk sejarah.
-
-## 4. Format dan Lokasi
-
-RFC disimpan sebagai berkas `RFC-<NNNN>-<slug>.md` di `docs/rfcs/`, ditautkan dari [docs/README.md](../README.md), dan mengikuti [templates/rfc.md](../templates/rfc.md). Nomor diberikan berurutan saat RFC dibuka; nomor tidak dipakai ulang.
-
-Bagian wajib:
-
-| Bagian | Isi |
-|---|---|
-| Ringkasan | Masalah dan usulan dalam satu paragraf |
-| Motivasi | Mengapa kontrak saat ini tidak cukup |
-| Spesifikasi | Perubahan normatif, termasuk skema dan contoh |
-| Kompatibilitas | Dampak ke manifest, bridge, sync, dan versi host |
-| Keamanan | Ancaman baru, mitigasi, dan dampak permission |
-| Migrasi | Langkah bagi author, host, dan server |
-| Alternatif | Opsi yang dipertimbangkan dan alasan ditolak |
-| Rencana verifikasi | Test, fixture, dan bukti yang akan dijalankan |
-| Status | Status saat ini dan riwayat keputusan |
-
-- Contoh kode dan JSON **MUST** valid dan konsisten dengan [03-specs/manifest-v2.md](../03-specs/manifest-v2.md).
-- Klaim kompatibilitas **MUST** merujuk versi kontrak, bukan versi produk.
-- RFC **MUST NOT** memuat rahasia, kunci, atau data pengguna nyata.
-
-## 5. Prosedur
-
-1. Buat issue ringkas yang menjelaskan masalah dan dampak; tautkan ke RFC saat tersedia.
-2. Tulis RFC dengan status `draft` pada branch `docs/rfc-<nnnn>-<slug>`.
-3. Buka PR dokumen; sertakan `Spec: docs/rfcs/RFC-<NNNN>-<slug>.md` pada deskripsi.
-4. Setelah dokumen lengkap, ubah status ke `review` dan umumkan kanal diskusi.
-5. Jalankan periode komentar minimal **14 hari** kalender.
-6. Kumpulkan keberatan; setiap keberatan **MUST** dijawab dengan perubahan, penjelasan, atau penolakan beralasan.
-7. Minta review minimal **2 maintainer**, salah satunya dari area yang terdampak.
-8. Bila disetujui, ubah status ke `accepted` dan merge PR dokumen.
-9. Perbarui spec/ADR terkait dalam PR terpisah sebelum kode.
-10. Implementasikan, jalankan verifikasi, lalu ubah status ke `implemented` dan perbarui catatan rilis.
-
-Periode komentar **MUST** dihitung dari publikasi RFC yang lengkap, bukan dari pembukaan draft PR.
-
-## 6. Pengecualian Keamanan
-
-- Perbaikan kerentanan aktif **MAY** memakai periode komentar diperpendek menjadi **72 jam**.
-- Pengecualian **MUST** disetujui oleh security team dan dua maintainer.
-- Detail eksploit **MUST NOT** dipublikasikan sebelum perbaikan tersedia.
-- RFC tetap ditulis dan di-merge; hanya periode komentarnya yang diperpendek.
-- Bila perubahan menyentuh kriptografi atau sandbox, security review **MUST** terjadi sebelum implementasi.
-
-## 7. Review
-
-| Pemeriksaan | Kriteria |
-|---|---|
-| Kelengkapan | Semua bagian wajib terisi; contoh valid |
-| Kompatibilitas | Dampak ke versi lama dijelaskan; jalur migrasi ada |
-| Keamanan | Ancaman baru, permission, dan sandbox dinilai |
-| Data | Migrasi, rollback, dan retensi dijelaskan |
-| Konsistensi | Selaras dengan ADR accepted dan spec |
-| Verifikasi | Test dan fixture konkret, bukan pernyataan umum |
-| Operasional | Dampak ke self-host, air-gap, dan backup dinilai |
-
-Reviewer **MUST** menolak RFC yang menambah field atau enum tanpa menjelaskan validasi, default, dan kompatibilitas mundur.
-
-## 8. Kompatibilitas Kontrak
-
-| Kontrak | Aturan |
-|---|---|
-| Manifest | Semver; kenaikan mayor untuk perubahan breaking; host mendukung mayor saat ini dan mayor sebelumnya selama 12 bulan |
-| Host Bridge | Versi protokol eksplisit; negosiasi saat handshake; breaking change menaikkan versi mayor |
-| MUIP | Versi protokol eksplisit; renderer web dan Flutter wajib setara semantik |
-| Registry index | Versi skema eksplisit; field baru opsional sampai mayor berikutnya |
-| Sync/CRDT | Version header; peer dengan versi tidak kompatibel menolak dengan `E-SYNC-001` |
-| CLI/SDK | Breaking change menaikkan mayor dan melalui RFC (`FR-DEV-020`) |
-
-- Penambahan nilai enum **MUST** dianggap breaking bila klien lama menolak nilai tak dikenal.
-- Field baru **MUST** memiliki default dan perilaku eksplisit saat tidak ada.
-- Host **MUST NOT** menurunkan format data untuk berkomunikasi dengan versi lama; gunakan staging atau tolak dengan pesan jelas.
-- Migrasi **MUST** menyediakan rollback atau snapshot pra-migrasi.
-
-## 9. Keputusan dan Supersede ADR
-
-- Keputusan RFC dicatat pada berkas RFC: tanggal keputusan, reviewer, dan ringkasan alasan.
-- Bila RFC mengubah keputusan arsitektur, ADR baru **MUST** dibuat dan ADR lama ditandai `superseded` sesuai [ADR README](../01-architecture/adr/README.md).
-- Bila RFC bertentangan dengan ADR accepted dan ADR belum disupersede, ADR menang sampai proses supersede selesai.
-- Bila RFC bertentangan dengan PRD, PRD menang; RFC **MUST** direvisi atau ditolak.
-- Keputusan yang ditolak **MUST** tetap dapat dilacak untuk mencegah usulan berulang tanpa informasi baru.
-
-## 10. Implementasi dan Penutupan
-
-- Spec **MUST** diperbarui sebelum kode; urutan commit `docs:` → `feat/fix:` → `docs(status):`.
-- Status `implemented` hanya boleh diberikan setelah acceptance criteria di spec lulus dan bukti dicatat.
-- RFC yang diimplementasikan **MUST** menautkan PR spec, PR kode, dan hasil verifikasi.
-- Bila implementasi menyimpang dari RFC, RFC **MUST** diperbarui lebih dulu; implementasi tidak boleh menjadi sumber kebenaran.
-- RFC yang tidak diimplementasikan dalam 12 bulan dapat ditutup sebagai `rejected` dengan alasan, kecuali masih memiliki pemilik aktif.
-
-## 11. Verifikasi
-
-| Bukti | Prosedur |
-|---|---|
-| RFC wajib | PR yang mengubah manifest/bridge/sync tanpa RFC ditolak |
-| Periode komentar | Catat tanggal publikasi dan tanggal keputusan; minimal 14 hari |
-| Review | Dua maintainer tercatat, satu dari area terdampak |
-| Keamanan | Uji jalur diperpendek 72 jam dengan persetujuan security team |
-| Kompatibilitas | Fixture manifest lama dan baru divalidasi terhadap schema |
-| Supersede | ADR lama bertanda `superseded` dan menautkan pengganti |
-| Implementasi | Spec, kode, dan verifikasi tertaut pada RFC |
-
-## 12. Referensi
-
-- [governance.md](governance.md), [registry-policy.md](registry-policy.md)
-- [00-foundation/sdd-workflow.md](../00-foundation/sdd-workflow.md)
-- [templates/rfc.md](../templates/rfc.md)
-- [03-specs/manifest-v2.md](../03-specs/manifest-v2.md), [03-specs/host-bridge.md](../03-specs/host-bridge.md), [03-specs/ui-protocol.md](../03-specs/ui-protocol.md)
-- [03-specs/06-sync-backup.md](../03-specs/06-sync-backup.md), [03-specs/08-devtools-cli-sdk.md](../03-specs/08-devtools-cli-sdk.md)
-- [01-architecture/adr/README.md](../01-architecture/adr/README.md)
+| # | Pemeriksaan | Bukti |
+|---|---|---|
+| 1 | RFC menyebut area kontrak dan dokumen terkait | Berkas RFC |
+| 2 | Periode review terpenuhi (7/14 hari) | Riwayat PR |
+| 3 | Keputusan dan approver tercatat | Bagian Keputusan |
+| 4 | ADR ada untuk perubahan struktural | Tautan dua arah |
+| 5 | Spec/schema diperbarui sebelum implementasi | Urutan commit |
+| 6 | Contoh valid dan contoh ditolak tersedia | Bagian Spesifikasi |

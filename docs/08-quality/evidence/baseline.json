@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-11-21T02:35:49.118Z",
+  "commit": "e8cc58408b5b23d5aba1d6b69eac3d05877d585b",
+  "result": "pass",
+  "commands": [
+    {
+      "name": "docs-check",
+      "command": "node scripts/check-docs.mjs --strict",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "catalog-check",
+      "command": "node scripts/generate-catalog.mjs --check",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "test",
+      "command": "npm test",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "lint",
+      "command": "npm run lint",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "cargo-test",
+      "command": "cargo test --manifest-path packages/core-rust/Cargo.toml",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "cargo-clippy",
+      "command": "cargo clippy --manifest-path packages/core-rust/Cargo.toml --all-targets -- -D warnings",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    },
+    {
+      "name": "e2e",
+      "command": "npm run e2e",
+      "status": "pass",
+      "exitCode": 0,
+      "mandatory": true
+    }
+  ],
+  "requirements": [],
+  "limitations": []
+}

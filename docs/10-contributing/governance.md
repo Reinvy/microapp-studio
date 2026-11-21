@@ -1,181 +1,132 @@
 ---
-id: GOV-GOVERNANCE
+id: GOV-MAINTAINERS
 title: Tata Kelola
 status: accepted
 owner: governance
-prd_refs: ["§7.2"]
+prd_refs: ["§10", "§11"]
 ---
 
 # Tata Kelola
 
+Dokumen ini menetapkan cara proyek MicroApp Studio mengambil keputusan, memelihara cakupan web-only, merilis, mengelola lisensi dan pendanaan, serta menangani konflik kepentingan. Tata kelola **MUST** menjaga proyek tetap terbuka, netral, dan bebas dari edisi berbayar.
+
 ## 1. Tujuan dan Ruang Lingkup
 
-Dokumen ini menetapkan model tata kelola proyek MicroApp Studio: struktur keputusan, konsensus, rilis, kurasi registry, pengungkapan keamanan, lisensi, pendanaan, dan jalur menjadi maintainer. Tujuannya adalah menjaga proyek tetap terbuka, netral, dan bebas dari model open-core.
+- Menetapkan struktur maintainer dan batas kewenangannya.
+- Menetapkan proses keputusan biasa dan keputusan struktural.
+- Mengunci cakupan produk: satu PWA Next.js 16 untuk browser desktop, tablet, dan mobile.
+- Menetapkan irama rilis, lisensi, pendanaan, dan pengungkapan konflik kepentingan.
 
-Kontrak produk yang mengikat ada di [03-specs/07-selfhost.md](../03-specs/07-selfhost.md); keputusan lisensi ada di [ADR-0009](../01-architecture/adr/0009-license-governance.md); proses perubahan kontrak ada di [rfc-process.md](rfc-process.md); kebijakan konten registry ada di [registry-policy.md](registry-policy.md).
+Di luar cakupan dokumen ini: detail teknis kontrak (lihat [rfc-process.md](rfc-process.md)), kebijakan paket (lihat [package-policy.md](package-policy.md)), dan gate rilis (lihat [release gates](../08-quality/release-gates.md)).
 
-## 2. Prinsip
+## 2. Cakupan yang Tidak Dapat Diubah Lewat Konsensus Biasa
 
-| Prinsip | Konsekuensi |
+Perubahan berikut **MUST** melalui RFC dan ADR baru, bukan sekadar persetujuan maintainer:
+
+| Area | Batas |
 |---|---|
-| Tanpa open-core | Tidak ada edisi Enterprise terpisah; seluruh fitur ada di repositori publik |
-| Gratis penuh | Tidak ada paywall, seat limit, lisensi berbayar, atau fitur yang dikunci |
-| Terbuka | Diskusi teknis, RFC, dan keputusan dicatat publik |
-| Docs-first | Perubahan perilaku mengikuti [00-foundation/sdd-workflow.md](../00-foundation/sdd-workflow.md) |
-| Keamanan bertanggung jawab | Kerentanan ditangani privat sampai perbaikan tersedia |
-| Netral | Tidak ada peringkat registry berbayar atau perlakuan istimewa komersial |
-| Dapat diganti | Maintainer dan keputusan dapat diganti melalui proses yang tertulis |
+| Platform | Web-only PWA. Tidak ada aplikasi native, Flutter, desktop bundle, atau webview native. |
+| Backend | Tidak ada server aplikasi wajib, akun, atau cloud sync. |
+| Identitas | Local identity otomatis; tidak ada login/register. |
+| Data | SQLite WASM + OPFS di browser; tidak ada basis data server. |
+| Distribusi | `.mapp` bertanda tangan; tidak ada marketplace, publish server, atau registry terfederasi. |
+| Privasi | Tidak ada telemetry default; tidak ada upload tanpa aksi pengguna. |
+| Desain | MADS v3 Clay; token `--mads-*` adalah kontrak. |
 
-## 3. Struktur Keputusan
+Menambahkan platform atau backend baru bukan keputusan rilis; itu perubahan produk yang mengubah PRD dan memerlukan ADR baru sesuai [ADR index](../01-architecture/adr/README.md).
 
-### 3.1 Maintainer Council
+## 3. Maintainer
 
-- Council terdiri dari **minimal 3** dan maksimal 7 maintainer aktif.
-- Masa jabatan 12 bulan dan dapat diperpanjang; komposisi diperbarui setiap tahun.
-- Council **MUST** mencakup setidaknya satu maintainer dengan fokus keamanan dan satu dengan fokus rilis.
-- Kuorum keputusan adalah mayoritas sederhana dari council aktif; keputusan biasa memakai **lazy consensus**.
-- Keputusan struktural memerlukan **2/3** suara council aktif.
+### 3.1 Komposisi
 
-### 3.2 Peran
+- Council terdiri dari **3–7** maintainer aktif.
+- Komposisi **MUST** mencakup minimal satu maintainer dengan fokus keamanan dan satu dengan fokus rilis.
+- Masa jabatan 12 bulan, dapat diperpanjang; komposisi ditinjau setiap tahun dan dicatat di repositori.
+- Maintainer yang tidak aktif selama 90 hari berturut-turut tanpa pemberitahuan dipindahkan ke status emeritus setelah satu kali konfirmasi.
 
-| Peran | Tanggung jawab | Batas |
+### 3.2 Tanggung jawab
+
+| Peran | Tanggung jawab |
+|---|---|
+| Release manager | Menjaga gate rilis, menjadwalkan rilis, memimpin rollback |
+| Security maintainer | Menangani laporan privat, menyetujui perubahan CSP/sandbox/kripto |
+| Docs maintainer | Menjaga checker dokumentasi, matrix, dan status implementasi |
+| Design maintainer | Menjaga DESIGN.md, token clay, dan katalog komponen |
+| Maintainer umum | Review PR, triage issue, kurasi template dan index statis |
+
+### 3.3 Menjadi maintainer
+
+Kandidat **MUST** memenuhi seluruh syarat:
+
+1. Minimal 10 kontribusi bermakna yang sudah di-merge dalam 6 bulan terakhir.
+2. Riwayat review yang menunjukkan pemahaman kontrak web-only.
+3. Nominasi oleh satu maintainer dan persetujuan 2/3 council.
+4. Tidak ada konflik kepentingan yang tidak diungkap.
+
+Pencabutan status dilakukan lewat 2/3 suara council dengan alasan tertulis dan hak tanggapan.
+
+## 4. Proses Keputusan
+
+| Jenis keputusan | Mekanisme | Kuorum |
 |---|---|---|
-| Maintainer | Review, merge, rilis, keputusan tata kelola | Tidak dapat mengubah dokumen ini tanpa proses |
-| Reviewer area | Review teknis pada area tertentu (runtime, data, server, desain) | Tidak memiliki hak merge kecuali juga maintainer |
-| Release manager | Menandatangani dan menerbitkan rilis | Rotasi per rilis; tidak menyetujui kode sendiri |
-| Security team | Triage kerentanan, koordinasi perbaikan dan advisori | Tidak mempublikasikan detail sebelum perbaikan |
-| Registry curator | Review publish, delisting, banding | Tidak boleh mengurasi paket miliknya sendiri |
-| Contributor | Mengajukan issue, RFC, dan PR | Mengikuti aturan review dan lisensi |
+| Rutin (review, triage, patch) | Lazy consensus 72 jam; satu approval reviewer di luar penulis | Tidak ada |
+| Perubahan perilaku terbatas | Lazy consensus 72 jam + minimal satu reviewer area | 2 maintainer |
+| Struktural (platform, data, keamanan, lisensi, cakupan) | RFC + ADR + 2/3 suara council aktif | Mayoritas council |
+| Darurat keamanan | Security maintainer + commander insiden; ratifikasi 72 jam | 1 security + 1 release |
 
-### 3.3 Lazy Consensus
-
-Usulan dianggap diterima bila tidak ada keberatan yang beralasan dalam **7 hari** kalender sejak usulan dipublikasikan dan seluruh pemeriksaan wajib tersedia.
-
-| Jenis keputusan | Mekanisme | Tenggat |
-|---|---|---|
-| Perbaikan docs, typo, test | Lazy consensus reviewer area | 3 hari |
-| Perubahan non-kontrak dalam spec yang berlaku | Lazy consensus 2 maintainer | 7 hari |
-| Perubahan kontrak (manifest, bridge, MUIP, sync/CRDT, permission, crypto, registry) | RFC + 2 maintainer + lazy consensus | 14 hari |
-| Perubahan lisensi atau tata kelola | RFC + 2/3 council | 14 hari |
-| Penghapusan maintainer | 2/3 council dengan alasan tertulis | 7 hari |
-
-Keberatan **MUST** menyebut risiko teknis atau dampak nyata, bukan preferensi pribadi. Bila keberatan tidak selesai, keputusan dibawa ke voting council.
-
-## 4. RFC dan Perubahan Kontrak
-
-Perubahan berikut **MUST** melalui [rfc-process.md](rfc-process.md) sebelum implementasi:
-
-- Skema `microapp.manifest.json` dan format `.mapp`.
-- Protokol Host Bridge dan MUIP.
-- Protokol sync, CRDT, dan format snapshot.
-- ID permission, risk tier, dan semantik consent.
-- Algoritma kriptografi, envelope, dan hierarki kunci.
-- Format indeks registry, trust level, dan mekanisme pencabutan kunci.
-- Kontrak CLI/SDK yang dapat memutus kompatibilitas.
-
-RFC yang diterima **MUST** tercermin di spec sebelum kode diubah. Bila RFC mengubah keputusan arsitektur, ADR terkait **MUST** disupersede, bukan diabaikan.
+- Lazy consensus berarti usul diterima bila tidak ada keberatan beralasan dalam 72 jam.
+- Keberatan **MUST** menyebut risiko konkret dan usul alternatif; keberatan tanpa substansi dicatat tetapi tidak memblokir.
+- Semua keputusan struktural dicatat dengan tautan diskusi, RFC, dan ADR.
+- Bila suara seri, status quo dipertahankan sampai ada bukti atau RFC lanjutan.
 
 ## 5. Rilis
 
-| Kewajiban | Detail |
-|---|---|
-| Review | Rilis hanya dari commit yang sudah melalui review dan docs check |
-| Tanda tangan | Tag dan artefak rilis ditandatangani Ed25519 oleh release manager |
-| SBOM | CycloneDX atau SPDX disertakan (`NFR-SUPPLY-001`) |
-| Checksum | SHA-256 untuk setiap artefak (`NFR-SUPPLY-002`) |
-| Provenance | SLSA build provenance tersedia dan dapat diverifikasi |
-| Catatan rilis | Perubahan, migrasi, dan rollback dijelaskan |
-| Rotasi | Release manager berganti minimal setiap dua rilis minor |
+| Jenis | Irama | Syarat |
+|---|---|---|
+| Fitur (minor) | Setiap dua minggu | Seluruh gate rilis hijau, changelog terisi |
+| Patch | Sesuai kebutuhan | Perbaikan terbatas, gate minimum hijau |
+| Keamanan | Segera setelah verifikasi | Advisori, patch, dan uji regresi |
 
-- Rilis **MUST NOT** memuat artefak yang dibangun dari working tree kotor.
-- Rilis **MUST NOT** menaikkan versi mayor kontrak tanpa RFC yang diterima.
-- Kebijakan dukungan: host mendukung mayor kontrak saat ini dan mayor sebelumnya selama **12 bulan**.
-- Rilis darurat keamanan **MAY** memotong proses normal dengan persetujuan dua maintainer dan security team; dokumen tetap diperbarui dalam 24 jam.
+- Rilis **MUST** berasal dari commit di `main` dan artefak dipromosikan, bukan dibangun ulang, sesuai [deployment](../09-operations/deployment.md).
+- Tidak ada hotfix langsung ke produksi tanpa commit di `main`.
+- Versi mengikuti semver untuk paket `.mapp` dan manifest; versi aplikasi host dicatat di `/settings/about`.
+- Setiap rilis mencantumkan SHA, perubahan yang terlihat pengguna, dan migrasi data bila ada.
 
-## 6. Registry dan Kurasi
+## 6. Lisensi
 
-- Registry resmi dikurasi melalui review publik; keputusan dan alasannya dicatat.
-- Trust level `official`, `community`, `internal`, dan `local` **MUST NOT** dinaikkan otomatis oleh popularitas atau pembayaran.
-- Kurator **MUST** menolak paket yang melanggar [registry-policy.md](registry-policy.md).
-- Malware aktif **MUST** di-delisting sementara dalam **24 jam**; banding tersedia dalam **7 hari**.
-- Delisting **MUST NOT** menghapus data pengguna; hanya instalasi baru dan update yang diblokir (`FR-REG-024`).
-- Tidak ada slot, peringkat, atau badge berbayar di registry.
+- Proyek dilisensikan **Apache-2.0**. Berkas [LICENSE](../../LICENSE) adalah teks lisensi yang mengikat.
+- Kontribusi **MUST** memakai DCO (`Signed-off-by`) untuk menyatakan hak kontribusi; tidak ada CLA.
+- Tidak ada open-core, paywall, seat limit, atau fitur yang dikunci untuk edisi berbayar.
+- Aset merek (nama, logo) tidak otomatis ikut lisensi kode; penggunaannya diatur kebijakan merek yang terpisah.
+- Dependensi **MUST** kompatibel dengan Apache-2.0; lisensi kode sumber yang tidak kompatibel ditolak pada review.
 
-## 7. Keamanan dan Pengungkapan
+## 7. Pendanaan
 
-| Tahap | Kewajiban |
-|---|---|
-| Pelaporan | Kanal privat (security advisory) atau kontak maintainer; bukan issue publik |
-| Acknowledgment | Maksimal **48 jam** |
-| Perbaikan critical | Maksimal **7 hari** |
-| Perbaikan high | Maksimal **30 hari** |
-| Advisori | Setelah perbaikan tersedia; memuat versi terdampak dan mitigasi |
-| Kredit | Diberikan bila peneliti setuju; anonim bila diminta |
-| CVE | Diajukan bila relevan dan perbaikan sudah tersedia |
+- Pendanaan diterima lewat sponsor individu/organisasi dan donasi umum; tidak ada sponsor yang mendapat fitur eksklusif, prioritas review, atau pengaruh atas keputusan keamanan.
+- Penggunaan dana: biaya host, domain, sertifikat, alat CI, dan honor pemeliharaan.
+- Laporan penggunaan dana diterbitkan setiap kuartal tanpa detail pribadi penyumbang.
+- Sponsor **MUST NOT** diminta atau diizinkan menempatkan analitik, iklan, atau kode pelacakan di aplikasi.
 
-- Kerentanan **MUST NOT** dibahas di issue publik, diskusi, atau media sosial sebelum perbaikan.
-- Maintainer yang menemukan kerentanan **MUST** mengikuti jalur privat yang sama; tidak ada pengecualian untuk "sudah diketahui".
-- Detail eksploit **MUST NOT** dimasukkan ke advisori publik sebelum mayoritas pengguna dapat memperbarui.
+## 8. Konflik Kepentingan
 
-## 8. Lisensi dan Kontribusi
+- Maintainer **MUST** mengungkap afiliasi komersial yang terkait paket, template, index statis, atau layanan AI.
+- Maintainer yang memiliki kepentingan pada paket yang direview **MUST** mundur dari keputusan tersebut; pengganti ditunjuk council.
+- Paket yang dibuat maintainer tidak mendapat perlakuan khusus pada review, verifikasi signature, atau kurasi index.
+- Pengungkapan dicatat di repositori pada berkas kontributor; perubahan afiliasi dilaporkan dalam 30 hari.
 
-| Komponen | Lisensi |
-|---|---|
-| Core, platform, Host, server | Apache-2.0 |
-| SDK, CLI, UI kit, template micro-app | MIT |
+## 9. Keamanan dan Pengungkapan
 
-- Root [LICENSE](../../LICENSE) berisi Apache-2.0; lisensi MIT paket dinyatakan pada paket masing-masing saat scaffold dibuat.
-- Kontribusi memakai model inbound = outbound: kontributor menyetujui lisensi yang sama dengan komponen yang disentuh.
-- Proyek **MUST NOT** mensyaratkan penugasan hak cipta (CLA) atau lisensi eksklusif.
-- Setiap commit **MUST** menyertakan sign-off DCO (`Signed-off-by`) yang menyatakan hak untuk menyumbangkan kode.
-- Kode pihak ketiga **MUST** kompatibel dengan lisensi komponen dan dicatat di SBOM.
-- Perubahan lisensi **MUST** melalui RFC dan persetujuan 2/3 council; perubahan tidak berlaku surut pada kontribusi yang sudah diterima.
+- Laporan kerentanan ditangani privat sesuai [SECURITY.md](../../SECURITY.md) dan [incident response](../09-operations/incident-response.md).
+- Maintainer **MUST NOT** membuat pernyataan publik yang mengonfirmasi kerentanan sebelum mitigasi tersedia.
+- Kredit pelapor diberikan bila diinginkan; pelapor tidak diminta menandatangani perjanjian kerahasiaan yang membatasi pengungkapan setelah perbaikan.
 
-## 9. Pendanaan
+## 10. Verifikasi
 
-- Pendanaan bersifat sukarela melalui GitHub Sponsors, Open Collective, Saweria, atau dukungan teknis opsional.
-- Donasi **MUST NOT** membeli fitur, prioritas review, peringkat registry, atau akses khusus.
-- Tidak ada iklan di dalam produk, tidak ada penjualan data, dan tidak ada telemetry yang dimonetisasi.
-- Laporan keuangan agregat **SHOULD** dipublikasikan setiap tahun, tanpa mengungkap data pribadi pendukung.
-- Biaya operasional server publik ditanggung proyek atau sponsor infrastruktur; pengguna tetap dapat self-host gratis.
-
-## 10. Menjadi Maintainer
-
-| Tahap | Kriteria |
-|---|---|
-| Kontributor aktif | Minimal 10 PR yang di-merge dalam 3 bulan, mencakup lebih dari satu area |
-| Nominasi | Dua maintainer aktif mengajukan nominasi tertulis |
-| Review | Rekam jejak review, pemahaman threat model, dan kepatuhan docs-first |
-| Konsensus | Lazy consensus council selama 14 hari tanpa keberatan beralasan |
-| Onboarding | Akses repositori, kanal keamanan, dan peninjauan [00-foundation/sdd-workflow.md](../00-foundation/sdd-workflow.md) |
-
-- Maintainer yang tidak aktif selama **6 bulan** tanpa pemberitahuan berpindah ke status emeritus; status dapat dipulihkan melalui nominasi sederhana.
-- Maintainer **MUST** menyatakan konflik kepentingan (pekerjaan, sponsor, produk pesaing) dan mundur dari keputusan terkait.
-- Penghapusan maintainer karena pelanggaran keamanan atau kode etik memerlukan 2/3 council dan alasan tertulis; maintainer yang bersangkutan berhak menanggapi.
-
-## 11. Perubahan Tata Kelola
-
-- Perubahan dokumen ini **MUST** melalui RFC dengan periode komentar minimal 14 hari.
-- Persetujuan memerlukan 2/3 council aktif dan tidak ada keberatan keamanan yang belum diselesaikan.
-- Perubahan **MUST** dicatat di riwayat dokumen dan diumumkan pada catatan rilis berikutnya.
-- Bila terjadi konflik antara dokumen ini dan perilaku nyata, dokumen ini menang sampai diperbarui melalui proses di atas.
-
-## 12. Verifikasi
-
-| Bukti | Prosedur |
-|---|---|
-| Lazy consensus | Uji usulan tanpa keberatan; keputusan tercatat setelah 7 hari |
-| Voting | Uji keputusan struktural; ambang 2/3 dihitung dari council aktif |
-| RFC gate | PR kontrak tanpa RFC ditolak reviewer |
-| Rilis | Periksa tag bertanda tangan, SBOM, checksum, dan provenance |
-| Registry | Uji delisting 24 jam dan banding 7 hari pada lingkungan latihan |
-| Lisensi | Audit paket: Apache-2.0 core, MIT SDK/CLI/UI kit/template |
-| Pendanaan | Tidak ada fitur atau peringkat yang bergantung pada sponsor |
-| Maintainer baru | Simulasi nominasi; seluruh tahap tercatat |
-
-## 13. Referensi
-
-- [00-foundation/sdd-workflow.md](../00-foundation/sdd-workflow.md), [00-foundation/product-foundation.md](../00-foundation/product-foundation.md)
-- [ADR-0009](../01-architecture/adr/0009-license-governance.md)
-- [rfc-process.md](rfc-process.md), [registry-policy.md](registry-policy.md)
-- [03-specs/07-selfhost.md](../03-specs/07-selfhost.md), [03-specs/nfr.md](../03-specs/nfr.md)
+| # | Pemeriksaan | Bukti |
+|---|---|---|
+| 1 | Komposisi council memenuhi 3–7 dan fokus keamanan/rilis | Catatan council |
+| 2 | Setiap keputusan struktural memiliki RFC dan ADR | Tautan di tiket |
+| 3 | Rilis berasal dari `main` dan memakai artefak yang dipromosikan | Catatan rilis |
+| 4 | `LICENSE` Apache-2.0 dan commit membawa `Signed-off-by` | Pemeriksaan repo |
+| 5 | Pengungkapan konflik kepentingan diperbarui ≤ 30 hari | Berkas kontributor |
+| 6 | Tidak ada analitik/iklan pada build rilis | Pemeriksaan smoke test deploy |
